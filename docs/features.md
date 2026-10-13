@@ -140,9 +140,8 @@ If the tmux server dies under live agents (a crash, a reboot), they are marked *
 Small boards (ESP32 and the like) connect over USB serial with Deck Link, a protobuf protocol with the
 same agents, statuses, prompts and actions as the web API ([protocol](link/protocol.md)). The
 [firmware kit](../firmware/deck-link) does the protocol; its examples are a status LED, an OLED tile
-with a button, and a rotary-encoder knob. Ready-made devices are in
-[firmware/devices](../firmware/devices): [t4s3-panel](../firmware/devices/t4s3-panel) is the deck on a
-2.41″ AMOLED touch panel, critters and all.
+with a button, and a rotary-encoder knob.
+[`waveshare-lcd-147`](../firmware/devices/waveshare-lcd-147) is a read-only colour panel for the Waveshare ESP32-S3-LCD-1.47B: one agent in detail next to a mini-board of the fleet.
 
 ```sh
 agentctl link ports                      # USB serial ports that look like boards

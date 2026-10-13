@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include "view.h"
+#include "../sim/fixture.h"
 
 static Agent mk(const char* id, Status st, int64_t since = 1000, bool unseen = false) {
   Agent a;
@@ -62,13 +63,9 @@ int main() {
 
   // The fixture: slots 1 and 6 are waiting.
   {
-    std::ifstream fi(FIXTURE);
-    std::stringstream ss;
-    ss << fi.rdbuf();
-    std::string text = ss.str();
-    DynamicJsonDocument doc(65536);
-    static Fleet f;
-    assert(parseState(text, f, doc));
+    static DeckFleet d;
+    assert(fixture::load(FIXTURE, d));
+    const Fleet& f = d.fleet;
     const int h = autoHero(f);
     assert(f.agents[h].status == Status::Waiting);
     Counts c = countFleet(f);

@@ -23,33 +23,7 @@ Run agents however you like: in [Orca](https://github.com/stablyai/orca), [herdr
 | <img src="docs/images/panel-board-v2.png" alt="wall panel"> | <img src="docs/images/cli.png" alt="agentctl in the terminal"> |
 | **Wall panel.** A 4″ touch panel on Wi-Fi, as a companion. | **Terminal.** `agentctl` starts, lists, resumes and restores agents. |
 
-## Works with your harness
-
-agents deck is a status board, not a harness. If you already run your agents in one of these, there's nothing to set up: the deck finds them on your Mac, shows each agent's state (working, needs you, done) next to the rest, and lets you answer, interrupt and jump to them from any screen.
-
-| Runs your agents | What the deck shows |
-|---|---|
-| [Orca](https://github.com/stablyai/orca) | agents in Orca's worktrees, while Orca is open |
-| [herdr](https://herdr.dev) | agents in herdr's panes, in every herdr session that's running |
-| [cmux](https://cmux.com) | Claude agents in cmux's terminals, while cmux is open (answering from the deck needs one cmux setting, see [features](docs/features.md#cmux)) |
-| Codex app and Codex CLI | threads from the last 6 hours, read-only |
-| agentctl (built in) | agents it starts with `agentctl new`, each in a tmux session with a status header |
-| Claude Code on its own | sessions you started by hand in any terminal, once you add them |
-
-Details for each are in [docs/features.md](docs/features.md#agents-in-other-harnesses).
-
-**Your harness missing?** Open a pull request ([docs/harnesses.md](docs/harnesses.md) walks through adding one), or name it in the [harness tracking issue](https://github.com/brushknight/agents-deck/issues/7) so we know what to add next.
-
-## Hardware
-
-Both are optional: the menu bar and the browser show the same deck.
-
-| | |
-|---|---|
-| <img src="docs/images/panel-question-v2.png" alt="a question on the wall panel" width="320"> | <img src="firmware/devices/t4s3-panel/images/grid.png" alt="the deck on the LilyGo T4-S3" width="200"> |
-| **[Wall Panel](https://github.com/dotstartech/wall-panel)**: a 4″ 720×720 touch panel with a Raspberry Pi CM4 inside, running the deck's Flutter app. It talks to the daemon over Wi-Fi, with TLS 1.3 and its own device certificate (`agentctl pair`). | **[LilyGo T4-S3](https://lilygo.cc/products/t4-s3)**: a 2.41″ AMOLED touch board on USB, with no wiring. Flash [t4s3-panel](firmware/devices/t4s3-panel) and it shows your agents in a scrolling grid, with cards you can answer from. |
-
-**Build your own.** Any board with a USB serial port (ESP32 and friends) gets the same agents, prompts and actions through [Deck Link](docs/link/protocol.md); the [firmware kit](firmware/deck-link) has a status LED, an OLED tile and a knob to start from, and [docs/link/new-device.md](docs/link/new-device.md) says how to add a device.
+**Small boards** (ESP32 and friends) plug in over USB and get the same agents, prompts and actions through [Deck Link](docs/link/protocol.md); the [firmware kit](firmware/deck-link) has a status LED, an OLED tile and a knob to start from, and [`waveshare-lcd-147`](firmware/devices/waveshare-lcd-147) is a ready-made colour panel.
 
 Each critter shows what its agent is doing: thinking, reading, editing, running commands, compacting, waiting for you, or hungry for review once it's done. It wears a pixel hat picked by its working folder, so a project's agents look alike; tap the critter to pick another. The full tour is in [docs/features.md](docs/features.md).
 
@@ -157,4 +131,5 @@ The per-project pixel hats were inspired by [“9 NEW Claude Mods that can truly
 | `clients/macos` | The menu bar app (Flutter + a small Swift shell). |
 | `proto/` | `link.proto`: the Deck Link contract for serial boards. |
 | `firmware/deck-link` | The C firmware kit for Deck Link boards (ESP32), with examples. |
+| `firmware/devices` | Firmware for specific boards, built on the kit (`waveshare-lcd-147`: a colour panel). |
 | `docs/fixtures/state.json` | The sample fleet behind demo mode, the web fixture view and the tests. |

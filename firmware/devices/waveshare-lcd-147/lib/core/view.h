@@ -44,7 +44,7 @@ constexpr uint32_t kHoldMs = 30000;
 
 // The button pins one agent as hero for kHoldMs.
 struct ViewState {
-  char heldId[8] = "";
+  char heldId[12] = "";
   bool hold = false;
   uint32_t holdUntilMs = 0;
 };

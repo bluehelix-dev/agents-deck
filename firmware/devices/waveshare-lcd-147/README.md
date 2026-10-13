@@ -1,134 +1,149 @@
-# agents deck on an ESP32-S3 board
+# waveshare-lcd-147: an agents deck panel on an ESP32-S3
 
 A small desk panel for agents deck: firmware for the
 [Waveshare ESP32-S3-LCD-1.47B](https://www.waveshare.com/wiki/ESP32-S3-LCD-1.47B)
-(ST7789, 320×172, no touch, one button, one RGB LED). The board connects to
-the `agentctl` daemon over Wi-Fi and shows the fleet.
+(ST7789, 320×172, no touch, one BOOT button, one RGB LED). It plugs into the Mac over USB and shows
+the fleet through [Deck Link](../../../docs/link/protocol.md).
+
+Written by **belidor**, who made the original Wi-Fi panel with its drawing, mascots, hats and font.
+It was adapted to Deck Link for this repository.
 
 ![screen](docs/screen.png)
 
-The board is a pure client and it is **read-only**. It speaks the same `/v1`
-protocol as the big panel, with the same pinned certificate and token, opens
-the event stream and sends nothing else. Everything it draws comes from the
-daemon: which agents, their status and activity, their hats. It cannot answer
-a prompt, focus a terminal or stop an agent.
+The board is **read-only**. It sends Hello, Subscribe and Pong (the [kit](../../deck-link) does all
+three) and never a command, so it can't answer a prompt, focus a terminal or stop an agent. The
+default `view` scope is all it needs.
 
 ## What the screen shows
 
-- **Left, the hero**: one agent with its sprite and pose, name, status and
-  age, model, what it is doing, context bar, turns and cost. The footer shows
-  its position and how many agents run, wait or failed.
-- **Right, the mini-board**: up to 8 agents in slot order. A solid orange cell
-  is an agent that waits for you. The white frame marks the hero.
-- The board picks the hero itself: waiting → error → finished but not reviewed
-  ("hungry") → running → the rest. Equal rank: the most recent change wins.
-- **BOOT button**: a short press shows the next agent and holds it for 30 s.
-  A small square in the footer marks the hold. A new waiting agent ends it.
-- **LED**: orange flashes when an agent waits or failed, a slow blue breath
-  while agents run, off otherwise.
+- **Left, the hero**: one agent with its sprite and pose, name, status and age, model, what it is
+  doing, context bar, turns and cost. The footer shows its position and how many agents run, wait or
+  failed.
+- **Right, the mini-board**: up to 8 agents in slot order. A solid orange cell is an agent that waits
+  for you. The white frame marks the hero.
+- The board picks the hero itself: waiting → error → finished but not reviewed ("hungry") → running →
+  the rest. Equal rank: the most recent change wins.
+- **BOOT button**: a short press shows the next agent and holds it for 30 s. A small square in the
+  footer marks the hold. A new waiting agent ends it. The button changes only what the board shows.
+- **LED**: orange flashes when an agent waits or failed, a slow blue breath while agents run, off
+  otherwise.
 - **Backlight**: dim when every agent is idle.
-- Full-screen messages: `no Wi-Fi`, `looking for the Mac`, `connecting`,
-  `pairing error`, `no agents`. If the link drops, the last fleet stays on
-  screen with `link lost` in the footer.
+- Full-screen messages:
+  - `connecting`: no answer from the deck yet.
+  - `waiting for approval`: shows the board's name and the command to approve it.
+  - `no agents`.
+  - `deck offline`: the deck has been silent for 15 s and the board has no fleet to show yet.
 
-The mascots are ported from the web UI: Claude's block with arms, the Codex
-onigiri, every pose, and the pixel hat of each working folder (13 shapes,
-8 colours, sent by the daemon). Text is Roboto Mono with Latin and Cyrillic.
+  Once the board has a fleet, a silent deck keeps the last fleet on screen with `deck offline` in the
+  footer.
 
-## Build and flash
+The mascots are ported from the web UI: Claude's block with arms, the Codex onigiri, every pose, and
+the pixel hat of each working folder (13 shapes, 8 colours, sent by the deck). Text is Roboto Mono
+with Latin and Cyrillic.
 
-Requirements: [PlatformIO](https://platformio.org/) and Python 3.10+ with
-`pyserial` and `pillow` (for the tools), the daemon installed on the Mac
-(`agentctl install`), and the board on the same Wi-Fi network.
+## What it asks the deck for
+
+- **Hello**: type `waveshare-lcd-147`, display 320×172 colour, input BUTTON, board id = the chip's
+  MAC.
+- **Subscribe**: every agent (`slot_count` 0), fields `TILE | CARD | PROMPT | NUMBERS`. The board
+  keeps the 16 lowest slots.
+  - TILE: status, age, context, hat, sub-agent count.
+  - CARD: the session title, model, what the tool works on, the error message.
+  - PROMPT: the waiting prompt's title and detail.
+  - NUMBERS: turns and cost.
+- **Clock**: the board has none. It takes the deck's time from `SnapshotBegin.server.time_ms` and from
+  every `Ping` (every 5 s), then adds `millis()` since. Ages drift by at most one ping interval.
+
+## Build, flash, connect
+
+You need [PlatformIO](https://platformio.org/) and the daemon on the Mac (`agentctl install`).
 
 ```bash
-cd panel-esp32
-python3 -m venv .venv && .venv/bin/pip install platformio pyserial pillow
-.venv/bin/python tools/make_config.py --ssid "my-network"
-.venv/bin/pio run -t upload
+pio run -d firmware/devices/waveshare-lcd-147 -t upload
+agentctl link add /dev/cu.usbmodem1101        # the board's port: agentctl link ports
+agentctl devices approve waveshare-lcd-147-<id>
 ```
 
-`make_config.py` reads `agentctl pair` and writes `include/config.h`: the
-daemon's host, port, token and certificate fingerprint, and the Wi-Fi name
-and password (asked for without echo). The file is mode 600 and is not in
-git. Everything except the pairing is kept on a re-run, so after `agentctl
-pair --rotate` this is enough:
+The screen shows the exact `approve` command until you run it. There's no Wi-Fi, no pairing and no
+token: the USB cable is the connection, and the deck decides what the board may see.
 
-```bash
-.venv/bin/python tools/make_config.py && .venv/bin/pio run -t upload
-```
+No wiring is needed: the display, button and LED are on the board. Pins:
 
-Other options: `--host` (an address instead of the mDNS name), `--hostname`
-(the board's own name), `--wifi-from HEADER` (copy `WIFI_SSID` / `WIFI_PASS`
-from another firmware's header), `--wifi-nvs NAMESPACE` (use the `ssid` and
-`pass` keys a previous firmware left in the board's NVS).
+| part | GPIO |
+|---|---|
+| LCD | DC 41, CS 42, SCK 40, MOSI 45, RST 39, backlight 46 |
+| RGB LED | 38 |
+| BOOT button | 0 |
+
+The link is the chip's own USB (CDC). Opening the port with DTR low and RTS high resets the chip into
+the bootloader, so the PlatformIO monitor is set to leave both alone. The daemon lets go of the port
+while the flasher has it open.
 
 ## Sessions started outside agentctl
 
-The board shows what the daemon has on its deck, nothing else. A Claude
-session started by hand, in the background or in the desktop app gets there
-through the daemon: `agentctl live` lists them and `agentctl add <session>`
-puts one on the deck. The board then draws it like any other agent.
+The board shows what the deck has, nothing else. A Claude session started by hand, in the background
+or in the desktop app reaches the deck through the daemon:
 
-## Look at the board from the Mac
+- `agentctl live` lists them.
+- `agentctl add <session>` puts one on the deck.
 
-```bash
-.venv/bin/python tools/capture.py --status
-.venv/bin/python tools/capture.py out/board.png --scale 2
-```
-
-`--status` prints the firmware's state (link, agent count, free heap). The
-PNG is the board's real framebuffer, read over USB serial.
-
-Open the serial port the way `tools/capture.py` does. This chip resets when
-RTS is high while DTR is low, and a naive open passes through that state.
+The board then draws it like any other agent.
 
 ## Tests and the host renderer
 
 ```bash
-.venv/bin/pio pkg install
 tests/run.sh
-clang++ -std=c++17 -Ilib/core -I.pio/libdeps/waveshare-s3-147b/ArduinoJson/src sim/render.cpp -o out/render
-mkdir -p out/frames && out/render ../docs/fixtures/state.json out/frames 300
-.venv/bin/python tools/ppm2png.py out/sheet.png out/frames/hero-*.ppm --cols 3
 ```
 
-`lib/core` has no Arduino code, so the same parsing, hero choice and drawing
-run on the Mac. `sim/render` draws every frame of a State JSON file without
-the board. For a live fleet without real agents use `agentctl sim start`.
+It compiles the drawing, the view logic and the Deck Link adapter on the host with AddressSanitizer
+and UBSan (clang or gcc). It uses the kit in `../../deck-link` and the sample fleet in
+`docs/fixtures/state.json`.
+
+`tests/test_adapter.cpp` checks:
+
+- every field the screen uses;
+- snapshots, updates and removals;
+- the clock;
+- the whole path from wire bytes through the kit to the fleet.
+
+```bash
+c++ -std=c++17 -Ilib/core -I../../deck-link/src -I../../deck-link/src/proto sim/render.cpp -o out/render
+mkdir -p out/frames && out/render ../../../docs/fixtures/state.json out/frames 300
+python3 tools/ppm2png.py out/sheet.png out/frames/hero-*.ppm --cols 3    # needs pillow
+```
+
+`sim/render` draws every frame of a State JSON file without the board. It turns the file into the
+Deck Link frames the deck would send (`sim/fixture.h`) and feeds them through the board's adapter, so
+the pictures are what the board would show. `docs/screen.png` is `hero-00` and `hero-01`
+(`--cols 2 --scale 2`).
+
+`sim/panel_sim` is the board's whole logic on the host (kit, adapter, view, screen), with stdin and
+stdout as the serial port; `tests/run.sh` builds it. Use it to run the board against a real deck
+without hardware: it logs its link state and hero to stderr and can write the last frame with `--ppm`.
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `src/main.cpp` | Wi-Fi, mDNS, TLS with a pinned certificate, stream, display, LED, button, serial debug |
-| `lib/core/sse.h` | finds each `data:` payload in the event stream |
-| `lib/core/model.h` | `Fleet` and `parseState()` |
+| `src/main.cpp` | the Deck Link port, display, LED, button |
+| `lib/core/deck_model.h` | Deck Link frames into the `Fleet`; the board's Hello and Subscribe |
+| `lib/core/model.h` | `Fleet`, `Agent`, `LinkState` |
 | `lib/core/view.h` | hero choice, button hold, poses, text lines |
 | `lib/core/canvas.h`, `font_data.h` | RGB565 framebuffer, bitmap font |
 | `lib/core/sprites.h` | the block, the onigiri, 16 poses and 13 hats |
 | `lib/core/screen.h` | the frame layout |
-| `tools/` | `make_config.py`, `capture.py`, `make_font.py`, `ppm2png.py` |
-
-## Security
-
-- The board checks the SHA-256 of the daemon's certificate before it sends
-  the token. A wrong certificate gives `pairing error` and no request.
-- The token is stored in the firmware image in plain text. Anyone who can
-  read the board's flash can read it. Rotate it with `agentctl pair --rotate`.
-- There is no server on the board. USB serial answers two read-only
-  commands.
+| `sim/` | `render.cpp`, `panel_sim.cpp`, `fixture.h` (host only) |
+| `tools/` | `make_font.py`, `ppm2png.py` |
 
 ## Limits
 
-- Landscape only. At most 16 agents in memory and 8 on the mini-board.
+- Landscape only. At most 16 agents in memory and 8 on the mini-board. With more than 16 agents, if
+  one of the kept agents leaves, the next one appears only at the next snapshot.
 - Roboto Mono has no arrows or CJK. A missing glyph is drawn as `?`.
-- While the daemon is unreachable the screen can stall for up to 2 s at a
-  time: the mDNS lookup and the TLS handshake block.
-- The request line is `GET /v1/events HTTP/1.0`, so the daemon streams
-  without chunked encoding and the firmware needs no chunk decoder.
+- The serial port carries Deck Link only, so there's no debug console and no framebuffer capture over
+  USB. The host renderer draws the same pixels.
 
 ## Licences
 
-The bitmap font in `lib/core/font_data.h` is rendered from Roboto Mono
-(SIL Open Font License 1.1, `lib/core/OFL-robotomono.txt`).
+The bitmap font in `lib/core/font_data.h` is rendered from Roboto Mono (SIL Open Font License 1.1,
+`lib/core/OFL-robotomono.txt`).

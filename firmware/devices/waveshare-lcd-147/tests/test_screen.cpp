@@ -4,18 +4,16 @@
 #include <string>
 #include <vector>
 #include "screen.h"
+#include "../sim/fixture.h"
 
 static const uint16_t GUARD = 0xDEAD;
 static const int PAD = 2 * kScreenW;
 
 int main() {
-  std::ifstream fi(FIXTURE);
-  std::stringstream ss;
-  ss << fi.rdbuf();
-  std::string text = ss.str();
-  DynamicJsonDocument doc(65536);
-  static Fleet f;
-  assert(parseState(text, f, doc));
+  // The sample fleet, as the deck would send it over Deck Link.
+  static DeckFleet d;
+  assert(fixture::load(FIXTURE, d));
+  const Fleet& f = d.fleet;
 
   std::vector<uint16_t> mem(kScreenW * kScreenH + 2 * PAD, GUARD);
   Canvas c{mem.data() + PAD, kScreenW, kScreenH};
@@ -42,12 +40,11 @@ int main() {
 
   // Every link state, with a fleet, with an empty fleet, with no fleet and with a bad hero index.
   static Fleet empty;
-  for (LinkState ls : {LinkState::NoWifi, LinkState::Resolving, LinkState::Connecting, LinkState::PairError,
-                       LinkState::Live, LinkState::Lost}) {
-    drawScreen(c, {&f, 0, ls, "MacBook-Pro", 100, f.serverTime, false});
-    drawScreen(c, {&empty, -1, ls, "MacBook-Pro", 100, 0, false});
+  for (LinkState ls : {LinkState::Connecting, LinkState::Unapproved, LinkState::Live, LinkState::Lost}) {
+    drawScreen(c, {&f, 0, ls, "waveshare-lcd-147-a1b2c3", 100, f.serverTime, false});
+    drawScreen(c, {&empty, -1, ls, "waveshare-lcd-147-a1b2c3", 100, 0, false});
     drawScreen(c, {nullptr, -1, ls, nullptr, 100, 0, false});
-    drawScreen(c, {&f, 99, ls, "a-very-long-host-name-that-does-not-fit-on-the-screen-at-all", 100, 0, true});
+    drawScreen(c, {&f, 99, ls, "a-very-long-device-name-that-does-not-fit-on-the-screen-at-all", 100, 0, true});
     assert(guards());
   }
 
@@ -55,12 +52,26 @@ int main() {
   {
     std::string longRu;
     for (int i = 0; i < 40; i++) longRu += "\xD0\x96\xD1\x8B";
-    std::string t = "{\"server\":{\"name\":\"m\"},\"agents\":[{\"id\":\"ru\",\"slot\":0,\"title\":\"" + longRu +
-                    "\",\"aiTitle\":\"" + longRu + "\",\"status\":\"running\",\"modelLabel\":\"" + longRu +
-                    "\",\"activity\":{\"tool\":\"Edit\",\"detail\":\"/a/" + longRu + "\"},\"context\":{\"used\":5,\"window\":4},"
-                    "\"turns\":65535,\"costUsd\":123456.78,\"subagents\":[{\"id\":\"s\"}]}]}";
+    static agentsdeck_link_v1_Agent la;
+    memset(&la, 0, sizeof la);
+    snprintf(la.id, sizeof la.id, "ru");
+    copyUtf8(la.title, sizeof la.title, longRu.c_str());
+    copyUtf8(la.ai_title, sizeof la.ai_title, longRu.c_str());
+    copyUtf8(la.model_label, sizeof la.model_label, longRu.c_str());
+    la.status = agentsdeck_link_v1_Status_STATUS_RUNNING;
+    la.has_activity = true;
+    snprintf(la.activity.tool, sizeof la.activity.tool, "Edit");
+    copyUtf8(la.activity.detail, sizeof la.activity.detail, ("/a/" + longRu).c_str());
+    la.has_context = true;
+    la.context.used = 5;
+    la.context.window = 4;
+    la.turns = 65535;
+    la.cost_usd = 123456.78;
+    la.subagent_count = 1;
     static Fleet ru;
-    assert(parseState(t, ru, doc));
+    memset(&ru, 0, sizeof ru);
+    agentFromLink(la, ru.agents[0]);
+    ru.count = ru.total = 1;
     drawScreen(c, {&ru, 0, LinkState::Live, "m", 0, 100, true});
     assert(guards());
     for (int y = 0; y < kScreenH; y++)

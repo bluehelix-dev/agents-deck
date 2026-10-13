@@ -20,13 +20,11 @@ constexpr uint16_t accent = rgb565(0xFF, 0x4D, 0x00);
 constexpr uint16_t line = rgb565(0x26, 0x26, 0x22);
 }  // namespace col
 
-enum class LinkState : uint8_t { NoWifi, Resolving, Connecting, PairError, Live, Lost };
-
 struct ScreenInput {
   const Fleet* fleet;   // while the link is Lost this is the last fleet received
   int hero;             // index into fleet->agents, -1 when there is none
   LinkState link;
-  const char* host;     // daemon host name, shown while looking for it
+  const char* device;   // the board's name on the deck (Welcome.device_name), shown until approved
   uint32_t ms;          // animation clock
   int64_t nowEpoch;     // the daemon's time, now
   bool held;            // the button has pinned the hero
@@ -61,10 +59,12 @@ static inline void centered(Canvas& c, const Font& f, int y, const char* s, uint
   c.text(f, w < kScreenW ? (kScreenW - w) / 2 : 0, y, s, color, kScreenW);
 }
 
-static inline void notice(Canvas& c, Pose pose, uint16_t body, const char* title, const char* hint, uint32_t ms) {
+static inline void notice(Canvas& c, Pose pose, uint16_t body, const char* title, const char* hint, uint32_t ms,
+                          const char* hint2 = nullptr) {
   drawSprite(c, kScreenW / 2 - 28, 26, 4, Species::Claude, pose, body, col::bg, ms, true);
   centered(c, FONT_L, 92, title, col::ink);
   centered(c, FONT_S, 120, hint, col::dim);
+  if (hint2) centered(c, FONT_S, 138, hint2, col::ink);
 }
 
 static inline void dashedFrame(Canvas& c, int x, int y, int w, int h, uint16_t color) {
@@ -137,7 +137,7 @@ static inline void hero(Canvas& c, const ScreenInput& in) {
   int fx = pad;
   if (in.held) { c.rect(pad, 156, 5, 5, fg); fx += 9; }   // pinned by the button
   if (in.link == LinkState::Lost) {
-    c.text(FONT_S, fx, 150, "link lost", waiting ? col::bg : col::accent, lw);
+    c.text(FONT_S, fx, 150, "deck offline", waiting ? col::bg : col::accent, lw);
     return;
   }
   const Counts n = countFleet(f);
@@ -183,26 +183,18 @@ static inline void miniBoard(Canvas& c, const ScreenInput& in) {
 static inline void drawScreen(Canvas& c, const ScreenInput& in) {
   using namespace screen_detail;
   c.fill(col::bg);
-  char buf[64];
   switch (in.link) {
-    case LinkState::NoWifi:
-      notice(c, Pose::Exit, col::dim, "no Wi-Fi", "waiting for the network", in.ms);
-      return;
-    case LinkState::Resolving:
-      snprintf(buf, sizeof buf, "%s.local", in.host ? in.host : "?");
-      notice(c, Pose::Think, col::ink, "looking for the Mac", buf, in.ms);
-      return;
     case LinkState::Connecting:
-      snprintf(buf, sizeof buf, "%s.local", in.host ? in.host : "?");
-      notice(c, Pose::Run, col::ink, "connecting", buf, in.ms);
+      notice(c, Pose::Run, col::ink, "connecting", "waiting for the deck on USB", in.ms, "agentctl link add <port>");
       return;
-    case LinkState::PairError:
-      notice(c, Pose::Err, col::accent, "pairing error", "run tools/make_config.py", in.ms);
+    case LinkState::Unapproved:
+      notice(c, Pose::Wait, col::accent, "waiting for approval", "agentctl devices approve",
+             in.ms, in.device && in.device[0] ? in.device : "<name>");
       return;
     default: break;
   }
   if (!in.fleet || in.fleet->count == 0 || in.hero < 0 || in.hero >= in.fleet->count) {
-    if (in.link == LinkState::Lost) notice(c, Pose::Exit, col::dim, "link lost", "reconnecting", in.ms);
+    if (in.link == LinkState::Lost) notice(c, Pose::Exit, col::dim, "deck offline", "waiting for agentctl", in.ms);
     else notice(c, Pose::Idle, col::dim, "no agents", in.fleet && in.fleet->server[0] ? in.fleet->server : "agentctl new", in.ms);
     return;
   }

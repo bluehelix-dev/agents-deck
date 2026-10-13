@@ -1,7 +1,10 @@
 // Host renderer: draws the same frames as the board, without the board.
 //
-//   clang++ -std=c++17 -Ilib/core -I.pio/libdeps/waveshare-s3-147b/ArduinoJson/src sim/render.cpp -o out/render
-//   out/render ../docs/fixtures/state.json out/frames
+//   c++ -std=c++17 -Ilib/core -I../../deck-link/src -I../../deck-link/src/proto sim/render.cpp -o out/render
+//   out/render ../../../docs/fixtures/state.json out/frames
+//
+// The State JSON file becomes the Deck Link frames the deck would send
+// (sim/fixture.h), and those go through the board's adapter (deck_model.h).
 //
 // Writes PPM files: hero-<slot>.ppm (each agent as the hero), notice-*.ppm
 // (the full-screen states), poses.ppm (every pose of both species) and
@@ -13,6 +16,7 @@
 #include <vector>
 
 #include "screen.h"
+#include "fixture.h"
 
 static void writePpm(const std::string& path, const Canvas& c) {
   std::ofstream out(path, std::ios::binary);
@@ -25,6 +29,8 @@ static void writePpm(const std::string& path, const Canvas& c) {
   }
 }
 
+static const char* const kDevice = "waveshare-lcd-147-a1b2c3";
+
 int main(int argc, char** argv) {
   if (argc < 3) {
     fprintf(stderr, "usage: render <state.json> <outdir> [ms]\n");
@@ -33,16 +39,12 @@ int main(int argc, char** argv) {
   const std::string dir = argv[2];
   const uint32_t ms = argc > 3 ? (uint32_t)atoi(argv[3]) : 0;
 
-  std::ifstream fi(argv[1]);
-  std::stringstream ss;
-  ss << fi.rdbuf();
-  std::string text = ss.str();
-  DynamicJsonDocument doc(65536);
-  static Fleet fleet;
-  if (!parseState(text, fleet, doc)) {
-    fprintf(stderr, "cannot parse %s\n", argv[1]);
+  static DeckFleet deck;
+  if (!fixture::load(argv[1], deck)) {
+    fprintf(stderr, "cannot read %s\n", argv[1]);
     return 1;
   }
+  const Fleet& fleet = deck.fleet;
   // The sample fleet has every statusSince equal to server.time. Move the clock
   // on so the ages are not all "0s" and nobody is still celebrating.
   const int64_t now = (fleet.serverTime ? fleet.serverTime : 1791421323) + 754;
@@ -51,27 +53,26 @@ int main(int argc, char** argv) {
   Canvas c{buf.data(), kScreenW, kScreenH};
 
   for (int i = 0; i < fleet.count; i++) {
-    drawScreen(c, {&fleet, i, LinkState::Live, "MacBook-Pro", ms, now, false});
+    drawScreen(c, {&fleet, i, LinkState::Live, kDevice, ms, now, false});
     char name[32];
     snprintf(name, sizeof name, "/hero-%02u.ppm", fleet.agents[i].slot);
     writePpm(dir + name, c);
   }
 
-  // What the board picks by itself, then the same with the button hold and a lost link.
-  drawScreen(c, {&fleet, autoHero(fleet), LinkState::Live, "MacBook-Pro", ms, now, false});
+  // What the board picks by itself, then the same with the button hold and the deck offline.
+  drawScreen(c, {&fleet, autoHero(fleet), LinkState::Live, kDevice, ms, now, false});
   writePpm(dir + "/auto.ppm", c);
-  drawScreen(c, {&fleet, 0, LinkState::Lost, "MacBook-Pro", ms, now, true});
+  drawScreen(c, {&fleet, 0, LinkState::Lost, kDevice, ms, now, true});
   writePpm(dir + "/held-lost.ppm", c);
 
   static Fleet empty;
-  snprintf(empty.server, sizeof empty.server, "MacBook-Pro");
+  snprintf(empty.server, sizeof empty.server, "workstation");
   const struct { const char* name; LinkState link; const Fleet* f; } kNotices[] = {
-      {"nowifi", LinkState::NoWifi, &empty},       {"resolving", LinkState::Resolving, &empty},
-      {"connecting", LinkState::Connecting, &empty}, {"pairerror", LinkState::PairError, &empty},
-      {"noagents", LinkState::Live, &empty},        {"lost-empty", LinkState::Lost, &empty},
+      {"connecting", LinkState::Connecting, &empty}, {"unapproved", LinkState::Unapproved, &empty},
+      {"noagents", LinkState::Live, &empty},         {"offline-empty", LinkState::Lost, &empty},
   };
   for (const auto& n : kNotices) {
-    drawScreen(c, {n.f, -1, n.link, "MacBook-Pro", ms, now, false});
+    drawScreen(c, {n.f, -1, n.link, kDevice, ms, now, false});
     writePpm(dir + "/notice-" + n.name + ".ppm", c);
   }
 
