@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/images/hero-v4.png" alt="agents deck: Claude Code and Codex agents in the browser and the macOS menu bar, on a 4-inch desk panel, and on six small boards: two round Waveshare screens, a 4-inch square, a 1.8-inch AMOLED, a LilyGO T4-S3 and a 1.47-inch strip, showing agents working, waiting for an answer and done" width="100%"></p>
+<p align="center"><img src="docs/images/hero-v3.png" alt="agents deck: the board of Claude Code and Codex agents in the macOS menu bar, on a 4-inch wall panel and on a 2.4-inch LilyGo T4-S3, finding agents in Orca, herdr, cmux, Codex and tmux" width="100%"></p>
 
 <p align="center">
   <a href="https://github.com/brushknight/agents-deck/actions/workflows/ci.yml"><img src="https://github.com/brushknight/agents-deck/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
