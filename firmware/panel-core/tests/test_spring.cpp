@@ -110,6 +110,8 @@ static void testGeometry() {
   assert(p.scale == 3 && fabsf(hypotf(p.x - 240, p.y - 240) - 188) < 0.01f);
   assert(springPlace(O, 8, 20).shown && !springPlace(O, 9, 20).shown);
   assert(fabsf(springStepDeg(O, 20) - 40) < 0.01f && fabsf(springStepDeg(G, 20) - 51.43f) < 0.01f);
+  // Its middle: the name on the centre line, the lines below it.
+  assert(O.nameBase - fontAscent(FONT_R30B) / 2 > 220 && O.nameBase - fontAscent(FONT_R30B) / 2 < 240);
 }
 
 static void testTurning() {
@@ -331,11 +333,62 @@ static void testPartial(const SpringLayout& lay) {
   assert(partials > 40 && gStrips > 100);
 }
 
+// The middle at rest stays clear of every critter (its body, and the rings
+// of a waiter or a done one) with any fleet of up to 22, and of the
+// dots past a turn: each line at the widest it draws (a long name, a long
+// phrase in either font, the widest state line), from the capitals' top to
+// half the descender; the context bar and the Wi-Fi mark too.
+static void testMiddleClear(const SpringLayout& L) {
+  using namespace spring_draw;
+  const SpringGeom& g = L.G;
+  struct Box { const char* what; float x0, y0, x1, y1; };
+  auto line = [](const char* what, const Font& f, int base, int w) {
+    const float size = f.cellW / 0.6f;
+    // The ink: a glyph stops a pixel short of its advance on either side.
+    return Box{what, 240 - w / 2.f + 1, base - 0.74f * size, 240 + w / 2.f - 1, base + 0.12f * size};
+  };
+  const Box mid[] = {
+      line("name", *L.nameFont, g.nameBase, nameMax(L)),
+      line("phrase", *L.phraseFont, g.phraseBase, 234),
+      line("phrase (26 px)", FONT_XXL, g.phraseBase, g.phraseW),
+      line("state", FONT_XXL, g.metaBase, g.metaW),
+      Box{"bar", 240 - g.barW / 2.f, g.barY - 3.f, 240 + g.barW / 2.f, g.barY + 3.f},
+      Box{"wifi", (float)netBox(g).x, (float)netBox(g).y, (float)(netBox(g).x + netBox(g).w), (float)(netBox(g).y + netBox(g).h)},
+  };
+  // Each line below the one above it (the phrase in either font).
+  static const int kAbove[][2] = {{0, 1}, {0, 2}, {1, 3}, {2, 3}, {3, 4}, {4, 5}};
+  for (const auto& k : kAbove) assert(mid[k[1]].y0 >= mid[k[0]].y1);
+  for (int n = 1; n <= 22; n++) {
+    Fleet f = crowd(n);
+    for (int s = 0; s < springTurn(g, n); s++) {
+      const SpringPlace p = springPlace(g, (float)s, n);
+      assert(p.shown);
+      const RoundRect b = critterBox(iround(p.x), iround(p.y), p.scale, false);
+      const float r = haloR(p.scale) + 8;   // a waiter's faint outer ring
+      for (const Box& m : mid) {
+        const bool body = b.x < m.x1 && m.x0 < b.x + b.w && b.y < m.y1 && m.y0 < b.y + b.h;
+        const float dx = fmaxf(fmaxf(m.x0 - p.x, 0), p.x - m.x1), dy = fmaxf(fmaxf(m.y0 - p.y, 0), p.y - m.y1);
+        if (body || dx * dx + dy * dy < r * r) {
+          fprintf(stderr, "%d agents: the %s meets the critter at slot %d (%.0f, %.0f)%s\n", n, m.what, s, p.x, p.y,
+                  body ? "" : "'s ring");
+          assert(false);
+        }
+      }
+    }
+    if (n > g.K)
+      for (int j = 0; j < n; j++) {
+        const Dot d = dotOf(L, f, j, 0);
+        for (const Box& m : mid) assert(d.y - d.r > m.y1 || d.x + d.r < m.x0 || d.x - d.r > m.x1);
+      }
+  }
+}
+
 int main() {
   testGeometry();
   testTurning();
   testWaiters();
   testPartial(layoutSpring21());
   testPartial(layoutSpring28());
+  testMiddleClear(layoutSpring28());
   return 0;
 }

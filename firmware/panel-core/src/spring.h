@@ -25,19 +25,24 @@ struct SpringGeom {
   float rUnder, peekAng;  // where dives and rises pass under the seam
   float loopR;            // up to K agents: the closed loop's radius
   int nameBase, phraseBase, metaBase, barY, barW;   // the middle
+  int nameW, phraseW, metaW;   // the widest name, phrase and state line (longer ones end in "…")
   float dotsR, dotsSpread;                          // past K: the dots round 6 o'clock
   int netBase;            // on Wi-Fi: the Wi-Fi mark's base, under the context bar
 };
 
-// The Orbit's (2.8″): nine to a turn at x3, the selected one x5; the middle
-// sits lower, between the ring's 80° and 120° slots, where it is widest.
+// The Orbit's (2.8″): nine to a turn at x3, the selected one x5. The name
+// sits on the screen's centre line, the phrase between the ring's 80° and
+// 120° slots, where it is widest. Each line is only as wide as the room the
+// ring critters (and their rings) leave at rest, and the Wi-Fi mark clears a
+// critter at 6 o'clock: test_spring checks it for every fleet up to 22.
 static inline SpringGeom springOrbit28() {
   SpringGeom g{};
   g.K = 9; g.sel = 5; g.ring = 3; g.peek = 1;
   g.rSel = 132; g.rOut = 188; g.rIn = 178; g.rUnder = 104; g.peekAng = 14; g.loopR = 180;
-  g.nameBase = 268; g.phraseBase = 304; g.metaBase = 336; g.barY = 360; g.barW = 140;
+  g.nameBase = 240; g.phraseBase = 276; g.metaBase = 306; g.barY = 332; g.barW = 140;
+  g.nameW = 252; g.phraseW = 256; g.metaW = 224;
   g.dotsR = 233; g.dotsSpread = 30;
-  g.netBase = 386;
+  g.netBase = 358;
   return g;
 }
 
@@ -47,6 +52,7 @@ static inline SpringGeom springDial21() {
   g.K = 7; g.sel = 6; g.ring = 4; g.peek = 2;
   g.rSel = 140; g.rOut = 184; g.rIn = 174; g.rUnder = 108; g.peekAng = 14; g.loopR = 178;
   g.nameBase = 216; g.phraseBase = 254; g.metaBase = 290; g.barY = 314; g.barW = 120;
+  g.nameW = 340; g.phraseW = 256; g.metaW = 260;
   g.dotsR = 233; g.dotsSpread = 26;
   g.netBase = 350;
   return g;

@@ -154,13 +154,12 @@ static inline RoundRect critterBox(int x, int y, int s, bool halo) {
 
 // Fonts and widths of the middle's lines.
 // The phrase: its font while it fits between the ring's side critters, else 26 px.
-constexpr int kPhraseMax = 256;
 static inline const Font& phraseFont(const SpringLayout& L, const char* s) {
   return textW(*L.phraseFont, s) <= 234 ? *L.phraseFont : FONT_XXL;
 }
 static inline int nameMax(const SpringLayout& L) {
   const int w = fitWidth(*L.nameFont, L.G.nameBase, 40);
-  return w < 340 ? w : 340;
+  return w < L.G.nameW ? w : L.G.nameW;
 }
 
 static inline RoundRect textBox(const Font& f, int base, const char* s, int maxW) {
@@ -313,12 +312,12 @@ static inline void build(const SpringLayout& L, const RoundInput& in, Frame& fr)
     e.kind = El::Phrase;
     const char* ph = phrase(a);
     const Font& pf = phraseFont(L, ph);
-    e.box = textBox(pf, G.phraseBase, ph, kPhraseMax);
+    e.box = textBox(pf, G.phraseBase, ph, G.phraseW);
     e.sig = fnvStr(h0 ^ (loud(a) ? 1u : 0u), ph);
     push(fr, e);
     e.kind = El::Meta;
     roundStateLine(a, in.nowEpoch, buf, sizeof buf);
-    e.box = textBox(FONT_XXL, G.metaBase, buf, 260);
+    e.box = textBox(FONT_XXL, G.metaBase, buf, G.metaW);
     e.sig = fnvStr(h0, buf);
     push(fr, e);
     if (a.ctxWindow) {
@@ -548,13 +547,13 @@ static inline void drawElem(Canvas& c, const SpringLayout& L, const RoundInput& 
     case El::Phrase: {
       const Agent& a = f.agents[e.agent];
       const char* ph = phrase(a);
-      textOn(c, phraseFont(L, ph), 240, G.phraseBase, ph, blend565(T.t.bg, loud(a) ? T.t.accent : T.t.dim, e.alpha), kPhraseMax);
+      textOn(c, phraseFont(L, ph), 240, G.phraseBase, ph, blend565(T.t.bg, loud(a) ? T.t.accent : T.t.dim, e.alpha), G.phraseW);
       return;
     }
     case El::Meta: {
       char buf[96];
       roundStateLine(f.agents[e.agent], in.nowEpoch, buf, sizeof buf);
-      textOn(c, FONT_XXL, 240, G.metaBase, buf, blend565(T.t.bg, T.t.dim, e.alpha), 260);
+      textOn(c, FONT_XXL, 240, G.metaBase, buf, blend565(T.t.bg, T.t.dim, e.alpha), G.metaW);
       return;
     }
     case El::Bar: {
