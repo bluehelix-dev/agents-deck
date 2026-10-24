@@ -670,25 +670,36 @@ static inline RoundHit promptHit(const Agent& a, int first, int x, int y) {
 
 // A short message in a pill near the bottom.
 // Where a toast's pill goes: low on the glass, raised until it fits inside the
-// circle (with a margin), and never wider than the circle allows there.
+// circle (with a margin), and never wider than the circle allows there. It
+// rises no higher than `top` (a layout keeps its middle clear with it); a
+// text too long for 26 px there drops to 20 px, and past that it is cut with "…".
 struct ToastBox {
   int x, y, w, h;
+  const Font* font;
 };
 
-static inline ToastBox toastBox(const char* text) {
-  const Font& f = FONT_XXL;
-  const int h = 52, margin = 10;
-  int w = textW(f, text) + 40, y = 404;
-  auto room = [&](int yy) { return (int)(2 * chordHalfSpan(kRoundC, kRoundC - margin, (float)yy, (float)(yy + h))); };
-  while (y > 300 && room(y) < w) y -= 4;
-  if (w > room(y)) w = room(y);   // still too long: the text is cut with "…"
-  return ToastBox{240 - w / 2, y, w, h};
+constexpr int kToastTop = 300;   // Dial and Orbit: as high as the bottom of the middle
+
+static inline ToastBox toastBox(const char* text, int top = kToastTop) {
+  const int margin = 10;
+  ToastBox b{};
+  for (const Font* f : {&FONT_XXL, &FONT_XL}) {
+    const int h = f == &FONT_XXL ? 52 : 42;
+    auto room = [&](int yy) { return (int)(2 * chordHalfSpan(kRoundC, kRoundC - margin, (float)yy, (float)(yy + h))); };
+    int w = textW(*f, text) + 40, y = 404;
+    while (y - 4 >= top && room(y) < w) y -= 4;
+    const bool fits = w <= room(y);
+    if (!fits) w = room(y);   // still too long: the text is cut with "…"
+    b = ToastBox{240 - w / 2, y, w, h, f};
+    if (fits) break;
+  }
+  return b;
 }
 
-static inline void drawToast(Canvas& c, const RoundTheme& T, const RoundUi& ui, uint32_t ms) {
+static inline void drawToast(Canvas& c, const RoundTheme& T, const RoundUi& ui, uint32_t ms, int top = kToastTop) {
   if (!ui.toast[0] || (int32_t)(ui.toastUntil - ms) <= 0) return;
-  const Font& f = FONT_XXL;
-  const ToastBox b = toastBox(ui.toast);
+  const ToastBox b = toastBox(ui.toast, top);
+  const Font& f = *b.font;
   fillPill(c, b.x, b.y, b.w, b.h, T.t.ink);
   textCentered(c, f, 240, b.y + (b.h - f.cellH) / 2, ui.toast, T.t.bg, b.w - 20);
 }
@@ -722,21 +733,19 @@ static inline bool netMarkShown(const RoundInput& in) {
 }
 
 static inline void drawNetBadge(Canvas& c, const RoundTheme& T, const RoundInput& in) {
-  if (!in.net || in.net->via != NetVia::Wifi || in.link != LinkState::Live || !in.fleet || !in.fleet->count ||
-      !in.ui || in.ui->screen != RoundScreen::Home)
-    return;
+  if (!netMarkShown(in)) return;
   // Dark on an orange face (someone waits on the dial), dim otherwise.
   const uint16_t under = c.px[(size_t)(kNetBadgeY - 8) * (size_t)c.w + (size_t)c.w / 2];
-  const uint16_t col = under == T.t.accent ? T.t.bg : T.t.dim;
-  const float cx = kRoundC, cy = kNetBadgeY;   // the arcs' common centre
-  fillDisc(c, cx, cy - 1, 2.5f, col);
-  for (int i = 1; i <= 2; i++) strokeArc(c, cx, cy, 6.5f * i + 1, 2.5f, -45, 90, col);
+  drawNetMark(c, kRoundC, kNetBadgeY, under == T.t.accent ? T.t.bg : T.t.dim);
 }
 
-// The finishing touches on any frame: the Wi-Fi mark, the toast, and the round mask.
-static inline void drawRoundOverlay(Canvas& c, const RoundTheme& T, const RoundInput& in) {
-  drawNetBadge(c, T, in);
-  if (in.ui) drawToast(c, T, *in.ui, in.ms);
+// The finishing touches on any frame: the Wi-Fi mark, the toast, and the round
+// mask. A layout that draws the mark itself (the spring) passes badge = false;
+// toastTop: see toastBox().
+static inline void drawRoundOverlay(Canvas& c, const RoundTheme& T, const RoundInput& in, bool badge = true,
+                                    int toastTop = kToastTop) {
+  if (badge) drawNetBadge(c, T, in);
+  if (in.ui) drawToast(c, T, *in.ui, in.ms, toastTop);
   maskOutside(c, kRoundC, kRoundC, 240, rgb565(0, 0, 0));
 }
 

@@ -189,6 +189,17 @@ static inline int render(const std::string& dir, const RoundLayout& L, const cha
     in.net = &net;
     fresh(pick(all, {"k3f9a2", "d0cs1t", "t3st5a"}));
     shot("home-wifi");
+    roundToast(ui, "paired for Wi-Fi", ms, 1000);
+    shot("home-wifi-toast");
+    ui.toast[0] = '\0';
+    fresh(pick(all, {"k3f9a2", "h0m3l4", "d0cs1t", "t3st5a", "1nfr4t", "k8sn0d", "4uthfl", "h4ptic"}));
+    shot("home-wifi-8");
+    fresh(big(all));
+    shot("home-wifi-22");
+    roundToast(ui, "the prompt changed", ms, 1000);
+    shot("home-wifi-22-toast");
+    ui.toast[0] = '\0';
+    fresh(pick(all, {"k3f9a2", "d0cs1t", "t3st5a"}));
     const struct { const char* name; NetPhase phase; } kWifi[] = {
         {"wifi-joining", NetPhase::Joining},         {"wifi-connecting", NetPhase::Connecting},
         {"wifi-wrong-password", NetPhase::WrongPassword}, {"wifi-no-network", NetPhase::NoNetwork},

@@ -35,7 +35,7 @@ under [`../devices`](../devices) holds only its board's drivers (display, touch,
 | `src/grid_app.h` | the firmware of a touch board minus its drivers (Arduino) |
 | `src/round_geom.h` | circle geometry: polar placement, arcs, discs, pills, the round mask, hit tests, the rim drag |
 | `src/round_view.h` | the round boards' screens and touch: home, detail, prompt, featured agent, timeout (`RoundLayout`) |
-| `src/round_ui.h`, `src/font_round.h` | what Orbit and Dial share: notices, the detail, the prompt; 30 and 35 px fonts (`tools/make_font_round.py`) |
+| `src/round_ui.h`, `src/font_round.h` | what the round layouts share: notices (the Wi-Fi ones too), toasts, the detail, the prompt; 30 and 35 px fonts (`tools/make_font_round.py`) |
 | `src/layout_spring.h`, `src/spring.h` | the round boards' home, the spring carousel (`SpringPanel`; `layoutSpring21()`, `layoutSpring28()`), drawn in strips |
 | `src/layout_orbit.h`, `src/layout_dial.h` | the earlier round homes (`OrbitPanel`, `DialPanel`), behind `ROUND_ORBIT_CLASSIC` / `ROUND_DIAL_CLASSIC` |
 | `src/round_app.h` | the firmware of a round board minus its drivers (Arduino) |
@@ -75,6 +75,12 @@ answers on USB it joins the network and runs a second Deck Link core over TLS 1.
 wins. `round_app.h` and `grid_app.h` wire it the same way (the Welcome, CertIssued and Result hooks,
 `active()` for commands and state, a fresh fleet when the link changes, toasts); the round and square
 boards' `idf5` builds have it.
+
+On the round screens the Wi-Fi notices are `round_ui.h`'s `drawNotice()` (`netNotice()` words), and
+home on Wi-Fi has a small Wi-Fi mark: the spring draws it as one of its elements under the context
+bar (`SpringGeom.netBase`), so it comes and goes with the partial redraw and the strips; Dial and Orbit
+draw it in `drawRoundOverlay()`. Toasts stay inside the circle (`toastBox()`); on the spring they keep
+below the context bar, and a frame with a toast is drawn whole.
 
 It needs TLS 1.3 in mbedTLS, so arduino-esp32 3.x with its libraries rebuilt with
 `CONFIG_MBEDTLS_SSL_PROTO_TLS1_3=y` (pioarduino's `custom_sdkconfig`, as in the round boards'

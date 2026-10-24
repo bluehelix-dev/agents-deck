@@ -88,9 +88,9 @@ You need [PlatformIO](https://platformio.org/). From the repository's root:
 | env | what | flash |
 |---|---|---|
 | `selftest` | the hardware self-test, no Deck Link | `pio run -d firmware/devices/waveshare-touch-lcd-21 -e selftest -t upload` |
-| `waveshare-touch-lcd-21` | the firmware (default) | `pio run -d firmware/devices/waveshare-touch-lcd-21 -t upload` |
+| `waveshare-touch-lcd-21` | the firmware on arduino-esp32 2.0.17: the picture drifts or flickers and there is no Wi-Fi; flash `idf5` instead | `pio run -d firmware/devices/waveshare-touch-lcd-21 -t upload` |
 | `debug` | the firmware, plus a line per touch and gesture and a status line every 5 s on the USB port | `pio run -d firmware/devices/waveshare-touch-lcd-21 -e debug -t upload` |
-| `idf5` | the firmware on arduino-esp32 3.x with an RGB bounce buffer: the fallback if the picture drifts | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5 -t upload` |
+| `idf5` | **the firmware to flash**: arduino-esp32 3.x with an RGB bounce buffer (a still picture) and Wi-Fi (TLS 1.3) | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5 -t upload` |
 | `idf5-debug` | `idf5` with the debug lines | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5-debug -t upload` |
 | `idf5-selftest` | the self-test on that platform | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5-selftest -t upload` |
 | `idf5-bench` | without Deck Link: a made-up fleet on the spring, turned by itself, with the frame times on the USB port (`pio device monitor`) | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5-bench -t upload` |
@@ -176,7 +176,7 @@ certificate):
 | deck not reachable · over Wi-Fi | the Mac is asleep, or the daemon isn't running; retried with a growing pause |
 | certificate rejected · pair again over USB | the board was revoked or paired again: plug it into the Mac |
 
-On Wi-Fi a small Wi-Fi mark sits under the middle of the home screen; on USB there is none. Plugged
+On Wi-Fi a small Wi-Fi mark sits under the context bar of the home screen; on USB there is none. Plugged
 into the Mac again, the board switches to USB at once (USB always wins, so pairing and recovery work
 over the cable), and a board on USB whose deck goes quiet for 30 s tries Wi-Fi meanwhile.
 

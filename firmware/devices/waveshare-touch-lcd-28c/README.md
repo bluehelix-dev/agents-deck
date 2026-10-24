@@ -6,9 +6,9 @@ talks to the deck through [Deck Link](../../../docs/link/protocol.md).
 
 ![screens](docs/screens.png)
 
-> Not yet run on the board. Everything builds, the screens above come from the host renderer (the
-> same pixels), and the board's logic has answered a prompt through the real deck in a test. The
-> [first power-on](#first-power-on) takes about ten minutes.
+> Runs on the board: flash `idf5`. On the default build (arduino-esp32 2.0.17, no RGB bounce
+> buffer) the picture drifts left and right, and it has no Wi-Fi. The screens above come from the host
+> renderer, which draws the same pixels.
 
 ## Parts
 
@@ -88,9 +88,9 @@ You need [PlatformIO](https://platformio.org/). From the repository's root:
 | env | what | flash |
 |---|---|---|
 | `selftest` | the hardware self-test, no Deck Link | `pio run -d firmware/devices/waveshare-touch-lcd-28c -e selftest -t upload` |
-| `waveshare-touch-lcd-28c` | the firmware (default) | `pio run -d firmware/devices/waveshare-touch-lcd-28c -t upload` |
+| `waveshare-touch-lcd-28c` | the firmware on arduino-esp32 2.0.17: the picture drifts or flickers and there is no Wi-Fi; flash `idf5` instead | `pio run -d firmware/devices/waveshare-touch-lcd-28c -t upload` |
 | `debug` | the firmware, plus a line per touch and gesture and a status line every 5 s on the USB port | `pio run -d firmware/devices/waveshare-touch-lcd-28c -e debug -t upload` |
-| `idf5` | the firmware on arduino-esp32 3.x with an RGB bounce buffer: the fallback if the picture drifts | `pio run -d firmware/devices/waveshare-touch-lcd-28c/idf5 -e idf5 -t upload` |
+| `idf5` | **the firmware to flash**: arduino-esp32 3.x with an RGB bounce buffer (a still picture) and Wi-Fi (TLS 1.3) | `pio run -d firmware/devices/waveshare-touch-lcd-28c/idf5 -e idf5 -t upload` |
 | `idf5-debug` | `idf5` with the debug lines | `pio run -d firmware/devices/waveshare-touch-lcd-28c/idf5 -e idf5-debug -t upload` |
 | `idf5-selftest` | the self-test on that platform | `pio run -d firmware/devices/waveshare-touch-lcd-28c/idf5 -e idf5-selftest -t upload` |
 
@@ -175,7 +175,7 @@ certificate):
 | deck not reachable · over Wi-Fi | the Mac is asleep, or the daemon isn't running; retried with a growing pause |
 | certificate rejected · pair again over USB | the board was revoked or paired again: plug it into the Mac |
 
-On Wi-Fi a small Wi-Fi mark sits under the middle of the home screen; on USB there is none. Plugged
+On Wi-Fi a small Wi-Fi mark sits under the context bar of the home screen; on USB there is none. Plugged
 into the Mac again, the board switches to USB at once (USB always wins, so pairing and recovery work
 over the cable), and a board on USB whose deck goes quiet for 30 s tries Wi-Fi meanwhile.
 

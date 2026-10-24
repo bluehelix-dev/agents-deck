@@ -11,6 +11,7 @@
 #include "../sim/fixture.h"
 #include "layout_dial.h"
 #include "layout_orbit.h"
+#include "layout_spring.h"
 #include "net_model.h"
 
 static void bootChoice() {
@@ -129,13 +130,17 @@ static void drawing() {
   const RoundTheme T = roundTheme();
   DialPanel dial(layoutDial21());
   OrbitPanel orbit(layoutOrbit28());
-  for (const RoundLayout* L : {(const RoundLayout*)&dial, (const RoundLayout*)&orbit}) {
+  SpringPanel spring21(layoutSpring21()), spring28(layoutSpring28());
+  for (const RoundLayout* L : {(const RoundLayout*)&dial, (const RoundLayout*)&orbit, (const RoundLayout*)&spring21,
+                               (const RoundLayout*)&spring28}) {
     roundSync(ui, *L, f, 1000);
     ui.screen = RoundScreen::Home;
     RoundInput in{&f, LinkState::Live, "board", RoundScope::Act, 1000, f.serverTime, &ui, 0, &v};
     L->draw(c, in);
-    const int marks = countColor(c, 220, kNetBadgeY - 22, 260, kNetBadgeY + 4, T.t.dim) +
-                      countColor(c, 220, kNetBadgeY - 22, 260, kNetBadgeY + 4, T.t.bg);
+    // The spring has the mark under its context bar; the others at kNetBadgeY.
+    const int base = L->spring() ? L->spring()->netBase : kNetBadgeY;
+    int marks = countColor(c, 220, base - 22, 260, base + 4, T.t.dim);
+    if (!L->spring()) marks += countColor(c, 220, base - 22, 260, base + 4, T.t.bg);
     assert(marks > 20);
     // On USB: no mark (the same pixels as without any NetView).
     v.via = NetVia::Usb;
@@ -160,17 +165,23 @@ static void drawing() {
 static void toasts() {
   for (const char* t : {"sent", "focus", "interrupted", "hold to stop", "stopping\xE2\x80\xA6", "paired for Wi-Fi",
                         "trying Wi-Fi\xE2\x80\xA6", "Wi-Fi works", "Wi-Fi forgotten", "Wi-Fi: wrong password",
-                        "Wi-Fi: network not found", "Wi-Fi failed", "a very long toast that cannot fit anywhere at all"}) {
-    const ToastBox b = toastBox(t);
-    for (int x : {b.x, b.x + b.w})
-      for (int y : {b.y, b.y + b.h}) {
-        // The pill's ends are round: test the corners of its straight part (inset by the radius).
-        const float px = x == b.x ? x + b.h / 2.f : x - b.h / 2.f;
-        const float dx = px - 240, dy = y - 240;
-        const float r = sqrtf(dx * dx + dy * dy);
-        assert(r <= 240 - 4);
-      }
-    assert(b.w > 0 && b.y >= 300);
+                        "Wi-Fi: network not found", "Wi-Fi failed", "the prompt changed", "not allowed: scope", "network not found", "wrong password",
+                        "a very long toast that cannot fit anywhere at all"}) {
+    // Dial and Orbit: no higher than 300; the spring: under its context bar.
+    for (int top : {kToastTop, springDial21().barY + 8, springOrbit28().barY + 8}) {
+      const ToastBox b = toastBox(t, top);
+      for (int x : {b.x, b.x + b.w})
+        for (int y : {b.y, b.y + b.h}) {
+          // The pill's ends are round: test the corners of its straight part (inset by the radius).
+          const float px = x == b.x ? x + b.h / 2.f : x - b.h / 2.f;
+          const float dx = px - 240, dy = y - 240;
+          const float r = sqrtf(dx * dx + dy * dy);
+          assert(r <= 240 - 4);
+        }
+      assert(b.w > 0 && b.y >= top && b.font);
+      // The real toasts (not the made-up long ones) are never cut.
+      if (strlen(t) <= 18) assert(b.w == textW(*b.font, t) + 40);
+    }
   }
 }
 
