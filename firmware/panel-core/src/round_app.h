@@ -55,6 +55,8 @@ struct RoundBoard {
   void (*brightness)(uint8_t level);       // 0..255
   int bootPin;                             // the BOOT button (active low): back home; -1 for none
   uint8_t brightActive, brightIdle;
+  // Optional: a line of the board's own in the debug report every 5 s.
+  void (*debugNote)();
 };
 
 #ifdef SPRING_PROFILE
@@ -461,6 +463,7 @@ static inline void roundAppLoop() {
               (unsigned)st->rx_frames, (unsigned)st->rx_bad, (unsigned)st->rx_overflow, (unsigned)ESP.getFreeHeap(),
               (unsigned)ESP.getFreePsram());
 #endif
+    if (board.debugNote) board.debugNote();
     statsAll = statsTurn = FrameStats();
     turnMs = 0;
   }

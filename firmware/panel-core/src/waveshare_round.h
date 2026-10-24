@@ -34,8 +34,10 @@
 
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
 #define WS_ROUND_IDF5 1
+#include <esp_cpu.h>
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_rgb.h>
+#include <esp_private/esp_clk.h>
 #else
 #define WS_ROUND_IDF5 0
 #endif
@@ -119,6 +121,54 @@ static inline void buzzer(bool on) { exioSet(EXIO_BUZZER, on); }
 #if WS_ROUND_IDF5
 static esp_lcd_panel_handle_t rgb = nullptr;
 
+// The bounce buffer's timing (PANEL_DEBUG and ROUND_BENCH builds log it every
+// 5 s). The LCD interrupt refills a bounce buffer from the framebuffer each
+// time the panel has taken one; the refill of a frame's last part comes about
+// two buffers plus the vertical blank before VSYNC. When an interrupt is held
+// up for longer than one buffer takes to scan, two refills fold into one and
+// the panel shows old lines: `late` counts frames where that refill came that
+// much late; `minLeadUs` and `maxLeadUs` the shortest and longest lead seen
+// (nominal: `leadUs`; one buffer takes `bufferUs`).
+struct LcdStats {
+  uint32_t vsyncs = 0, late = 0, minLeadUs = 0, maxLeadUs = 0, leadUs = 0, bufferUs = 0;
+};
+#if ROUND_BOUNCE_PX > 0 && (defined(PANEL_DEBUG) || defined(ROUND_BENCH))
+#define WS_ROUND_LCD_STATS 1
+static volatile uint32_t lcdVsyncs = 0, lcdLate = 0, lcdMinLead = UINT32_MAX, lcdMaxLead = 0, lcdWrapCycles = 0;
+static uint32_t lcdLeadCycles = 0, lcdBufferCycles = 0;
+static IRAM_ATTR bool lcdOnWrap(esp_lcd_panel_handle_t, const esp_lcd_rgb_panel_event_data_t*, void*) {
+  lcdWrapCycles = esp_cpu_get_cycle_count();
+  return false;
+}
+static IRAM_ATTR bool lcdOnVsync(esp_lcd_panel_handle_t, const esp_lcd_rgb_panel_event_data_t*, void*) {
+  const uint32_t lead = esp_cpu_get_cycle_count() - lcdWrapCycles;
+  lcdVsyncs = lcdVsyncs + 1;
+  if (lead < lcdMinLead) lcdMinLead = lead;
+  if (lead > lcdMaxLead) lcdMaxLead = lead;
+  if (lead + lcdBufferCycles < lcdLeadCycles) lcdLate = lcdLate + 1;
+  return false;
+}
+#endif
+
+// The counts since the last call.
+static inline LcdStats lcdStats() {
+  LcdStats st;
+#ifdef WS_ROUND_LCD_STATS
+  const uint32_t mhz = (uint32_t)(esp_clk_cpu_freq() / 1000000);
+  st.vsyncs = lcdVsyncs;
+  st.late = lcdLate;
+  st.minLeadUs = lcdMinLead == UINT32_MAX ? 0 : lcdMinLead / mhz;
+  st.maxLeadUs = lcdMaxLead / mhz;
+  st.leadUs = lcdLeadCycles / mhz;
+  st.bufferUs = lcdBufferCycles / mhz;
+  lcdVsyncs = 0;
+  lcdLate = 0;
+  lcdMinLead = UINT32_MAX;
+  lcdMaxLead = 0;
+#endif
+  return st;
+}
+
 static inline uint16_t* rgbBegin(const Panel& p) {
   esp_lcd_rgb_panel_config_t c = {};
   c.clk_src = LCD_CLK_SRC_DEFAULT;
@@ -149,7 +199,29 @@ static inline uint16_t* rgbBegin(const Panel& p) {
   if (esp_lcd_panel_reset(rgb) != ESP_OK || esp_lcd_panel_init(rgb) != ESP_OK) return nullptr;
   void* buf = nullptr;
   if (esp_lcd_rgb_panel_get_frame_buffer(rgb, 1, &buf) != ESP_OK) return nullptr;
+#ifdef WS_ROUND_LCD_STATS
+  {
+    // A line and a buffer in CPU cycles; from the last refill to VSYNC: two
+    // buffers, the front porch and the pulse.
+    const uint64_t line = (uint64_t)(kSize + p.hsyncPulse + p.hsyncBack + p.hsyncFront) * esp_clk_cpu_freq() / p.pclkHz;
+    const uint32_t rows = ROUND_BOUNCE_PX / kSize;
+    lcdBufferCycles = (uint32_t)(line * rows);
+    lcdLeadCycles = (uint32_t)(line * (2 * rows + p.vsyncFront + p.vsyncPulse));
+    esp_lcd_rgb_panel_event_callbacks_t cbs = {};
+    cbs.on_vsync = lcdOnVsync;
+    cbs.on_frame_buf_complete = lcdOnWrap;
+    esp_lcd_rgb_panel_register_event_callbacks(rgb, &cbs, nullptr);
+  }
+#endif
   return (uint16_t*)buf;
+}
+
+// The bounce buffer's timing on the USB port (the debug builds' 5 s report).
+static inline void lcdNote() {
+  const LcdStats st = lcdStats();
+  Serial.printf("lcd: %u frames, %u with a late refill; refill lead %u..%u us (nominal %u, a buffer %u)\n",
+                (unsigned)st.vsyncs, (unsigned)st.late, (unsigned)st.minLeadUs, (unsigned)st.maxLeadUs,
+                (unsigned)st.leadUs, (unsigned)st.bufferUs);
 }
 #else
 static inline uint16_t* rgbBegin(const Panel& p) {
@@ -244,11 +316,24 @@ static inline bool displayBegin(const Panel& p) {
   return fb != nullptr;
 }
 
+// Framebuffer rows out of the CPU's cache, for the panel's DMA to read from
+// PSRAM. With a bounce buffer the DMA never reads the framebuffer: the LCD
+// interrupt copies it through the same cache, so there is nothing to write
+// back, and a long write-back would only hold that copy up.
+static inline void writeBack(int y0, int rows) {
+#if WS_ROUND_IDF5 && ROUND_BOUNCE_PX > 0
+  (void)y0;
+  (void)rows;
+#else
+  Cache_WriteBack_Addr((uint32_t)(fb + y0 * kSize), (uint32_t)rows * kSize * 2);
+#endif
+}
+
 // One frame onto the panel, turned by ROUND_ROTATION, then out of the cache.
 static inline void push(const uint16_t* src) {
   if (!fb) return;
   rotateFrame(ROUND_ROTATION, kSize, src, fb);
-  Cache_WriteBack_Addr((uint32_t)fb, kSize * kSize * 2);
+  writeBack(0, kSize);
 }
 
 // Only the parts of the frame that changed (round_view.h's RoundDamage):
@@ -277,8 +362,8 @@ static inline void pushDamage(const uint16_t* src, const RoundDamage& d) {
       }
     }
   }
-  if (ROUND_ROTATION == 0) Cache_WriteBack_Addr((uint32_t)(fb + y0 * kSize), (uint32_t)(y1 - y0) * kSize * 2);
-  else Cache_WriteBack_Addr((uint32_t)fb, kSize * kSize * 2);
+  if (ROUND_ROTATION == 0) writeBack(y0, y1 - y0);
+  else writeBack(0, kSize);
 }
 
 // Rows y0..y1 of a frame drawn in a strip (row y0 first): their changed spans
@@ -304,8 +389,8 @@ static inline void pushStrip(const uint16_t* strip, int y0, int y1, const RoundS
     }
   }
   if (first < 0) return;
-  if (ROUND_ROTATION == 0) Cache_WriteBack_Addr((uint32_t)(fb + first * kSize), (uint32_t)(last + 1 - first) * kSize * 2);
-  else Cache_WriteBack_Addr((uint32_t)fb, kSize * kSize * 2);
+  if (ROUND_ROTATION == 0) writeBack(first, last + 1 - first);
+  else writeBack(0, kSize);
 }
 
 // A touch in the panel's axes, in frame pixels.

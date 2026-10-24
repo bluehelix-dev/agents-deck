@@ -311,7 +311,7 @@ int main(int argc, char** argv) {
     return r ? r : round_shots::renderSpring(dir, spring, dev, fleet, ms, now);
   }
   if (layout == "selftest28")
-    return round_shots::renderSelftest(dir, "waveshare-touch-lcd-28c", "tca9554 ok" DECK_DOT "gt911 0x5D", 18000000);
+    return round_shots::renderSelftest(dir, "waveshare-touch-lcd-28c", "tca9554 ok" DECK_DOT "gt911 0x5D", 16000000);
   if (layout == "selftest21")
     return round_shots::renderSelftest(dir, "waveshare-touch-lcd-21", "tca9554 ok" DECK_DOT "cst820 ok", 16000000);
   if (layout != "147") {

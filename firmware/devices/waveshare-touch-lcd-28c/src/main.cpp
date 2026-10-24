@@ -234,6 +234,9 @@ void setup() {
   b.bootPin = ws_round::PIN_BOOT;
   b.brightActive = 255;
   b.brightIdle = 50;
+#if WS_ROUND_IDF5
+  b.debugNote = ws_round::lcdNote;
+#endif
   roundAppSetup(b, FW_VERSION);
 }
 

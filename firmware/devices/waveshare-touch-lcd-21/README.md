@@ -91,7 +91,7 @@ You need [PlatformIO](https://platformio.org/). From the repository's root:
 | `waveshare-touch-lcd-21` | the firmware on arduino-esp32 2.0.17: the picture drifts or flickers and there is no Wi-Fi; flash `idf5` instead | `pio run -d firmware/devices/waveshare-touch-lcd-21 -t upload` |
 | `debug` | the firmware, plus a line per touch and gesture and a status line every 5 s on the USB port | `pio run -d firmware/devices/waveshare-touch-lcd-21 -e debug -t upload` |
 | `idf5` | **the firmware to flash**: arduino-esp32 3.x with an RGB bounce buffer (a still picture) and Wi-Fi (TLS 1.3) | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5 -t upload` |
-| `idf5-debug` | `idf5` with the debug lines | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5-debug -t upload` |
+| `idf5-debug` | `idf5` with the debug lines, and every 5 s a line on the bounce buffer's timing (`lcd: … 0 with a late refill`) | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5-debug -t upload` |
 | `idf5-selftest` | the self-test on that platform | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5-selftest -t upload` |
 | `idf5-bench` | without Deck Link: a made-up fleet on the spring, turned by itself, with the frame times on the USB port (`pio device monitor`) | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5-bench -t upload` |
 

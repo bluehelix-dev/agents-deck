@@ -91,8 +91,9 @@ You need [PlatformIO](https://platformio.org/). From the repository's root:
 | `waveshare-touch-lcd-28c` | the firmware on arduino-esp32 2.0.17: the picture drifts or flickers and there is no Wi-Fi; flash `idf5` instead | `pio run -d firmware/devices/waveshare-touch-lcd-28c -t upload` |
 | `debug` | the firmware, plus a line per touch and gesture and a status line every 5 s on the USB port | `pio run -d firmware/devices/waveshare-touch-lcd-28c -e debug -t upload` |
 | `idf5` | **the firmware to flash**: arduino-esp32 3.x with an RGB bounce buffer (a still picture) and Wi-Fi (TLS 1.3) | `pio run -d firmware/devices/waveshare-touch-lcd-28c/idf5 -e idf5 -t upload` |
-| `idf5-debug` | `idf5` with the debug lines | `pio run -d firmware/devices/waveshare-touch-lcd-28c/idf5 -e idf5-debug -t upload` |
+| `idf5-debug` | `idf5` with the debug lines, and every 5 s a line on the bounce buffer's timing (`lcd: … 0 with a late refill`) | `pio run -d firmware/devices/waveshare-touch-lcd-28c/idf5 -e idf5-debug -t upload` |
 | `idf5-selftest` | the self-test on that platform | `pio run -d firmware/devices/waveshare-touch-lcd-28c/idf5 -e idf5-selftest -t upload` |
+| `idf5-bench` | without Deck Link: a made-up fleet on the spring, turned by itself, with frame times on the USB port | `pio run -d firmware/devices/waveshare-touch-lcd-28c/idf5 -e idf5-bench -t upload` |
 
 The `idf5` project keeps its platform in `~/.platformio-pioarduino`. pioarduino and PlatformIO's own
 ESP32 platform clash in one PlatformIO home. Its first build downloads about 1 GB.
@@ -102,7 +103,7 @@ Settings, in `build_flags` of either `platformio.ini`:
 | flag | default | |
 |---|---|---|
 | `ROUND_ROTATION` | `0` | `0`, `90`, `180` or `270`: turns the image clockwise, and the touch with it |
-| `ROUND_PCLK_HZ` | `18000000` | the RGB pixel clock |
+| `ROUND_PCLK_HZ` | `16000000` on idf5, `18000000` on 2.0.17 | the RGB pixel clock |
 | `ROUND_BOUNCE_PX` | `4800` (idf5 only) | the RGB bounce buffer, in pixels |
 
 If the board won't take an upload, hold BOOT while you plug it in.
