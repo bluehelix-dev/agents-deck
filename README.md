@@ -231,27 +231,46 @@ agentctl sim start|stop             pretend agents for demos
 
 ```mermaid
 flowchart LR
-  subgraph tmux["tmux -L agentsterm"]
-    C1["claude (agent)"]:::a
-    C2["claude (agent)"]:::a
+  subgraph run["where your agents run"]
+    direction TB
+    A["agentctl new<br/>(Claude, Codex… in tmux)"]:::a
+    O["Orca"]
+    H["herdr"]
+    M["cmux"]
+    L["Claude Code<br/>in any terminal"]
+    X["Codex app and CLI"]
   end
-  C1 & C2 -- "hooks (per-agent --settings)" --> H["agentctl hook"]
-  H -- unix socket --> D["agentctl serve"]
-  T["~/.claude/projects/*.jsonl"] -- "tail: tokens, context, model, title" --> D
-  D -- "send-keys: answers, Esc" --> tmux
-  D -- "/v1 + SSE · 127.0.0.1" --> W["web dashboard"]
-  D -- "/v1 + SSE · TLS 1.3, device certificate" --> P["desk panel (Flutter)"]
-  D -- "Deck Link · USB serial, or TLS 1.3 on Wi-Fi" --> B["boards (ESP32)"]
-  D -- "iTerm API + StealFocus escape" --> I["iTerm tab"]
-  X["~/.codex: state db + rollouts"] -- "read-only: threads, status, tokens" --> D
+  D["agentctl serve<br/>(the daemon, on your Mac)"]:::a
+  subgraph see["where you see them"]
+    direction TB
+    W["web dashboard"]
+    MB["menu bar app"]
+    P["desk panel"]
+    B["boards (ESP32)"]
+  end
+  A <-->|"hooks, transcripts · send-keys"| D
+  O <-->|"orca CLI"| D
+  H <-->|"herdr socket"| D
+  M <-->|"cmux socket, hook file"| D
+  L -->|"transcripts (agentctl add)"| D
+  X -->|"~/.codex, read-only"| D
+  D <-->|"/v1 + SSE · 127.0.0.1"| W
+  D <-->|"/v1 · unix socket"| MB
+  D <-->|"/v1 + SSE · TLS 1.3, device certificate"| P
+  D <-->|"Deck Link · USB serial, or TLS 1.3 on Wi-Fi"| B
+  D -->|"iTerm API"| I["iTerm tab<br/>(jump to an agent)"]
   classDef a fill:#FF4D00,color:#0A0A0A,stroke:#FF4D00
 ```
 
-Each agent gets its own hook settings, so your global `~/.claude/settings.json` is never touched.
-Hooks report prompts, tool calls, permission requests, compaction and stops; Claude's transcripts give
-tokens, context, model and title. Answers are typed into the agent's tmux session. The web UI, the
-menu bar app and the panel speak one small JSON API ([docs/protocol.md](docs/protocol.md)); boards
-speak [Deck Link](docs/link/protocol.md), a compact protobuf version of it.
+On the left, wherever your agents run; on the right, every screen that shows them; in the middle, one
+daemon. Agents started with `agentctl new` run in their own tmux server (`tmux -L agentsterm`), each
+with its own hook settings, so your global `~/.claude/settings.json` is never touched. Hooks report
+prompts, tool calls, permission requests, compaction and stops; Claude's transcripts
+(`~/.claude/projects/*.jsonl`) give tokens, context, model and title. Answers are typed into the
+agent's tmux session, or sent through the harness that runs it (Orca, herdr, cmux); Codex is only
+read. The web UI, the menu bar app and the panel speak one small JSON API
+([docs/protocol.md](docs/protocol.md)); boards speak [Deck Link](docs/link/protocol.md), a compact
+protobuf version of it.
 
 ## Security & privacy
 
