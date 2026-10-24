@@ -69,15 +69,36 @@ the "firmware") with a screen on it. You put our firmware on it once, over USB (
 then on it's a little deck. Pick by size and shape; the [devices page](docs/devices.md) has every
 screen of every board.
 
-| | board | screen | what it shows | Wi-Fi | buy | firmware |
-|---|---|---|---|---|---|---|
-| <img src="docs/images/devices/round-28-home.png" width="96" alt="the 2.8-inch round board"> | Waveshare ESP32-S3-Touch-LCD-2.8C | 2.8″ round touch | agents on a ring you turn with a finger, 9 to a turn | yes | [Waveshare](https://www.waveshare.com/esp32-s3-touch-lcd-2.8c.htm), about $40 | [`waveshare-touch-lcd-28c`](firmware/devices/waveshare-touch-lcd-28c) |
-| <img src="docs/images/devices/round-21-done.png" width="96" alt="the 2.1-inch round board"> | Waveshare ESP32-S3-Touch-LCD-2.1 | 2.1″ round touch | the same ring, 7 to a turn | yes | [Waveshare](https://www.waveshare.com/esp32-s3-touch-lcd-2.1.htm), about $33 | [`waveshare-touch-lcd-21`](firmware/devices/waveshare-touch-lcd-21) |
-| <img src="docs/images/devices/lcd4-home.png" width="96" alt="the 4-inch square board"> | Waveshare ESP32-S3-Touch-LCD-4 | 4″ square touch | the full 4×4 deck, like the desk panel | experimental | [Waveshare](https://www.waveshare.com/esp32-s3-touch-lcd-4.htm), about $33 | [`waveshare-touch-lcd-4`](firmware/devices/waveshare-touch-lcd-4) |
-| <img src="docs/images/devices/amoled18-card.png" width="80" alt="the 1.8-inch AMOLED board"> | Waveshare ESP32-S3-Touch-AMOLED-1.8 | 1.8″ AMOLED touch | 2×2 tiles you scroll, and cards | yes | [Waveshare](https://www.waveshare.com/esp32-s3-touch-amoled-1.8.htm), about $28 | [`waveshare-touch-amoled-18`](firmware/devices/waveshare-touch-amoled-18) |
-| <img src="docs/images/devices/t4s3-home.png" width="72" alt="the LilyGO T4-S3"> | LilyGO T4-S3 | 2.41″ AMOLED touch, tall | 2×3 tiles you scroll, and cards | yes | [LilyGO](https://lilygo.cc/products/t4-s3), about $59 | [`lilygo-t4-s3`](firmware/devices/lilygo-t4-s3) |
-| <img src="docs/images/devices/lcd147-running.png" width="110" alt="the 1.47-inch strip"> | Waveshare ESP32-S3-LCD-1.47B | 1.47″ strip, no touch | one agent and a mini-board; look only | no | [Waveshare](https://www.waveshare.com/esp32-s3-lcd-1.47b.htm), about $13 | [`waveshare-lcd-147`](firmware/devices/waveshare-lcd-147) |
-| <img src="docs/images/panel-board-v2.png" width="96" alt="the desk panel"> | Wall Panel (Raspberry Pi CM4) | 4″ 720×720 touch | the full deck app | yes | see the [project page](https://github.com/dotstartech/wall-panel) | [`clients/flutter`](clients/flutter/agents_ui) |
+<table>
+<tr>
+<td align="center" width="180"><img src="docs/images/devices/round-28-home.png" width="160" alt="the 2.8-inch round board"></td>
+<td><b>Waveshare ESP32-S3-Touch-LCD-2.8C</b><br>2.8″ round · touch · Wi-Fi<br>Agents on a ring you turn with a finger, 9 to a turn.<br>Buy: <a href="https://www.waveshare.com/esp32-s3-touch-lcd-2.8c.htm">Waveshare</a>, about $40 · firmware: <a href="firmware/devices/waveshare-touch-lcd-28c"><code>waveshare-touch-lcd-28c</code></a></td>
+</tr>
+<tr>
+<td align="center" width="180"><img src="docs/images/devices/round-21-done.png" width="140" alt="the 2.1-inch round board"></td>
+<td><b>Waveshare ESP32-S3-Touch-LCD-2.1</b><br>2.1″ round · touch · Wi-Fi<br>The same ring, 7 to a turn.<br>Buy: <a href="https://www.waveshare.com/esp32-s3-touch-lcd-2.1.htm">Waveshare</a>, about $33 · firmware: <a href="firmware/devices/waveshare-touch-lcd-21"><code>waveshare-touch-lcd-21</code></a></td>
+</tr>
+<tr>
+<td align="center" width="180"><img src="docs/images/devices/lcd4-home.png" width="160" alt="the 4-inch square board"></td>
+<td><b>Waveshare ESP32-S3-Touch-LCD-4</b><br>4″ square · touch · Wi-Fi experimental<br>The full 4×4 deck, like the desk panel.<br>Buy: <a href="https://www.waveshare.com/esp32-s3-touch-lcd-4.htm">Waveshare</a>, about $33 · firmware: <a href="firmware/devices/waveshare-touch-lcd-4"><code>waveshare-touch-lcd-4</code></a></td>
+</tr>
+<tr>
+<td align="center" width="180"><img src="docs/images/devices/amoled18-card.png" width="120" alt="the 1.8-inch AMOLED board"></td>
+<td><b>Waveshare ESP32-S3-Touch-AMOLED-1.8</b><br>1.8″ AMOLED · touch · Wi-Fi<br>2×2 tiles you scroll, and a card for each agent.<br>Buy: <a href="https://www.waveshare.com/esp32-s3-touch-amoled-1.8.htm">Waveshare</a>, about $28 · firmware: <a href="firmware/devices/waveshare-touch-amoled-18"><code>waveshare-touch-amoled-18</code></a></td>
+</tr>
+<tr>
+<td align="center" width="180"><img src="docs/images/devices/t4s3-home.png" width="120" alt="the LilyGO T4-S3"></td>
+<td><b>LilyGO T4-S3</b><br>2.41″ AMOLED, tall · touch · Wi-Fi<br>2×3 tiles you scroll, and a card for each agent.<br>Buy: <a href="https://lilygo.cc/products/t4-s3">LilyGO</a>, about $59 · firmware: <a href="firmware/devices/lilygo-t4-s3"><code>lilygo-t4-s3</code></a></td>
+</tr>
+<tr>
+<td align="center" width="180"><img src="docs/images/devices/lcd147-running.png" width="160" alt="the 1.47-inch strip"></td>
+<td><b>Waveshare ESP32-S3-LCD-1.47B</b><br>1.47″ strip · no touch · USB only<br>One agent and a mini-board; look only.<br>Buy: <a href="https://www.waveshare.com/esp32-s3-lcd-1.47b.htm">Waveshare</a>, about $13 · firmware: <a href="firmware/devices/waveshare-lcd-147"><code>waveshare-lcd-147</code></a></td>
+</tr>
+<tr>
+<td align="center" width="180"><img src="docs/images/panel-board-v2.png" width="160" alt="the desk panel"></td>
+<td><b>Wall Panel (Raspberry Pi CM4)</b><br>4″ 720×720 · touch · Wi-Fi<br>The full deck app.<br>Buy: <a href="https://github.com/dotstartech/wall-panel">project page</a> · firmware: <a href="clients/flutter/agents_ui"><code>clients/flutter</code></a></td>
+</tr>
+</table>
 
 Prices are from the maker's own shop (Waveshare, LilyGO) in October 2026, for the version to buy:
 **with touch** where there's a choice, without a battery for the 1.8″ AMOLED, the standard "B" for
