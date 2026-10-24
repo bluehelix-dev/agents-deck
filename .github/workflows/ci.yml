@@ -65,6 +65,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: tools (nanopb, PlatformIO)
         run: |
+          sudo apt-get update -qq # the runner image's package lists go stale: install alone can 404
           sudo apt-get install -y --no-install-recommends protobuf-compiler >/dev/null # nanopb's generator runs protoc
           python3 -m venv "$RUNNER_TEMP/venv"
           "$RUNNER_TEMP/venv/bin/pip" install --quiet nanopb==0.4.9.1 platformio
