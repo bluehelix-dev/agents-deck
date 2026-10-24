@@ -4,9 +4,9 @@ The deck runs on your Mac (the menu bar and the browser) and, if you like, on a 
 This page is the tour of every screen it supports: what each one looks like, what's special about it,
 how you use it, which build to flash, and what isn't finished yet.
 
-New to microcontrollers? Start with the [README](../README.md#flash-a-board-from-zero): it walks through
-flashing a board from zero. Each board's own README (linked below) has the full detail: every screen,
-every build option, pins, tests.
+New to microcontrollers? Start with the [README](../README.md#flash-a-board) and
+[flashing.md](flashing.md): they walk through flashing a board from zero. Each board's own README
+(linked below) has the full detail: every screen, every build option, pins, tests.
 
 The screenshots come from the host renderer (`firmware/panel-core/tools/render_overview.py`), which
 draws the same pixels as the boards, from the made-up fleet in
@@ -73,7 +73,7 @@ dial.
 - **Known issues:** none open. If the picture drifts, the README's self-test (`idf5-selftest`) helps
   find a pixel clock that suits your panel.
 - **Get one:** [Waveshare ESP32-S3-Touch-LCD-2.8C](https://www.waveshare.com/esp32-s3-touch-lcd-2.8c.htm)
-  (the touch version; about $35–40). Details: [the board's README](../firmware/devices/waveshare-touch-lcd-28c/README.md).
+  (the touch version; about $40 in Waveshare's shop, October 2026). Details: [the board's README](../firmware/devices/waveshare-touch-lcd-28c/README.md).
 
 ## Waveshare ESP32-S3-Touch-LCD-2.1 (round 2.1″)
 
@@ -91,7 +91,7 @@ critters for its size.
   2.0.17 build flickers and has no Wi-Fi.
 - **Known issues:** none open.
 - **Get one:** [Waveshare ESP32-S3-Touch-LCD-2.1](https://www.waveshare.com/esp32-s3-touch-lcd-2.1.htm)
-  (about $35). Details: [the board's README](../firmware/devices/waveshare-touch-lcd-21/README.md).
+  (about $33 in Waveshare's shop, October 2026). Details: [the board's README](../firmware/devices/waveshare-touch-lcd-21/README.md).
 
 ## Waveshare ESP32-S3-Touch-LCD-4 (square 4″)
 
@@ -112,7 +112,7 @@ looks like the desk panel and the web board.
 - **Known issues:** Wi-Fi (the `idf5` build) isn't settled yet, as above. Older revisions of the board
   (V1–V3) can only switch the backlight on and off, not dim it.
 - **Get one:** [Waveshare ESP32-S3-Touch-LCD-4](https://www.waveshare.com/esp32-s3-touch-lcd-4.htm)
-  (pick the touch version; about $30). Details: [the board's README](../firmware/devices/waveshare-touch-lcd-4/README.md).
+  (pick the touch version; about $33 in Waveshare's shop, October 2026). Details: [the board's README](../firmware/devices/waveshare-touch-lcd-4/README.md).
 
 ## Waveshare ESP32-S3-Touch-AMOLED-1.8
 
@@ -131,7 +131,7 @@ A small, bright AMOLED: true black, 2×2 tiles in one continuous list you scroll
 - **Build:** `idf5` (`pio run -d firmware/devices/waveshare-touch-amoled-18/idf5 -e idf5 -t upload`).
 - **Known issues:** the board's first revision (SH8601 panel, FT3168 touch) is detected but untested.
 - **Get one:** [Waveshare ESP32-S3-Touch-AMOLED-1.8](https://www.waveshare.com/esp32-s3-touch-amoled-1.8.htm)
-  Details: [the board's README](../firmware/devices/waveshare-touch-amoled-18/README.md).
+  (about $28 without the battery in Waveshare's shop, October 2026). Details: [the board's README](../firmware/devices/waveshare-touch-amoled-18/README.md).
 
 ## LilyGO T4-S3 (2.41″ AMOLED)
 
@@ -151,7 +151,7 @@ card's numbers one to a line.
   may need the BOOT + RST dance for its first upload (hold BOOT, press RST, let go of BOOT).
 - **Known issues:** none open. The earlier LVGL firmware in
   [`t4s3-panel`](../firmware/devices/t4s3-panel) is superseded and kept for reference only.
-- **Get one:** [LilyGO T4-S3](https://lilygo.cc/products/t4-s3) (about $60). Details:
+- **Get one:** [LilyGO T4-S3](https://lilygo.cc/products/t4-s3) (about $59 in LilyGO's shop, October 2026). Details:
   [the board's README](../firmware/devices/lilygo-t4-s3/README.md).
 
 ## Waveshare ESP32-S3-LCD-1.47B (strip)
@@ -168,7 +168,7 @@ left, a mini-board of eight on the right, and an RGB LED that flashes orange whe
 - **Build:** the default env (`pio run -d firmware/devices/waveshare-lcd-147 -t upload`).
 - **Known issues:** no touch and no Wi-Fi: it stays on USB, and it never answers anything.
 - **Get one:** [Waveshare ESP32-S3-LCD-1.47B](https://www.waveshare.com/esp32-s3-lcd-1.47b.htm) (the
-  "B" version, without touch). Details: [the board's README](../firmware/devices/waveshare-lcd-147/README.md).
+  "B" version, without touch; about $13 in Waveshare's shop, October 2026). Details: [the board's README](../firmware/devices/waveshare-lcd-147/README.md).
   Original drawing, mascots and font by **belidor**.
 
 ## Desk panel (4″, 720×720)

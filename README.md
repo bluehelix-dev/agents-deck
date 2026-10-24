@@ -20,11 +20,8 @@ works from anywhere on your desk.
 
 - [What you need](#what-you-need)
 - [Quick start](#quick-start-the-mac-part)
-- [Pick a display](#pick-a-display)
-- [Flash a board from zero](#flash-a-board-from-zero)
-- [Wi-Fi](#wi-fi)
+- [Pick a display](#pick-a-display) · [Flash a board](#flash-a-board) · [Wi-Fi](#wi-fi)
 - [Set it up with an AI agent](#set-it-up-with-an-ai-agent)
-- [Troubleshooting](#troubleshooting)
 - [Where else it shows up](#where-else-it-shows-up) · [Harnesses](#works-with-your-harness) · [Commands](#commands) · [How it works](#how-it-works) · [Security](#security--privacy) · [Docs](#docs)
 
 ## What you need
@@ -74,62 +71,46 @@ screen of every board.
 
 | | board | screen | what it shows | Wi-Fi | buy | firmware |
 |---|---|---|---|---|---|---|
-| <img src="docs/images/devices/round-28-home.png" width="96" alt="the 2.8-inch round board"> | Waveshare ESP32-S3-Touch-LCD-2.8C | 2.8″ round touch | agents on a ring you turn with a finger, 9 to a turn | yes | [Waveshare](https://www.waveshare.com/esp32-s3-touch-lcd-2.8c.htm) | [`waveshare-touch-lcd-28c`](firmware/devices/waveshare-touch-lcd-28c) |
-| <img src="docs/images/devices/round-21-done.png" width="96" alt="the 2.1-inch round board"> | Waveshare ESP32-S3-Touch-LCD-2.1 | 2.1″ round touch | the same ring, 7 to a turn | yes | [Waveshare](https://www.waveshare.com/esp32-s3-touch-lcd-2.1.htm) | [`waveshare-touch-lcd-21`](firmware/devices/waveshare-touch-lcd-21) |
-| <img src="docs/images/devices/lcd4-home.png" width="96" alt="the 4-inch square board"> | Waveshare ESP32-S3-Touch-LCD-4 | 4″ square touch | the full 4×4 deck, like the desk panel | experimental | [Waveshare](https://www.waveshare.com/esp32-s3-touch-lcd-4.htm) | [`waveshare-touch-lcd-4`](firmware/devices/waveshare-touch-lcd-4) |
-| <img src="docs/images/devices/amoled18-card.png" width="80" alt="the 1.8-inch AMOLED board"> | Waveshare ESP32-S3-Touch-AMOLED-1.8 | 1.8″ AMOLED touch | 2×2 tiles you scroll, and cards | yes | [Waveshare](https://www.waveshare.com/esp32-s3-touch-amoled-1.8.htm) | [`waveshare-touch-amoled-18`](firmware/devices/waveshare-touch-amoled-18) |
-| <img src="docs/images/devices/t4s3-home.png" width="72" alt="the LilyGO T4-S3"> | LilyGO T4-S3 | 2.41″ AMOLED touch, tall | 2×3 tiles you scroll, and cards | yes | [LilyGO](https://lilygo.cc/products/t4-s3) | [`lilygo-t4-s3`](firmware/devices/lilygo-t4-s3) |
-| <img src="docs/images/devices/lcd147-running.png" width="110" alt="the 1.47-inch strip"> | Waveshare ESP32-S3-LCD-1.47B | 1.47″ strip, no touch | one agent and a mini-board; look only | no | [Waveshare](https://www.waveshare.com/esp32-s3-lcd-1.47b.htm) | [`waveshare-lcd-147`](firmware/devices/waveshare-lcd-147) |
-| <img src="docs/images/panel-board-v2.png" width="96" alt="the desk panel"> | Wall Panel (Raspberry Pi CM4) | 4″ 720×720 touch | the full deck app | yes | [project page](https://github.com/dotstartech/wall-panel) | [`clients/flutter`](clients/flutter/agents_ui) |
+| <img src="docs/images/devices/round-28-home.png" width="96" alt="the 2.8-inch round board"> | Waveshare ESP32-S3-Touch-LCD-2.8C | 2.8″ round touch | agents on a ring you turn with a finger, 9 to a turn | yes | [Waveshare](https://www.waveshare.com/esp32-s3-touch-lcd-2.8c.htm), about $40 | [`waveshare-touch-lcd-28c`](firmware/devices/waveshare-touch-lcd-28c) |
+| <img src="docs/images/devices/round-21-done.png" width="96" alt="the 2.1-inch round board"> | Waveshare ESP32-S3-Touch-LCD-2.1 | 2.1″ round touch | the same ring, 7 to a turn | yes | [Waveshare](https://www.waveshare.com/esp32-s3-touch-lcd-2.1.htm), about $33 | [`waveshare-touch-lcd-21`](firmware/devices/waveshare-touch-lcd-21) |
+| <img src="docs/images/devices/lcd4-home.png" width="96" alt="the 4-inch square board"> | Waveshare ESP32-S3-Touch-LCD-4 | 4″ square touch | the full 4×4 deck, like the desk panel | experimental | [Waveshare](https://www.waveshare.com/esp32-s3-touch-lcd-4.htm), about $33 | [`waveshare-touch-lcd-4`](firmware/devices/waveshare-touch-lcd-4) |
+| <img src="docs/images/devices/amoled18-card.png" width="80" alt="the 1.8-inch AMOLED board"> | Waveshare ESP32-S3-Touch-AMOLED-1.8 | 1.8″ AMOLED touch | 2×2 tiles you scroll, and cards | yes | [Waveshare](https://www.waveshare.com/esp32-s3-touch-amoled-1.8.htm), about $28 | [`waveshare-touch-amoled-18`](firmware/devices/waveshare-touch-amoled-18) |
+| <img src="docs/images/devices/t4s3-home.png" width="72" alt="the LilyGO T4-S3"> | LilyGO T4-S3 | 2.41″ AMOLED touch, tall | 2×3 tiles you scroll, and cards | yes | [LilyGO](https://lilygo.cc/products/t4-s3), about $59 | [`lilygo-t4-s3`](firmware/devices/lilygo-t4-s3) |
+| <img src="docs/images/devices/lcd147-running.png" width="110" alt="the 1.47-inch strip"> | Waveshare ESP32-S3-LCD-1.47B | 1.47″ strip, no touch | one agent and a mini-board; look only | no | [Waveshare](https://www.waveshare.com/esp32-s3-lcd-1.47b.htm), about $13 | [`waveshare-lcd-147`](firmware/devices/waveshare-lcd-147) |
+| <img src="docs/images/panel-board-v2.png" width="96" alt="the desk panel"> | Wall Panel (Raspberry Pi CM4) | 4″ 720×720 touch | the full deck app | yes | see the [project page](https://github.com/dotstartech/wall-panel) | [`clients/flutter`](clients/flutter/agents_ui) |
 
-The Waveshare boards cost roughly $25–40 and the LilyGO about $60, before shipping; buy from the
-maker's own shop or a reseller you trust. When a board comes in versions, take the **touch** one
-(and the "B" for the 1.47″). Not sure? The **2.8″ round** is the nicest to use; the **1.8″ AMOLED** is
-the smallest touch board with a rectangular screen.
+Prices are from the maker's own shop (Waveshare, LilyGO) in October 2026, for the version to buy:
+**with touch** where there's a choice, without a battery for the 1.8″ AMOLED, the standard "B" for
+the 1.47″, and the LilyGO with its shell. They change, and shipping and tax are extra. Not sure? The
+**2.8″ round** is the nicest to use; the **1.8″ AMOLED** is the smallest touch board with a
+rectangular screen.
 
-## Flash a board from zero
+**Want another board?** Ask for it in a [hardware request](https://github.com/brushknight/agents-deck/issues/new?title=Hardware+requests%3A+which+display+should+agents+deck+support+next%3F&body=agents+deck+runs+on+these+boards+today+%28see+%5Bdocs%2Fdevices.md%5D%28..%2Fblob%2Fmain%2Fdocs%2Fdevices.md%29%29%3A%0A%0A-+Waveshare+ESP32-S3-Touch-LCD-2.1+%28round%29%0A-+Waveshare+ESP32-S3-Touch-LCD-2.8C+%28round%29%0A-+Waveshare+ESP32-S3-Touch-LCD-4+%28square%2C+desk-panel+layout%29%0A-+Waveshare+ESP32-S3-Touch-AMOLED-1.8+%28small+square%29%0A-+LilyGO+T4-S3+2.41%E2%80%B3+AMOLED%0A-+Waveshare+ESP32-S3-LCD-1.47+%28strip%29%0A%0A%2A%2AWant+another+one%3F%2A%2A+Comment+here+with%3A%0A%0A1.+%2A%2ABoard%2A%2A+%E2%80%94+exact+name+and+a+link+to+the+maker%27s+product+page%0A2.+%2A%2AScreen%2A%2A+%E2%80%94+size%2C+resolution%2C+shape+%28round+%2F+square+%2F+bar%29%2C+touch+or+buttons%0A3.+%2A%2AChip%2A%2A+%E2%80%94+ESP32-S3+boards+are+easiest+%28USB%2C+PSRAM%2C+Wi-Fi%29%3B+others+are+welcome+but+take+longer%0A4.+%2A%2AHow+you%27d+use+it%2A%2A+%E2%80%94+on+the+desk%2C+on+the+wall%2C+in+a+keyboard%2C+as+a+status+light%E2%80%A6%0A%0A%F0%9F%91%8D+the+requests+you%27d+like+too%3A+the+most-wanted+boards+get+built+first.%0A%0AWriting+firmware+yourself%3F+Follow+%5Bdocs%2Flink%2Fnew-device.md%5D%28..%2Fblob%2Fmain%2Fdocs%2Flink%2Fnew-device.md%29+%E2%80%94+a+coding+agent+can+follow+it+too.&labels=hardware): say which board, its
+screen, and how you'd use it. 👍 the requests you'd like too: the most-wanted boards get built first.
 
-You do this once per board. It takes about 15 minutes, most of it the first download.
+## Flash a board
 
-**1. Install PlatformIO.** It's the tool that compiles the firmware and copies it onto the board. It
-fetches the right compilers by itself.
+You do this once per board. Plug it into the Mac with a USB-C cable that carries data (many cables
+that come with chargers only carry power), then:
 
-```bash
-brew install platformio      # gives you the `pio` command
-```
+**1. Put the firmware on it.** The quick way is the **web flasher (coming soon)**: open it in Chrome
+or Edge on your Mac, pick your board, click **Connect**, choose the board's USB port, and click
+**Install**. It writes the ready-made image from the latest release; nothing to install, about a
+minute. (It uses Web Serial, which Safari and Firefox don't have.)
 
-**2. Get the code and the daemon.** You need a clone of this repository (the firmware is in it), and
-`agentctl` running on your Mac ([quick start](#quick-start-the-mac-part); from the clone,
-`./install.sh --source` gives you the matching version).
+Until it's online, or to run the newest code, build and flash it yourself with PlatformIO:
+[docs/flashing.md](docs/flashing.md) takes you through it, about 15 minutes the first time.
 
-**3. Plug the board in** with a USB-C cable that carries data. Many cables that come with chargers only
-carry power: if nothing shows up in the next step, try another cable first.
-
-**4. Find its port and register it.**
+**2. Let the deck talk to it.** The deck only ever opens USB ports you register:
 
 ```bash
 agentctl link ports                          # lists USB serial ports, e.g. /dev/cu.usbmodem1101
-agentctl link add /dev/cu.usbmodem1101       # once per port: the deck only ever opens ports you add
+agentctl link add /dev/cu.usbmodem1101       # once per port
 ```
 
-**5. Flash it.** From the root of the clone, the command for your board (the first build downloads
-about 1 GB and takes about five minutes; later ones take seconds):
-
-| board | flash command |
-|---|---|
-| 2.8″ round | `pio run -d firmware/devices/waveshare-touch-lcd-28c/idf5 -e idf5 -t upload` |
-| 2.1″ round | `pio run -d firmware/devices/waveshare-touch-lcd-21/idf5 -e idf5 -t upload` |
-| 4″ square | `pio run -d firmware/devices/waveshare-touch-lcd-4 -t upload` (USB only; the `idf5` build adds Wi-Fi but is [experimental on this board](docs/devices.md#waveshare-esp32-s3-touch-lcd-4-square-4)) |
-| 1.8″ AMOLED | `pio run -d firmware/devices/waveshare-touch-amoled-18/idf5 -e idf5 -t upload` |
-| LilyGO T4-S3 | `pio run -d firmware/devices/lilygo-t4-s3/idf5 -e idf5 -t upload` |
-| 1.47″ strip | `pio run -d firmware/devices/waveshare-lcd-147 -t upload` |
-
-With more than one board plugged in, add `--upload-port /dev/cu.usbmodem…` to pick one. The deck lets
-go of the port while PlatformIO uses it, so you don't need to stop anything.
-
-**6. Watch it come up.** The board restarts, says "connecting", and a few seconds later shows your
-agents. On a registered port a new board is approved at once and can answer prompts, focus a terminal
-and interrupt an agent (scope `act`). To let it stop agents too:
+**3. Watch it come up.** The board says "connecting", and a few seconds later shows your agents. On a
+registered port a new board is approved at once and can answer prompts, focus a terminal and
+interrupt an agent (scope `act`). To let it stop agents too:
 
 ```bash
 agentctl devices                                   # every board and device, with its name
@@ -137,11 +118,8 @@ agentctl devices scope <board-name> admin          # admin adds stop
 ```
 
 Prefer to approve each board by hand? `agentctl devices auto-approve usb off`; a new board then shows
-"waiting for approval" with the exact `agentctl devices approve …` command on its screen.
-
-**If the upload can't connect** (a board that's crashing, or one fresh from the factory): hold
-**BOOT**, press and release **RST** (or plug the cable in while holding BOOT), let go of BOOT, and run
-the flash command again. Unplug and replug the board once it's done.
+"waiting for approval" with the exact `agentctl devices approve …` command on its screen. Something
+not working? See [troubleshooting](docs/flashing.md#troubleshooting).
 
 ## Wi-Fi
 
@@ -171,8 +149,9 @@ into Claude Code or Codex in a fresh clone of this repository (fill in your boar
 Set up agents deck on this Mac from this clone, and get my <board name, e.g. Waveshare
 ESP32-S3-Touch-LCD-2.8C> working on it, first over USB, then over Wi-Fi.
 
-1. Read AGENTS.md, README.md ("Flash a board from zero" and "Wi-Fi"), docs/devices.md, and the README
-   in the board's folder under firmware/devices/. Follow the board README where it is more specific.
+1. Read AGENTS.md, README.md ("Flash a board" and "Wi-Fi"), docs/flashing.md, docs/devices.md, and
+   the README in the board's folder under firmware/devices/. Follow the board README where it is
+   more specific.
 2. Check prerequisites and install what's missing with Homebrew, telling me before each install:
    Go 1.24+, PlatformIO (`pio`), tmux. Flutter only if I want the menu bar app.
 3. Build and install agentctl from this clone: `./install.sh --source` (add `--app` for the menu bar
@@ -180,9 +159,10 @@ ESP32-S3-Touch-LCD-2.8C> working on it, first over USB, then over Wi-Fi.
 4. Ask me to plug the board in with a data USB-C cable. Run `agentctl link ports`, and if no new port
    appears, tell me to try another cable (charge-only cables are common). Register the port with
    `agentctl link add <port>`.
-5. Flash the env docs/devices.md recommends for this board, with `--upload-port <port>`. If the
-   upload can't connect, ask me to hold BOOT, press RST, release BOOT, and try again. Don't edit
-   firmware source or build flags to make it work; tell me what failed instead.
+5. Build and flash from source as docs/flashing.md says, with the env it lists for this board and
+   `--upload-port <port>`. If the upload can't connect, ask me to hold BOOT, press RST, release
+   BOOT, and try again. Don't edit firmware source or build flags to make it work; tell me what
+   failed instead.
 6. Verify: `agentctl link status` shows the board on that port, and `agentctl devices` lists it as
    approved (scope act). Ask me whether I want scope admin (it adds stop) before setting it.
 7. Wi-Fi (skip for boards without it): ask me for the network name only, then tell me to run
@@ -195,23 +175,6 @@ ESP32-S3-Touch-LCD-2.8C> working on it, first over USB, then over Wi-Fi.
 9. Finish with a short report: what you installed, the board's name, its port, its scope, and how it
    is connected now.
 ````
-
-## Troubleshooting
-
-| what you see | what to do |
-|---|---|
-| `agentctl link ports` finds nothing | Use a USB cable that carries data (charge-only cables are a common trap), and plug straight into the Mac rather than a hub. |
-| the upload says the port is busy | Close any serial monitor (`pio device monitor`, Arduino IDE). The deck itself lets go of the port while flashing. |
-| the upload can't connect, or times out | Hold BOOT, press RST, let go of BOOT, flash again. |
-| the board stays on "connecting" ("plugged into the Mac?", or "waiting for the deck · on USB" on the round boards) | The deck isn't talking to it on USB: run `agentctl link ports` and `agentctl link add <port>` (the port name can change when you use another USB socket), and check the daemon runs (`agentctl ls`). |
-| "waiting for approval" | Auto-approval is off: run the `agentctl devices approve …` command shown on the screen. |
-| "Wi-Fi failed · wrong password" or "network not found" | Plug it into the Mac and set the network again with `agentctl link wifi --default --ssid "…"`. Boards use 2.4 GHz Wi-Fi only. |
-| "deck not reachable · over Wi-Fi" | The Mac is asleep, the daemon isn't running, the Mac is on another network, or the macOS firewall blocks `agentctl`: allow it in System Settings → Network → Firewall → Options. |
-| "certificate rejected · pair again over USB" | The board was revoked or re-paired: plug it into the Mac and it pairs again by itself. |
-| `agentctl link wifi` is an unknown command | Your `agentctl` is older than Wi-Fi for boards: update it, or install from a clone with `./install.sh --source`. |
-
-More: `agentctl link check <port>` tests a board's firmware against a demo deck, and each board's
-README has a "debug" build that prints what it's doing on the USB port.
 
 ## Where else it shows up
 
