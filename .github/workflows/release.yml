@@ -1,10 +1,12 @@
-# Release builds. Push a tag (v0.2.0) and this creates the GitHub release; or
+# Release builds. Push a tag (v0.1.0) and this creates the GitHub release; or
 # publish a release from the GitHub UI and this fills it. Either way it
-# builds the executables and attaches them, with SHA256SUMS.
+# builds the executables and the board firmware and attaches them, with
+# SHA256SUMS.
 #
-# Today: macOS arm64 (agentctl + the menu bar app). Linux amd64/arm64 and
-# Windows join the matrix once those platforms are supported (see
-# docs/releasing.md).
+# Today: macOS arm64 (agentctl + the menu bar app), and one firmware image
+# per board (flashed at 0x0) with an ESP Web Tools manifest each and
+# firmware-manifest.json listing them all. Linux amd64/arm64 and Windows
+# join the matrix once those platforms are supported (see docs/releasing.md).
 #
 # Signing is optional: with the MACOS_* / APPLE_* secrets set, both are
 # signed with your Developer ID and the app is notarized; without them they
@@ -27,6 +29,10 @@ permissions:
 
 env:
   FLUTTER_VERSION: 3.44.6
+  # pioarduino's PlatformIO Core (what pioarduino's platform is made for; it
+  # builds PlatformIO's own espressif32 platform for the 2.0.17 boards too).
+  PLATFORMIO_VERSION: 6.2.0
+  ESPTOOL_VERSION: 5.6.0
 
 jobs:
   meta:
@@ -140,8 +146,108 @@ jobs:
           name: macos-arm64
           path: dist/*
 
+  # One merged image per board, built with the PlatformIO CLI in a pinned
+  # container. The env is each board's recommended firmware (docs/flashing.md):
+  # idf5 (pioarduino, arduino-esp32 3.x) where it has Wi-Fi, 2.0.17 otherwise.
+  # idf5 projects keep their tools in a PlatformIO home of their own, as on a
+  # Mac, with the SCons fix from docs/flashing.md applied before the build.
+  # Each board has its own cache, keyed on the PlatformIO version and its
+  # platformio.ini.
+  firmware:
+    needs: meta
+    runs-on: ubuntu-24.04
+    container: python:3.12.15-slim-bookworm
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: waveshare-touch-lcd-28c
+            name: Waveshare ESP32-S3-Touch-LCD-2.8C
+            project: firmware/devices/waveshare-touch-lcd-28c/idf5
+            env: idf5
+            home: .platformio-pioarduino
+          - board: waveshare-touch-lcd-21
+            name: Waveshare ESP32-S3-Touch-LCD-2.1
+            project: firmware/devices/waveshare-touch-lcd-21/idf5
+            env: idf5
+            home: .platformio-pioarduino
+          - board: waveshare-touch-amoled-18
+            name: Waveshare ESP32-S3-Touch-AMOLED-1.8
+            project: firmware/devices/waveshare-touch-amoled-18/idf5
+            env: idf5
+            home: .platformio-pioarduino
+          - board: lilygo-t4-s3
+            name: LilyGO T4-S3
+            project: firmware/devices/lilygo-t4-s3/idf5
+            env: idf5
+            home: .platformio-pioarduino
+          - board: waveshare-touch-lcd-4 # 2.0.17 until its idf5 build is out of experimental
+            name: Waveshare ESP32-S3-Touch-LCD-4
+            project: firmware/devices/waveshare-touch-lcd-4
+            env: waveshare-touch-lcd-4
+            home: .platformio
+          - board: waveshare-lcd-147 # no Wi-Fi: 2.0.17 is its only firmware
+            name: Waveshare ESP32-S3-LCD-1.47B
+            project: firmware/devices/waveshare-lcd-147
+            env: waveshare-s3-147b
+            home: .platformio
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      PLATFORMIO_CORE_DIR: /github/home/${{ matrix.home }}
+    steps:
+      - name: system packages
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends git zstd >/dev/null
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.meta.outputs.tag }}
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.PLATFORMIO_CORE_DIR }}
+            /github/home/.cache/pip
+          key: pio-${{ env.PLATFORMIO_VERSION }}-${{ matrix.board }}-${{ matrix.env }}-${{ hashFiles(format('{0}/platformio.ini', matrix.project)) }}
+      - name: PlatformIO and esptool
+        run: |
+          pip install --quiet "https://github.com/pioarduino/platformio-core/archive/refs/tags/v$PLATFORMIO_VERSION.zip" \
+            "esptool==$ESPTOOL_VERSION"
+          pio --version
+      - name: "pioarduino: one SCons for Core and the platform"
+        if: matrix.home == '.platformio-pioarduino'
+        run: .github/scripts/pioarduino-scons.sh "${{ matrix.project }}" "${{ matrix.env }}"
+      - name: build and merge
+        run: |
+          python .github/scripts/firmware_release.py build --board "${{ matrix.board }}" \
+            --name "${{ matrix.name }}" --dir "${{ matrix.project }}" --env "${{ matrix.env }}" \
+            --version "$VERSION" --out dist
+          python -m esptool --chip esp32s3 image-info "dist/agents-deck-${{ matrix.board }}-$VERSION.bin"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: firmware-${{ matrix.board }}
+          path: dist/*
+
+  firmware-index:
+    needs: [meta, firmware]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.meta.outputs.tag }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: firmware-*
+          path: dist
+          merge-multiple: true
+      - name: firmware-manifest.json
+        run: python3 .github/scripts/firmware_release.py index --version "${{ needs.meta.outputs.version }}" --dir dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: firmware
+          path: dist/*
+
   publish:
-    needs: [meta, macos-arm64]
+    needs: [meta, macos-arm64, firmware-index]
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -149,8 +255,12 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
+          name: macos-arm64
           path: dist
-          merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          name: firmware
+          path: dist
       - name: checksums
         run: cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
       - name: release

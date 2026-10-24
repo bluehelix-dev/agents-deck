@@ -143,7 +143,9 @@ cp -R ~/.platformio/packages/tool-scons ~/.platformio-pioarduino/packages/tool-s
 python3 -c "import json,os;p=os.path.expanduser('~/.platformio-pioarduino/packages/tool-scons/package.json');d=json.load(open(p));d['version']='4.40801.0';json.dump(d,open(p,'w'))"
 ```
 
-(`~/.platformio/packages/tool-scons` is there once you've built any 2.0.17 project.)
+(`~/.platformio/packages/tool-scons` is there once you've built any 2.0.17 project. Without one,
+`PLATFORMIO_CORE_DIR=~/.platformio-pioarduino .github/scripts/pioarduino-scons.sh <project> idf5`
+does the same, as the release builds do.)
 
 More: `agentctl link check <port>` tests a board's firmware against a demo deck, and each board's
 README has the details: every screen, every build option, pins and tests.
