@@ -674,6 +674,14 @@ static inline bool drawRoundCommon(Canvas& c, const RoundTheme& T, const DetailS
 // cable says it). The notices say it in words.
 constexpr int kNetBadgeY = 398;   // the mark's base: below home's text, above the ring
 
+// The mark itself is drawNetMark() (round_geom.h; the square boards use it too).
+
+// Whether home shows the mark: on Wi-Fi and live.
+static inline bool netMarkShown(const RoundInput& in) {
+  return in.net && in.net->via == NetVia::Wifi && in.link == LinkState::Live && in.fleet && in.fleet->count &&
+         in.ui && in.ui->screen == RoundScreen::Home;
+}
+
 static inline void drawNetBadge(Canvas& c, const RoundTheme& T, const RoundInput& in) {
   if (!in.net || in.net->via != NetVia::Wifi || in.link != LinkState::Live || !in.fleet || !in.fleet->count ||
       !in.ui || in.ui->screen != RoundScreen::Home)
