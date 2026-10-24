@@ -7,7 +7,8 @@ One Go daemon (`agentctl serve`) owns all agent state. Clients:
 | desk panel (Flutter, 720×720), later a phone app | HTTPS on the network, `:7341`, **TLS 1.3 only** | a **client certificate per device**, signed by the deck's CA; scope view, act or admin |
 | web UI (served by the daemon) | HTTP on `127.0.0.1:7340` only | HttpOnly SameSite=Strict cookie set by a one-time login URL from `agentctl web` |
 | menu bar app, Claude Code hooks, `agentctl` CLI | unix socket `~/.local/share/agents-terminal/agentd.sock` (0600) | filesystem permissions: your macOS user |
-| ESP32 boards (Deck Link) | USB serial, see [link/protocol.md](link/protocol.md) | approved once per board; scope view, act or admin |
+| ESP32 boards (Deck Link) | USB serial, see [link/protocol.md](link/protocol.md) | approved once per board (at once when plugged into a registered USB port, unless turned off); scope view, act or admin |
+| ESP32 boards on Wi-Fi | `GET /v1/link` with `Upgrade: deck-link` on the network listener (`:7341`, TLS 1.3): the connection becomes a Deck Link stream ([pairing and Wi-Fi](link/protocol.md#pairing-and-wi-fi)) | the board's client certificate, issued over USB to an approved board; the same device, scope and audit log as on USB |
 
 Every listener serves the same `/v1` API. Nothing listens on the network without TLS and a device certificate.
 The loopback listener rejects any `Host` other than `127.0.0.1:7340`/`localhost:7340` and any
@@ -152,6 +153,32 @@ belong to an active device in `devices.json`; a revoked device fails the handsha
 
 A request beyond the device's scope gets `403` with the command that would raise it.
 
+**Boards on USB.** The daemon opens only the serial ports you registered (`agentctl link add`). A new
+board that says `Hello` on one of them is approved at once with scope `act`: plugging a board into
+this Mac, on a port you registered, is treated as your consent. It is audited (`"action": "approve",
+"detail": "approved automatically over USB on /dev/cu.usbmodem…, scope act"`). `admin` is only ever
+given by hand (`agentctl devices scope`). It never happens over Wi-Fi, on the network listener or for
+`agentctl link sim`, and a revoked board stays revoked until `agentctl devices approve`. Turn it off
+with `agentctl devices auto-approve usb off` (new boards then wait for `agentctl devices approve`), or
+give new boards `view` with `--scope view`; the setting lives next to `devices.json`
+(`devices-settings.json`) and `agentctl devices` shows it.
+
+**Boards on Wi-Fi.** A Deck Link board is paired over USB serial: once it is approved, it sends a
+certificate request for a key it made on the chip, and the deck signs it and records it on the board's
+own entry (`CertRequest`/`CertIssued`, [link/protocol.md](link/protocol.md#pairing-and-wi-fi)). Over
+Wi-Fi it connects to this listener with that certificate and opens `GET /v1/link` (`Upgrade:
+deck-link`), a transport rather than an API call: the connection carries Deck Link frames, its
+commands go through the same scope check and audit log under the board's name, its `Hello` must carry
+the board id the certificate was issued to, and revoking the board ends the session and fails its
+next handshake (the certificate is dropped for good; approved again, the board pairs again over USB).
+Wi-Fi passwords never go through `/v1`: `agentctl link wifi` hands them to the daemon on the unix
+socket (`POST /local/link/wifi`), which passes them to a board connected over USB right now and keeps
+nothing. The one exception is the default network (`agentctl link wifi --default --ssid NAME`, `POST
+/local/link/wifi-default`): its password is kept in the macOS Keychain (`dev.agents-deck`, item
+`wifi-default`; a 0600 file under `keys/` elsewhere), and the deck sends it, over USB only, to every
+approved board that is paired and lacks it, once per connection, unless the board was given its own
+network. It is never logged or audited (`"action": "wifi default set"` without the network or password).
+
 **Pairing.** Two ways:
 
 - `agentctl pair desk-panel --bundle panel.json` makes the device's key and certificate on the Mac and
@@ -168,7 +195,8 @@ A request beyond the device's scope gets `403` with the command that would raise
   EC P-256 or P-384 key and sends `POST /v1/pair {"code", "csr"}` (the CSR in PEM) without a client
   certificate; the answer is `{"name", "cert", "ca"}`. Its private key never leaves it.
 
-Pairing a name again replaces its certificate. `agentctl devices` lists everything paired;
+Pairing a name again replaces its certificate. `agentctl devices` lists everything paired, and how
+each board is connected right now (USB or Wi-Fi);
 `agentctl devices revoke|approve|remove <name>` and `agentctl devices scope <name> <scope>` manage them.
 
 **Audit.** Every request that changes something is appended to `audit.log` as one JSON line:

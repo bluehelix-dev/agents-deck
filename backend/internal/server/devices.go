@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"io"
 	"log"
@@ -56,6 +57,13 @@ func (s *Server) DeviceHandler() http.Handler {
 		}
 		if !strings.HasPrefix(r.URL.Path, "/v1/") {
 			writeErr(w, http.StatusNotFound, "not found")
+			return
+		}
+		if r.URL.Path == "/v1/link" && s.DeviceLink != nil {
+			// A board's Deck Link session over Wi-Fi: a transport, not an API
+			// endpoint. Its commands go through Dispatch (scope, audit).
+			s.Devices.Seen(d.Name)
+			s.DeviceLink(w, r, d)
 			return
 		}
 		if need := NeedScope(r.Method, r.URL.Path); !d.Scope.Allows(need) {
@@ -212,7 +220,37 @@ func (s *Server) localDevices(mux *http.ServeMux) {
 		if !ready(w) {
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"devices": s.Devices.List(), "ca": s.CA.Fingerprint(), "url": s.DeviceURL})
+		writeJSON(w, http.StatusOK, map[string]any{"devices": s.Devices.List(), "ca": s.CA.Fingerprint(), "url": s.DeviceURL,
+			"autoApprove": s.Devices.Settings().AutoApprove})
+	})
+	// Approving boards plugged in over USB by themselves: on or off, and the scope they get.
+	mux.HandleFunc("POST /local/devices/auto-approve", func(w http.ResponseWriter, r *http.Request) {
+		if s.Devices == nil {
+			writeErr(w, http.StatusServiceUnavailable, "no device registry")
+			return
+		}
+		var b struct {
+			USB   *bool  `json:"usb"`
+			Scope string `json:"scope"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1024)).Decode(&b); err != nil || b.USB == nil {
+			writeErr(w, http.StatusBadRequest, `body must be {"usb": true|false, "scope": "view"|"act"}`)
+			return
+		}
+		sc := s.Devices.Settings().AutoApprove.Scope
+		if b.Scope != "" {
+			sc = devices.Scope(b.Scope)
+		}
+		if err := s.Devices.SetAutoApprove(*b.USB, sc); err != nil {
+			writeErr(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		state := "off"
+		if *b.USB {
+			state = "on, scope " + string(sc)
+		}
+		s.Audit.Log(devices.AuditEntry{Device: "local", Action: "auto-approve usb", Status: http.StatusOK, Detail: state})
+		writeJSON(w, http.StatusOK, s.Devices.Settings().AutoApprove)
 	})
 	type nameScope struct {
 		Name  string `json:"name"`
@@ -286,6 +324,8 @@ func (s *Server) localDevices(mux *http.ServeMux) {
 			err = s.Devices.Revoke(name)
 		case "approve":
 			err = s.Devices.Approve(name)
+		case "repair": // a board pairs again over USB (a new key and certificate)
+			err = s.Devices.ClearBoardCert(name)
 		case "remove":
 			err = s.Devices.Remove(name)
 		case "scope":
@@ -310,4 +350,179 @@ func (s *Server) localDevices(mux *http.ServeMux) {
 			w.WriteHeader(http.StatusNoContent)
 		}
 	})
+}
+
+// ---- Deck Link boards: Wi-Fi certificates and credentials --------------------
+
+// PairBoard issues an approved serial board its client certificate from a
+// CSR (DER or PEM) for its own key, and records it on the board's entry: the
+// same name, scope, revocation and audit log over Wi-Fi as over USB. It
+// returns the certificate (DER) and its serial, or an HTTP status and error.
+func (s *Server) PairBoard(d devices.Device, csr []byte) (cert []byte, serial string, code int, err error) {
+	if s.CA == nil || s.Devices == nil {
+		return nil, "", http.StatusServiceUnavailable, errors.New("the network listener is off (deviceAddr in config.json)")
+	}
+	if d.Kind != devices.Serial || !d.Active() {
+		return nil, "", http.StatusForbidden, errors.New(d.Name + " isn't approved: agentctl devices approve " + d.Name)
+	}
+	if !bytes.HasPrefix(bytes.TrimSpace(csr), []byte("-----BEGIN")) {
+		csr = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csr})
+	}
+	c, _, err := s.CA.SignCSR(d.Name, csr)
+	if err != nil {
+		return nil, "", http.StatusBadRequest, err
+	}
+	serial = pki.SerialHex(c)
+	if err := s.Devices.SetBoardCert(d.Name, serial, pki.Fingerprint(c.Raw)); err != nil {
+		return nil, "", http.StatusForbidden, err
+	}
+	s.Audit.Log(devices.AuditEntry{Device: d.Name, Action: "pair (deck link)", Status: http.StatusOK, Detail: "certificate " + serial})
+	log.Printf("link: %s paired for Wi-Fi (certificate %s)", d.Name, serial)
+	s.Store.Touch() // the devices list on the web dashboard
+	return c.Raw, serial, http.StatusOK, nil
+}
+
+// linkWifi: POST /local/link/wifi {"device", "ssid", "password", "forget"}.
+// Unix socket only: the password goes straight to the board over USB serial
+// and is never stored, logged or audited on the Mac. There is deliberately no
+// /v1 counterpart: /v1 is reachable from the network, and a Wi-Fi password
+// shouldn't travel further than this Mac and the board's USB cable.
+func (s *Server) linkWifi(w http.ResponseWriter, r *http.Request) {
+	var b struct {
+		Device     string `json:"device"`
+		SSID       string `json:"ssid"`
+		Password   string `json:"password"`
+		Forget     bool   `json:"forget"`
+		UseDefault bool   `json:"useDefault"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&b); err != nil || b.Device == "" {
+		writeErr(w, http.StatusBadRequest, `body must be {"device", "ssid", "password"}, {"device", "forget": true} or {"device", "useDefault": true}`)
+		return
+	}
+	if b.UseDefault {
+		s.linkWifiUseDefault(w, b.Device)
+		return
+	}
+	if !b.Forget {
+		if err := CheckWifi(b.SSID, b.Password); err != nil {
+			writeErr(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+	if s.LinkWifi == nil {
+		writeErr(w, http.StatusServiceUnavailable, "Deck Link is off")
+		return
+	}
+	code, msg := s.LinkWifi(b.Device, b.SSID, b.Password, b.Forget)
+	what := "set"
+	if b.Forget {
+		what = "forget"
+	}
+	if s.Audit != nil {
+		s.Audit.Log(devices.AuditEntry{Device: "local", Action: "wifi " + b.Device, Status: code, Detail: what})
+	}
+	if code >= 300 {
+		writeErr(w, code, msg)
+		return
+	}
+	// Its own network (or none): the default network leaves it alone.
+	if s.Devices != nil {
+		if err := s.Devices.SetWifiOwn(b.Device, true); err != nil {
+			log.Printf("wifi %s: %v", b.Device, err)
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// linkWifiUseDefault: the board follows the default network again; on USB
+// right now, it gets it at once. Answers {"sent", "message"}.
+func (s *Server) linkWifiUseDefault(w http.ResponseWriter, device string) {
+	if s.Devices == nil {
+		writeErr(w, http.StatusServiceUnavailable, "no device registry")
+		return
+	}
+	if err := s.Devices.SetWifiOwn(device, false); err != nil {
+		code := http.StatusBadRequest
+		if errors.Is(err, devices.ErrUnknown) {
+			code = http.StatusNotFound
+		}
+		writeErr(w, code, err.Error())
+		return
+	}
+	s.Audit.Log(devices.AuditEntry{Device: "local", Action: "wifi " + device, Status: http.StatusOK, Detail: "use default"})
+	sent, msg := false, "it gets the default network next time it is plugged in"
+	if s.LinkWifiUseDefault != nil {
+		code, m := s.LinkWifiUseDefault(device)
+		switch {
+		case code < 300:
+			sent, msg = true, "sent the default network: it is testing it"
+		case code == http.StatusConflict || code == http.StatusNotFound:
+			msg = m
+		default:
+			writeErr(w, code, m)
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sent": sent, "message": msg})
+}
+
+// linkWifiDefault: POST /local/link/wifi-default {"ssid", "password"} or
+// {"forget": true}. Unix socket only, like linkWifi: the password goes to the
+// OS secret store (the Keychain) and to boards over USB, and is never logged
+// or audited.
+func (s *Server) linkWifiDefault(w http.ResponseWriter, r *http.Request) {
+	var b struct {
+		SSID     string `json:"ssid"`
+		Password string `json:"password"`
+		Forget   bool   `json:"forget"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&b); err != nil {
+		writeErr(w, http.StatusBadRequest, `body must be {"ssid", "password"} or {"forget": true}`)
+		return
+	}
+	if !b.Forget {
+		if err := CheckWifi(b.SSID, b.Password); err != nil {
+			writeErr(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+	if s.LinkWifiDefault == nil {
+		writeErr(w, http.StatusServiceUnavailable, "Deck Link is off")
+		return
+	}
+	what := "wifi default set"
+	if b.Forget {
+		what = "wifi default cleared"
+	}
+	if err := s.LinkWifiDefault(b.SSID, b.Password, b.Forget); err != nil {
+		s.Audit.Log(devices.AuditEntry{Device: "local", Action: what, Status: http.StatusInternalServerError})
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.Audit.Log(devices.AuditEntry{Device: "local", Action: what, Status: http.StatusNoContent})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// CheckWifi: an SSID of 1 to 32 bytes; a WPA passphrase of 8 to 63
+// characters, 64 hex digits, or "" for an open network.
+func CheckWifi(ssid, password string) error {
+	if ssid == "" || len(ssid) > 32 {
+		return errors.New("the network name (SSID) must be 1 to 32 bytes")
+	}
+	switch n := len(password); {
+	case n == 0, n >= 8 && n <= 63:
+	case n == 64 && isHex(password):
+	default:
+		return errors.New("a Wi-Fi password has 8 to 63 characters (or 64 hex digits); leave it empty for an open network")
+	}
+	return nil
+}
+
+func isHex(s string) bool {
+	for _, c := range s {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+			return false
+		}
+	}
+	return true
 }

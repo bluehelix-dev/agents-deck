@@ -62,7 +62,8 @@ type Device struct {
 	LastSeen time.Time `json:"lastSeen,omitzero"`
 	Revoked  bool      `json:"revoked,omitempty"`
 
-	// Network devices: the client certificate's serial number and SHA-256.
+	// The client certificate's serial number and SHA-256: network devices,
+	// and serial boards paired for Wi-Fi (Deck Link CertRequest).
 	CertSerial      string `json:"certSerial,omitempty"`
 	CertFingerprint string `json:"certFingerprint,omitempty"`
 
@@ -71,6 +72,10 @@ type Device struct {
 	Type     string `json:"type,omitempty"`     // device type, e.g. "oled-tile"
 	Firmware string `json:"firmware,omitempty"` // firmware version
 	Approved bool   `json:"approved,omitempty"`
+	// WifiOwn: the board was given its own network (`agentctl link wifi
+	// <board> --ssid`, or told to forget it): the deck's default network
+	// doesn't replace it. `--use-default` clears it. No password is kept.
+	WifiOwn bool `json:"wifiOwn,omitempty"`
 }
 
 // Active: may connect right now.
@@ -97,6 +102,29 @@ type Registry struct {
 	devices map[string]*Device
 	codes   map[string]pairCode
 	seenAt  map[string]time.Time // last saved LastSeen, to save at most once a minute
+	set     Settings
+}
+
+// Settings are the registry's own: how new boards are let in. They live
+// next to devices.json, in devices-settings.json.
+type Settings struct {
+	AutoApprove AutoApprove `json:"autoApprove"`
+}
+
+// AutoApprove: a new board saying Hello on a registered USB port (`agentctl
+// link add`) is approved at once with Scope. Plugging a board into this Mac
+// counts as the owner's consent. Never over Wi-Fi or the network listener,
+// and never a revoked board.
+type AutoApprove struct {
+	USB   bool  `json:"usb"`
+	Scope Scope `json:"scope"`
+}
+
+// DefaultSettings: boards plugged in over USB are approved with scope act.
+func DefaultSettings() Settings { return Settings{AutoApprove: AutoApprove{USB: true, Scope: Act}} }
+
+func (r *Registry) settingsPath() string {
+	return strings.TrimSuffix(r.Path, ".json") + "-settings.json"
 }
 
 type pairCode struct {
@@ -120,6 +148,70 @@ func (r *Registry) load() {
 	for _, d := range list {
 		r.devices[d.Name] = d
 	}
+	r.set = DefaultSettings()
+	if b, err := os.ReadFile(r.settingsPath()); err == nil {
+		_ = json.Unmarshal(b, &r.set)
+	}
+	if r.set.AutoApprove.Scope != View && r.set.AutoApprove.Scope != Act {
+		r.set.AutoApprove.Scope = Act
+	}
+}
+
+// Settings returns the registry's settings.
+func (r *Registry) Settings() Settings {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.load()
+	return r.set
+}
+
+// SetAutoApprove turns approving boards plugged in over USB on or off, and
+// sets the scope they get: view or act (admin is always given by hand).
+func (r *Registry) SetAutoApprove(on bool, scope Scope) error {
+	if scope != View && scope != Act {
+		return errors.New("boards approved automatically get view or act; admin is given by hand (agentctl devices scope)")
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.load()
+	next := r.set
+	next.AutoApprove = AutoApprove{USB: on, Scope: scope}
+	b, err := json.MarshalIndent(next, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp := r.settingsPath() + ".tmp"
+	if err := os.WriteFile(tmp, append(b, '\n'), 0o600); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, r.settingsPath()); err != nil {
+		return err
+	}
+	r.set = next
+	return nil
+}
+
+// AutoApproveUSB approves a board that said Hello on a registered USB port,
+// when the setting is on and the board has never been approved: a revoked
+// board stays revoked until `agentctl devices approve`. It returns the entry
+// and whether it approved it just now.
+func (r *Registry) AutoApproveUSB(name string) (Device, bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.load()
+	d, ok := r.devices[name]
+	if !ok {
+		return Device{}, false, ErrUnknown
+	}
+	if !r.set.AutoApprove.USB || d.Kind != Serial || d.Approved || d.Revoked {
+		return *d, false, nil
+	}
+	d.Approved, d.Scope = true, r.set.AutoApprove.Scope
+	if err := r.save(); err != nil {
+		d.Approved, d.Scope = false, View
+		return *d, false, err
+	}
+	return *d, true, nil
 }
 
 func (r *Registry) save() error {
@@ -180,17 +272,50 @@ func (r *Registry) AddNetwork(name string, scope Scope, certSerial, certFingerpr
 	return r.save()
 }
 
-// ByCertSerial finds the active network device holding a certificate.
+// ByCertSerial finds the device holding a certificate: a network device, or
+// a serial board paired for Wi-Fi. ok is false unless it is active (a board
+// must be approved).
 func (r *Registry) ByCertSerial(serial string) (Device, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.load()
+	if serial == "" {
+		return Device{}, false
+	}
 	for _, d := range r.devices {
-		if d.Kind == Network && d.CertSerial == serial {
+		if d.CertSerial == serial {
 			return *d, d.Active()
 		}
 	}
 	return Device{}, false
+}
+
+// SetBoardCert records a serial board's new client certificate, for Wi-Fi.
+// The board must be approved; its previous certificate stops working.
+func (r *Registry) SetBoardCert(name, certSerial, certFingerprint string) error {
+	return r.update(name, func(d *Device) error {
+		if d.Kind != Serial {
+			return fmt.Errorf("%s is a %s device: only serial boards pair over Deck Link", name, d.Kind)
+		}
+		if !d.Active() {
+			return fmt.Errorf("%s isn't approved: agentctl devices approve %s", name, name)
+		}
+		d.CertSerial, d.CertFingerprint = certSerial, certFingerprint
+		return nil
+	})
+}
+
+// ClearBoardCert forgets a serial board's certificate: it can't connect over
+// Wi-Fi until it pairs again over USB (which it does by itself when it's
+// plugged in and approved).
+func (r *Registry) ClearBoardCert(name string) error {
+	return r.update(name, func(d *Device) error {
+		if d.Kind != Serial {
+			return fmt.Errorf("%s is a %s device: pair it again with agentctl pair", name, d.Kind)
+		}
+		d.CertSerial, d.CertFingerprint = "", ""
+		return nil
+	})
 }
 
 // Board registers a serial board that said Hello. A new board is added
@@ -237,8 +362,12 @@ func boardName(typ, id string) string {
 	if t == "" {
 		t = "board"
 	}
-	if len(t) > 20 {
-		t = t[:20]
+	if len(t) > 32 { // Hello.type's limit in link.options
+		t = t[:32]
+	}
+	t = strings.Trim(t, "-")
+	if t == "" {
+		t = "board"
 	}
 	if len(i) > 8 { // a long id (a MAC): its last 6 characters
 		i = i[len(i)-6:]
@@ -260,9 +389,29 @@ func (r *Registry) Approve(name string) error {
 	})
 }
 
-// Revoke cuts a device off at once (its certificate or board id stops working).
+// Revoke cuts a device off at once (its certificate or board id stops
+// working). A board also loses its Wi-Fi certificate for good: approved
+// again, it pairs again over USB.
 func (r *Registry) Revoke(name string) error {
-	return r.update(name, func(d *Device) error { d.Revoked = true; return nil })
+	return r.update(name, func(d *Device) error {
+		d.Revoked = true
+		if d.Kind == Serial {
+			d.CertSerial, d.CertFingerprint = "", ""
+		}
+		return nil
+	})
+}
+
+// SetWifiOwn records whether a board keeps its own Wi-Fi network (see
+// Device.WifiOwn).
+func (r *Registry) SetWifiOwn(name string, own bool) error {
+	return r.update(name, func(d *Device) error {
+		if d.Kind != Serial {
+			return fmt.Errorf("%s is a %s device: only serial boards take Wi-Fi credentials", name, d.Kind)
+		}
+		d.WifiOwn = own
+		return nil
+	})
 }
 
 // SetScope changes what a device may do.

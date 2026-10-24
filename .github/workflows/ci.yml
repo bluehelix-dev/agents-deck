@@ -65,6 +65,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: tools (nanopb, PlatformIO)
         run: |
+          sudo apt-get update -qq # the runner image's package lists go stale: install alone can 404
           sudo apt-get install -y --no-install-recommends protobuf-compiler >/dev/null # nanopb's generator runs protoc
           python3 -m venv "$RUNNER_TEMP/venv"
           "$RUNNER_TEMP/venv/bin/pip" install --quiet nanopb==0.4.9.1 platformio
@@ -72,7 +73,14 @@ jobs:
       - name: generated C matches link.proto
         run: firmware/deck-link/tools/generate.sh --check
       - name: host tests
-        run: make -C firmware/deck-link/test/host test
+        run: |
+          make -C firmware/deck-link/test/host test
+          for t in firmware/panel-core/tests/run.sh firmware/devices/*/tests/run.sh; do
+            [ -x "$t" ] || continue
+            echo "::group::$t"
+            "$t"
+            echo "::endgroup::"
+          done
       - name: build every example and device
         run: |
           for d in firmware/deck-link/examples/*/ firmware/devices/*/; do

@@ -1,6 +1,7 @@
 package devices
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -58,6 +59,16 @@ func TestBoards(t *testing.T) {
 	if other.Name == d.Name {
 		t.Error("two boards share a name")
 	}
+	// Long types keep their model: two round boards don't both become "waveshare-touch-lcd--…".
+	for typ, want := range map[string]string{
+		"waveshare-touch-lcd-28c":   "waveshare-touch-lcd-28c-00280c",
+		"waveshare-touch-amoled-18": "waveshare-touch-amoled-18-00280c",
+		"-dash-":                    "dash-00280c",
+	} {
+		if got := boardName(typ, "AA:BB:CC:00:28:0C"); got != want {
+			t.Errorf("boardName(%q) = %q, want %q", typ, got, want)
+		}
+	}
 }
 
 func TestPairingCodes(t *testing.T) {
@@ -81,5 +92,99 @@ func TestPairingCodes(t *testing.T) {
 func TestScopes(t *testing.T) {
 	if !Admin.Allows(Act) || !Act.Allows(View) || View.Allows(Act) || Act.Allows(Admin) || Scope("").Allows(View) {
 		t.Error("scope order")
+	}
+}
+
+// A board paired for Wi-Fi is the same entry: its certificate works while it
+// is approved, and revoking it drops the certificate for good.
+func TestBoardCert(t *testing.T) {
+	r := &Registry{Path: filepath.Join(t.TempDir(), "devices.json")}
+	d, _ := r.Board("AA:BB:CC:00:00:01", "round", "1")
+	if err := r.SetBoardCert(d.Name, "c1", "sha256:01"); err == nil {
+		t.Fatal("an unapproved board got a certificate")
+	}
+	_ = r.Approve(d.Name)
+	if err := r.SetBoardCert(d.Name, "c1", "sha256:01"); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := r.ByCertSerial("c1"); !ok || got.Name != d.Name || got.Kind != Serial || got.BoardID != d.BoardID {
+		t.Fatalf("by serial: %+v %v", got, ok)
+	}
+	// Pairing again replaces it.
+	_ = r.SetBoardCert(d.Name, "c2", "sha256:02")
+	if _, ok := r.ByCertSerial("c1"); ok {
+		t.Error("the old certificate still works")
+	}
+	if err := r.Revoke(d.Name); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := r.ByCertSerial("c2"); ok {
+		t.Error("a revoked board's certificate works")
+	}
+	_ = r.Approve(d.Name)
+	if _, ok := r.ByCertSerial("c2"); ok {
+		t.Error("approving again brought the old certificate back")
+	}
+	if _, ok := r.ByCertSerial(""); ok {
+		t.Error("an empty serial matched")
+	}
+	if err := r.AddNetwork("panel", Act, "n1", "sha256:03"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetBoardCert("panel", "x", "y"); err == nil {
+		t.Error("a network device paired as a board")
+	}
+}
+
+// Boards plugged in over USB: approved at once by default (scope act), never
+// when revoked, never with the setting off; the setting persists.
+func TestAutoApproveUSB(t *testing.T) {
+	dir := t.TempDir()
+	r := &Registry{Path: filepath.Join(dir, "devices.json")}
+	if s := r.Settings().AutoApprove; !s.USB || s.Scope != Act {
+		t.Fatalf("default: %+v", s)
+	}
+	d, _ := r.Board("AA:01", "round", "1")
+	got, ok, err := r.AutoApproveUSB(d.Name)
+	if err != nil || !ok || !got.Approved || got.Scope != Act {
+		t.Fatalf("new board: %+v %v %v", got, ok, err)
+	}
+	if _, ok, _ := r.AutoApproveUSB(d.Name); ok {
+		t.Fatal("approved twice")
+	}
+	_ = r.Revoke(d.Name)
+	if got, ok, _ := r.AutoApproveUSB(d.Name); ok || got.Active() {
+		t.Fatal("a revoked board was approved again")
+	}
+	if err := r.SetAutoApprove(false, View); err != nil {
+		t.Fatal(err)
+	}
+	d2, _ := r.Board("AA:02", "round", "1")
+	if _, ok, _ := r.AutoApproveUSB(d2.Name); ok {
+		t.Fatal("approved with the setting off")
+	}
+	if err := r.SetAutoApprove(true, Admin); err == nil {
+		t.Fatal("admin")
+	}
+	r2 := &Registry{Path: r.Path}
+	if s := r2.Settings().AutoApprove; s.USB || s.Scope != View {
+		t.Fatalf("reloaded: %+v", s)
+	}
+	if st, err := os.Stat(filepath.Join(dir, "devices-settings.json")); err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("settings file: %v %v", st, err)
+	}
+	if _, _, err := r.AutoApproveUSB("nobody"); err != ErrUnknown {
+		t.Fatalf("unknown: %v", err)
+	}
+	// A network device takes no Wi-Fi override.
+	_ = r.AddNetwork("panel", Act, "01", "fp")
+	if err := r.SetWifiOwn("panel", true); err == nil {
+		t.Fatal("wifi override on a network device")
+	}
+	if err := r.SetWifiOwn(d2.Name, true); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := (&Registry{Path: r.Path}).Get(d2.Name); !got.WifiOwn {
+		t.Fatal("override not saved")
 	}
 }

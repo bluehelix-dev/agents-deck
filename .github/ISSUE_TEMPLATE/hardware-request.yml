@@ -1,0 +1,73 @@
+name: Hardware request
+description: Ask for a board or screen agents deck should run on next.
+title: "Hardware request: <board name>"
+labels: [hardware]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        agents deck runs on these boards today: [docs/devices.md](https://github.com/brushknight/agents-deck/blob/main/docs/devices.md).
+        Check the open hardware requests first: if your board is there, give it a 👍 instead. The most-wanted boards get built first.
+
+        Writing the firmware yourself? [docs/link/new-device.md](https://github.com/brushknight/agents-deck/blob/main/docs/link/new-device.md) walks through it, and a coding agent can follow it too.
+  - type: input
+    id: board
+    attributes:
+      label: Board
+      description: The exact name, as the maker sells it.
+      placeholder: Waveshare ESP32-S3-Touch-LCD-1.85
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link
+      description: The maker's product page (or its wiki).
+      placeholder: https://www.waveshare.com/...
+    validations:
+      required: true
+  - type: input
+    id: screen
+    attributes:
+      label: Screen
+      description: Size, resolution and shape.
+      placeholder: 1.85″, 360×360, round
+    validations:
+      required: true
+  - type: dropdown
+    id: input
+    attributes:
+      label: Touch or buttons
+      options:
+        - Touch
+        - Buttons only
+        - Neither (look only)
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: chip
+    attributes:
+      label: Chip
+      description: ESP32-S3 boards are the easiest (USB, PSRAM, Wi-Fi). Others are welcome but take longer.
+      options:
+        - ESP32-S3
+        - Another ESP32 (C3, C6, S2, P4…)
+        - Something else (RP2040, nRF, STM32…)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: use
+    attributes:
+      label: How you'd use it
+      description: On the desk, on the wall, in a keyboard, as a status light… and anything the board does that the deck should use (a knob, a buzzer, a battery).
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Can you help?
+      options:
+        - label: I have this board and can test builds on it
+        - label: I'd like to write the firmware myself
