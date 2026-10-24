@@ -142,6 +142,10 @@ same agents, statuses, prompts and actions as the web API ([protocol](link/proto
 [firmware kit](../firmware/deck-link) does the protocol; its examples are a status LED, an OLED tile
 with a button, and a rotary-encoder knob.
 [`waveshare-lcd-147`](../firmware/devices/waveshare-lcd-147) is a read-only colour panel for the Waveshare ESP32-S3-LCD-1.47B: one agent in detail next to a mini-board of the fleet.
+[`waveshare-touch-lcd-4`](../firmware/devices/waveshare-touch-lcd-4) (4″, 480×480) and
+[`waveshare-touch-amoled-18`](../firmware/devices/waveshare-touch-amoled-18) (1.8″ AMOLED) show the deck's
+grid with touch: tap a tile for its card, answer prompts with scope `act`. All three share
+[firmware/panel-core](../firmware/panel-core).
 
 ```sh
 agentctl link ports                      # USB serial ports that look like boards
