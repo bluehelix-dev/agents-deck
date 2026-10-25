@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -793,7 +794,23 @@ func openWeb(args []string) error {
 	if err := call("POST", "/local/login-code", nil, &res); err != nil {
 		return err
 	}
-	return exec.Command("open", "http://"+cfg.LocalAddr+"/login?code="+res.Code).Run()
+	url := "http://" + cfg.LocalAddr + "/login?code=" + res.Code
+	if err := openBrowser(url); err != nil {
+		// No browser opener (e.g. headless Linux): print the link instead.
+		fmt.Println("open this in your browser:", url)
+	}
+	return nil
+}
+
+// openBrowser opens url in the default browser: `open` on macOS, `xdg-open`
+// elsewhere (Linux). The one-time login code expires quickly, so callers
+// should mint it immediately before calling this.
+func openBrowser(url string) error {
+	opener := "xdg-open"
+	if runtime.GOOS == "darwin" {
+		opener = "open"
+	}
+	return exec.Command(opener, url).Run()
 }
 
 func pair(args []string) error {
