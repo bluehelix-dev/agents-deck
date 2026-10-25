@@ -158,8 +158,22 @@ def cmd_build(args):
     extra = meta["extra"]
     images = [(int(i["offset"], 16), i["path"]) for i in extra["flash_images"]]
     app = Path(meta["prog_path"]).with_suffix(".bin")
-    images.append((int(extra["application_offset"], 16), str(app)))
+    images.append((app_offset(extra, images), str(app)))
     write_outputs(args, images, {"env": args.env, "project": args.dir})
+
+
+def app_offset(extra, images):
+    """Where the app goes. PlatformIO's metadata says so; pioarduino's (idf5)
+    doesn't, so then it is the first app partition, as the bootloader picks."""
+    if "application_offset" in extra:
+        return int(extra["application_offset"], 16)
+    table = [p for o, p in images if o == PARTITION_TABLE_OFFSET]
+    if not table:
+        fail("no application_offset in the metadata and no partition table among the flash images")
+    apps = [p for p in partitions(Path(table[0]).read_bytes()) if p[1] == 0]
+    if not apps:
+        fail(f"no app partition in {table[0]}")
+    return apps[0][3]
 
 
 def cmd_merge(args):
