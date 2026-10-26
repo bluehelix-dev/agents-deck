@@ -21,7 +21,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -78,11 +77,6 @@ func sessions(b []byte, alive func(pid int) bool) ([]Session, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Surface < out[j].Surface })
 	return out, nil
-}
-
-func alive(pid int) bool {
-	err := syscall.Kill(pid, 0)
-	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
 // Socket is the control socket of the cmux that's running (it may not be).

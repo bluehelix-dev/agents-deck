@@ -252,7 +252,7 @@ func ToolDetail(tool string, input json.RawMessage, cwd string) string {
 	rel := func(p string) string {
 		if cwd != "" {
 			if r, err := filepath.Rel(cwd, p); err == nil && !strings.HasPrefix(r, "..") {
-				return r
+				return filepath.ToSlash(r)
 			}
 		}
 		return ShortPath(p)
@@ -297,8 +297,8 @@ func field(raw json.RawMessage, key string) string {
 // ShortPath renders a path with ~ for the home directory.
 func ShortPath(p string) string {
 	home, _ := os.UserHomeDir()
-	if home != "" && (p == home || strings.HasPrefix(p, home+"/")) {
-		return "~" + strings.TrimPrefix(p, home)
+	if home != "" && (p == home || strings.HasPrefix(p, home+"/") || strings.HasPrefix(p, home+string(filepath.Separator))) {
+		return "~" + filepath.ToSlash(strings.TrimPrefix(p, home))
 	}
 	return p
 }

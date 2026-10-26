@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -180,7 +181,7 @@ func TestUSBBoardProvisionsItself(t *testing.T) {
 	if w.Code != 204 {
 		t.Fatalf("set default: %d %s", w.Code, w.Body)
 	}
-	if st, err := os.Stat(filepath.Join(keys, wifiDefaultKey)); err != nil || st.Mode().Perm() != 0o600 {
+	if st, err := os.Stat(filepath.Join(keys, wifiDefaultKey)); err != nil || (runtime.GOOS != "windows" && st.Mode().Perm() != 0o600) {
 		t.Fatalf("the default's file: %v %v", st, err)
 	}
 

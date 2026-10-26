@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -125,8 +126,11 @@ func TestClaudeAgentsList(t *testing.T) {
 	t.Cleanup(func() { tmux.Socket = old })
 	id := "5d6e7f80-1111-4222-8333-944455556666"
 	list := `[{"id":"ab12cd34","cwd":"/work/app","kind":"background","startedAt":1791446002609,"sessionId":"` + id + `","name":"refactor auth","state":"blocked","pid":4242,"status":"busy"}]`
-	fake := filepath.Join(root, "claude")
-	if err := os.WriteFile(fake, []byte("#!/bin/sh\necho '"+list+"'\n"), 0o755); err != nil {
+	fake, script := filepath.Join(root, "claude"), "#!/bin/sh\necho '"+list+"'\n"
+	if runtime.GOOS == "windows" { // no shebangs: a batch file instead
+		fake, script = fake+".cmd", "@echo off\r\necho "+list+"\r\n"
+	}
+	if err := os.WriteFile(fake, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	d := &Daemon{Store: store.New("", "test", "0")}

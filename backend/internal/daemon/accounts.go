@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/brushknight/agents-deck/backend/internal/accounts"
@@ -160,7 +159,7 @@ func (d *Daemon) Handoff(id, name string) (string, error) {
 // waitGone waits until process pid has exited (or the time is up).
 func waitGone(pid int, limit time.Duration) {
 	for end := time.Now().Add(limit); time.Now().Before(end); {
-		if err := syscall.Kill(pid, 0); errors.Is(err, syscall.ESRCH) {
+		if processGone(pid) {
 			return
 		}
 		time.Sleep(100 * time.Millisecond)

@@ -10,7 +10,7 @@ import (
 
 func TestProjectDirFor(t *testing.T) {
 	t.Setenv("CLAUDE_CONFIG_DIR", "/c")
-	if got := ProjectDirFor("/Users/sam/dev/my.app"); got != "/c/projects/-Users-sam-dev-my-app" {
+	if got := ProjectDirFor("/Users/sam/dev/my.app"); got != filepath.Join("/c", "projects", "-Users-sam-dev-my-app") {
 		t.Fatal(got)
 	}
 }

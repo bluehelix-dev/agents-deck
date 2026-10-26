@@ -318,7 +318,7 @@ func attach(args []string) error {
 		// Inside tmux already: open in a new window of the outer tmux instead of nesting.
 		return exec.Command("tmux", "new-window", "-n", a.Title, strings.Join(argv, " ")).Run()
 	}
-	return syscall.Exec(argv[0], argv, os.Environ())
+	return execAttach(argv)
 }
 
 // hatName accepts "hard hat", hard-hat or hard_hat.
@@ -806,11 +806,13 @@ func openWeb(args []string) error {
 // elsewhere (Linux). The one-time login code expires quickly, so callers
 // should mint it immediately before calling this.
 func openBrowser(url string) error {
-	opener := "xdg-open"
-	if runtime.GOOS == "darwin" {
-		opener = "open"
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("open", url).Run()
+	case "windows":
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Run()
 	}
-	return exec.Command(opener, url).Run()
+	return exec.Command("xdg-open", url).Run()
 }
 
 func pair(args []string) error {
@@ -1027,9 +1029,17 @@ func loadConfig() fileConfig {
 func serve(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	demoMode := fs.Bool("demo", false, "serve a simulated fleet instead of real agents")
+	logFile := fs.String("log", "", "append the log to `FILE` instead of stderr (what the Windows login task uses)")
 	_ = fs.Parse(args)
 	if err := paths.Ensure(); err != nil {
 		return err
+	}
+	if *logFile != "" {
+		f, err := os.OpenFile(*logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+		if err != nil {
+			return err
+		}
+		log.SetOutput(f)
 	}
 	cfg := loadConfig()
 	if cfg.LocalAddr == "" || !strings.HasPrefix(cfg.LocalAddr, "127.0.0.1:") {
@@ -1332,61 +1342,4 @@ func simAgent(args []string) error {
 	}
 	return sim.Run(sim.Config{ID: id, Socket: sock, Dir: *dir, Transcript: *transcript,
 		Seed: time.Now().UnixNano() ^ int64(len(id))<<20, Speed: *speed, Patience: pat})
-}
-
-// ---- install ---------------------------------------------------------------------
-
-const plistLabel = "dev.agents-deck.agentctl"
-
-func install() error {
-	self, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	self, _ = filepath.EvalSymlinks(self)
-	if err := paths.Ensure(); err != nil {
-		return err
-	}
-	home, _ := os.UserHomeDir()
-	plist := filepath.Join(home, "Library", "LaunchAgents", plistLabel+".plist")
-	content := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>Label</key><string>%s</string>
-	<key>ProgramArguments</key>
-	<array><string>%s</string><string>serve</string></array>
-	<key>EnvironmentVariables</key>
-	<dict><key>PATH</key><string>%s/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
-	<key>RunAtLoad</key><true/>
-	<key>KeepAlive</key><true/>
-	<key>ProcessType</key><string>Interactive</string>
-	<key>StandardOutPath</key><string>%s</string>
-	<key>StandardErrorPath</key><string>%s</string>
-</dict>
-</plist>
-`, plistLabel, self, home, paths.Log(), paths.Log())
-	uid := fmt.Sprint(os.Getuid())
-	job := "gui/" + uid + "/" + plistLabel
-	// Same login item already registered: just restart the daemon (it picks
-	// up a rebuilt binary). Re-registering makes macOS announce a new
-	// background item every time.
-	if cur, err := os.ReadFile(plist); err == nil && string(cur) == content &&
-		exec.Command("launchctl", "print", job).Run() == nil {
-		if out, err := exec.Command("launchctl", "kickstart", "-k", job).CombinedOutput(); err != nil {
-			return fmt.Errorf("launchctl kickstart: %v: %s", err, out)
-		}
-		fmt.Println("restarted", plistLabel)
-		return nil
-	}
-	if err := os.WriteFile(plist, []byte(content), 0o644); err != nil {
-		return err
-	}
-	_ = exec.Command("launchctl", "bootout", job).Run()
-	time.Sleep(500 * time.Millisecond)
-	if out, err := exec.Command("launchctl", "bootstrap", "gui/"+uid, plist).CombinedOutput(); err != nil {
-		return fmt.Errorf("launchctl bootstrap: %v: %s", err, out)
-	}
-	fmt.Println("installed", plist)
-	return nil
 }

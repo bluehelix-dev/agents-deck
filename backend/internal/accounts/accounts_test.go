@@ -10,6 +10,7 @@ import (
 func setup(t *testing.T) string {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // what os.UserHomeDir reads on Windows
 	t.Setenv("AGENTSTERM_HOME", filepath.Join(home, "data"))
 	return home
 }

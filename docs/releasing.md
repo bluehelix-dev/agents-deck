@@ -123,6 +123,6 @@ The first three turn on signing; the last three add notarization. Notarization n
 | macOS arm64 | released: `agentctl` and the menu bar app |
 | macOS amd64 | `agentctl` compiles; the app needs a universal Flutter build (blocked locally by Xcode 27's `lipo`, fine on CI's Xcode) |
 | Linux amd64 / arm64 | `agentctl` compiles (CI checks it); still needs a systemd user unit instead of the LaunchAgent, and terminal focus without iTerm |
-| Windows | not yet: agents run in tmux, which Windows lacks (WSL would be the path), and a few Unix-only calls need ports |
+| Windows amd64 / arm64 | `agentctl` builds and its tests pass (CI cross-compiles it); the daemon, the dashboard, watched Claude sessions and `agentctl install` (a login item) work, see [windows.md](windows.md). No release archive yet, and no tray app: the menu bar app is macOS only |
 
 Adding a target means a job beside `macos-arm64` in `.github/workflows/release.yml` that uploads its archives as an artifact, and a download of that artifact in `publish`, which puts them in the release and `SHA256SUMS`. Adding a board means a row in the `firmware` job's matrix (and in the board table above).

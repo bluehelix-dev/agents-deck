@@ -3,6 +3,7 @@ package devices
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -170,7 +171,7 @@ func TestAutoApproveUSB(t *testing.T) {
 	if s := r2.Settings().AutoApprove; s.USB || s.Scope != View {
 		t.Fatalf("reloaded: %+v", s)
 	}
-	if st, err := os.Stat(filepath.Join(dir, "devices-settings.json")); err != nil || st.Mode().Perm() != 0o600 {
+	if st, err := os.Stat(filepath.Join(dir, "devices-settings.json")); err != nil || (runtime.GOOS != "windows" && st.Mode().Perm() != 0o600) {
 		t.Fatalf("settings file: %v %v", st, err)
 	}
 	if _, _, err := r.AutoApproveUSB("nobody"); err != ErrUnknown {

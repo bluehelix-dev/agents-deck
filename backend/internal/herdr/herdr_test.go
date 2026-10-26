@@ -100,6 +100,7 @@ func TestClient(t *testing.T) {
 func TestSessions(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // what os.UserHomeDir reads on Windows
 	t.Setenv("HERDR_SOCKET_PATH", "")
 	for _, p := range []string{"herdr.sock", "sessions/work/herdr.sock"} {
 		p = filepath.Join(home, ".config", "herdr", p)

@@ -155,7 +155,12 @@ func ProjectDirFor(cwd string) string {
 	return filepath.Join(ProjectsDir(), projectName(cwd))
 }
 
-func projectName(cwd string) string { return nonAlnum.ReplaceAllString(cwd, "-") }
+func projectName(cwd string) string {
+	if len(cwd) >= 2 && cwd[1] == ':' && cwd[0] >= 'a' && cwd[0] <= 'z' { // Windows: Claude Code keeps the drive letter upper case
+		cwd = strings.ToUpper(cwd[:1]) + cwd[1:]
+	}
+	return nonAlnum.ReplaceAllString(cwd, "-")
+}
 
 var nonAlnum = regexp.MustCompile(`[^A-Za-z0-9]`)
 

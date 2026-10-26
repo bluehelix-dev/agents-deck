@@ -26,7 +26,8 @@ works from anywhere on your desk.
 
 ## What you need
 
-- **A Mac with Apple Silicon.** Linux and Windows aren't supported yet
+- **A Mac with Apple Silicon**, or **Windows** for the daemon and the browser dashboard
+  ([what works on Windows](docs/windows.md)). Linux isn't supported yet
   ([where each platform stands](docs/releasing.md#platforms)).
 - **Claude Code or Codex**, however you like to run them. Optional: tmux (`brew install tmux`) for
   agents you start with `agentctl new`, and iTerm2 so the deck can jump to an agent's tab.
@@ -49,6 +50,15 @@ the newest board features before they're in a release:
 ```bash
 git clone https://github.com/brushknight/agents-deck && cd agents-deck
 ./install.sh --source --app
+```
+
+On Windows, build the daemon from a clone and register it as a login item (details and limits in
+[docs/windows.md](docs/windows.md)):
+
+```powershell
+git clone https://github.com/brushknight/agents-deck; cd agents-deck\backend
+go build -o "$env:USERPROFILE\.local\bin\agentctl.exe" ./cmd/agentctl
+agentctl install
 ```
 
 Agents you already run in Orca, herdr, cmux or Codex show up right away. To start your own:

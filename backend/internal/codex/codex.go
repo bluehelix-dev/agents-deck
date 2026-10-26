@@ -68,7 +68,7 @@ func RecentThreads(window time.Duration) ([]Thread, error) {
 		" order by updated_at_ms desc limit 32"
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "/usr/bin/sqlite3", "-readonly", "-json", db, q).Output()
+	out, err := exec.CommandContext(ctx, sqlite3Bin(), "-readonly", "-json", db, q).Output()
 	if err != nil {
 		return nil, err
 	}

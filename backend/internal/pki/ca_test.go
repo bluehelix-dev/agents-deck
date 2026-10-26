@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -129,7 +130,7 @@ func TestFileKeystore(t *testing.T) {
 		t.Fatal(err)
 	}
 	for p, want := range map[string]os.FileMode{dir: 0o700, filepath.Join(dir, "wifi-default"): 0o600} {
-		if st, err := os.Stat(p); err != nil || st.Mode().Perm() != want {
+		if st, err := os.Stat(p); err != nil || (runtime.GOOS != "windows" && st.Mode().Perm() != want) {
 			t.Fatalf("%s: %v %v, want %v", p, st.Mode().Perm(), err, want)
 		}
 	}
