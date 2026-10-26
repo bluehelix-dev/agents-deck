@@ -72,9 +72,10 @@ const usage = `agentctl — agents-terminal
                                  simulated Claudes working in real projects under DIR (for demos)
   agentctl sim stop              remove all simulated agents
   agentctl web                   open the dashboard in the browser
-  agentctl pair <name> [--scope view|act|admin] [--bundle FILE]
+  agentctl pair <name> [--scope view|act|admin] [--bundle FILE] [--host ADDR]
                                  pair a device: a one-time code it trades for its own certificate,
-                                 or (--bundle) a key and certificate to copy to it over SSH
+                                 or (--bundle) a key and certificate to copy to it; --host puts an IP
+                                 in the bundle for devices that can't resolve this machine's name
   agentctl devices [revoke|approve|remove <name> | scope <name> <scope>]
                                  paired devices and serial boards; cut one off, approve a board
   agentctl link [ports | add <port> [--baud N] | rm <port>]
@@ -819,6 +820,7 @@ func pair(args []string) error {
 	fs := flag.NewFlagSet("pair", flag.ExitOnError)
 	scope := fs.String("scope", "act", "what the device may do: view, act or admin")
 	bundle := fs.String("bundle", "", "write a key and certificate for the device to `FILE` (- for stdout) instead of a pairing code")
+	host := fs.String("host", "", "the address the device reaches this machine at, for the bundle's URL (an IP the listener's certificate covers; default: this machine's name)")
 	var name string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		name, args = args[0], args[1:]
@@ -835,6 +837,14 @@ func pair(args []string) error {
 		var b server.Bundle
 		if err := call("POST", "/local/devices/provision", body, &b); err != nil {
 			return err
+		}
+		if *host != "" {
+			u, err := url.Parse(b.URL)
+			if err != nil {
+				return err
+			}
+			u.Host = net.JoinHostPort(*host, u.Port())
+			b.URL = u.String()
 		}
 		out, _ := json.MarshalIndent(b, "", "  ")
 		if *bundle == "-" {

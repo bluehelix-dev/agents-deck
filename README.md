@@ -212,7 +212,7 @@ ESP32-S3-Touch-LCD-2.8C> working on it, first over USB, then over Wi-Fi.
 | | |
 |---|---|
 | <img src="docs/images/menubar-deck-v2.png" alt="the deck dropped down from the menu bar"> | <img src="docs/images/web-board-v2.png" alt="web dashboard"> |
-| **Menu bar.** Click the critter and the deck drops down; it turns orange when an agent needs you. | **Browser.** The same board, a panel view, and every agent's card. It works on your phone too ([docs/phone.md](docs/phone.md)). |
+| **Menu bar.** Click the critter and the deck drops down; it turns orange when an agent needs you. | **Browser.** The same board, a panel view, and every agent's card. It works on your phone too, and there is an Android app of the deck itself ([docs/phone.md](docs/phone.md)). |
 | <img src="docs/images/panel-question-v2.png" alt="a question on the desk panel"> | <img src="docs/images/cli.png" alt="agentctl in the terminal"> |
 | **Desk panel.** A 4″ touch panel on Wi-Fi ([Wall Panel](https://github.com/dotstartech/wall-panel)), paired with `agentctl pair`. | **Terminal.** `agentctl` starts, lists, resumes and restores agents. |
 
@@ -329,6 +329,7 @@ protobuf version of it.
 | `backend/` | Go daemon and CLI (`agentctl`), with the web UI embedded. `go test -race ./...` |
 | `clients/flutter/agents_ui` | The deck UI as a Flutter package, shared by the desk panel and the menu bar app. |
 | `clients/macos` | The menu bar app (Flutter + a small Swift shell). |
+| `clients/android` | The deck on an Android phone (Flutter + a small Kotlin shell), paired with a bundle. |
 | `proto/` | `link.proto`: the Deck Link contract for boards. |
 | `firmware/deck-link` | The C firmware kit for Deck Link boards (ESP32), with examples. |
 | `firmware/devices` | Firmware for each board, one folder each ([devices](docs/devices.md)). |

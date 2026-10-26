@@ -30,7 +30,9 @@ delete that `Run` value and end `agentctl.exe` in Task Manager.
   its status, activity, context and cost come from its transcript. Background sessions show up too.
 - **The browser dashboard** on `127.0.0.1:7340`: the same deck, prompts, stop, remove from deck.
 - **Paired devices over Wi-Fi**: the TLS listener on `:7341`, `agentctl pair`, `agentctl devices`, the
-  desk panel and boards on Wi-Fi. The deck's CA key is a file under `keys\` in the data folder (there
+  desk panel, boards on Wi-Fi and the [Android app](phone.md). Pair those with `--host <this PC's LAN
+  address>`: a phone can't resolve a Windows machine name, and that is what the bundle's URL names
+  otherwise. The deck's CA key is a file under `keys\` in the data folder (there
   is no Keychain); Windows ACLs on your profile folder keep it yours.
 - The CLI: `ls`, `sessions`, `resume`, `rm`, `move`, `set`, `get`, `accounts`, `hats`.
 

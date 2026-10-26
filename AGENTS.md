@@ -13,6 +13,7 @@ the menu bar, on a desk panel, and on small boards over USB serial.
 | `proto/agentsdeck/link/v1` | `link.proto` and `link.options`: the Deck Link contract |
 | `clients/flutter/agents_ui` | the deck UI as a Flutter package (desk panel, menu bar app) |
 | `clients/macos` | the menu bar app |
+| `clients/android` | the Android app (the same package, a Kotlin shell for the file picker) |
 | `firmware/deck-link` | the C firmware kit for Deck Link boards, with examples |
 | `firmware/devices` | firmware for specific devices |
 | `docs/` | `protocol.md` (the API and security), `link/` (Deck Link), `features.md`, `harnesses.md` (adding a harness) |
