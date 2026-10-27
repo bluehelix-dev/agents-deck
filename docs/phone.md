@@ -16,12 +16,14 @@ The Android app pairs the way the desk panel does, with a bundle you carry over 
 2. Get `phone.json` onto the phone (a cable, a drive, a message to yourself), then delete it on the
    computer: it holds the phone's private key.
 3. In the app, tap **import phone.json** and pick the file. The app checks it and keeps it in its
-   private folder (no other app can read it). It connects within a couple of seconds and stays paired
-   until `agentctl devices revoke phone`.
+   private folder (no other app can read it). It connects at once and stays paired until you forget
+   the pairing in the app's settings (a long press on the board) or run `agentctl devices revoke phone`
+   on the computer; do both to be rid of it.
 
 The phone must reach the listener (`:7341`): the same network, or a VPN (Tailscale or WireGuard) to
-it. Never open `:7341` to the internet. The app's screen is the panel's 720×720 board scaled to the
-phone's width; cards get a back button since there's no edge swipe.
+it. Never open `:7341` to the internet. The board takes whichever of its shapes (3×6, 4×4, 6×3) is
+closest to the screen's and fills it; cards get a back button since there's no edge swipe, and the
+system's back gesture closes a card or the settings before it leaves the app.
 
 What this skips, compared to the design below: the key is made on the computer and travels in a
 file, rather than being born in the phone's secure hardware. For your own phone on your own network

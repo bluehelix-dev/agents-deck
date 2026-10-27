@@ -2,13 +2,15 @@ package dev.agentsdeck.agents_deck_android
 
 import android.app.Activity
 import android.content.Intent
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 // The native side of `agents_deck/files`: where the pairing bundle lives
-// (the app's private folder, which no other app can read) and the system
-// file picker that reads one in. No plugins: a MethodChannel is enough.
+// (the app's private folder, which no other app can read), the system file
+// picker that reads one in, and the screen's wake lock. No plugins: a
+// MethodChannel is enough.
 class MainActivity : FlutterActivity() {
     private var pending: MethodChannel.Result? = null
 
@@ -18,6 +20,12 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "dataDir" -> result.success(filesDir.absolutePath)
                 "pickBundle" -> pickBundle(result)
+                "keepScreenOn" -> {
+                    // A status board that goes dark isn't one; the user turns this off in settings.
+                    val flag = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                    if (call.arguments == true) window.addFlags(flag) else window.clearFlags(flag)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }

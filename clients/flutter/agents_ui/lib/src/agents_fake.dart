@@ -440,6 +440,9 @@ class FakeAgentsSource implements AgentsSource {
   }
 
   @override
+  void reconnect() {}
+
+  @override
   void dispose() {
     _timer?.cancel();
     _timer = null;

@@ -11,6 +11,14 @@ address>`, get `phone.json` onto the phone, and import it on the app's first scr
 the phone's private key) stays in the app's private folder; delete it on the computer. `agentctl
 devices revoke phone` cuts the phone off.
 
+A long press on the board opens the settings: which deck the phone is paired with and at what address,
+whether the screen stays on while the deck is in front (on by default, like the panel), importing
+another bundle, and forgetting the pairing. The system's back gesture closes an open card or the
+settings before it leaves the app.
+
+The launcher icon is the deck's own critter; `flutter test tool/render_icons_test.dart` renders its
+PNGs from the sprite the board draws.
+
 Build: `flutter build apk --release` here (Flutter 3.35+, Android SDK 36), then install
 `build/app/outputs/flutter-apk/app-release.apk` on the phone. The native side is one Kotlin file
 (`MainActivity.kt`): the app's folder and the system file picker, over a method channel; no plugins.

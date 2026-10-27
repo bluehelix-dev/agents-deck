@@ -129,6 +129,10 @@ abstract class AgentsSource {
   /// One-off `GET /v1/state` (after a 409, so the new prompt shows at once).
   Future<void> refresh();
 
+  /// Drops the connection, if any, and reads the pairing values again: after
+  /// a bundle was imported or removed, so the change shows at once.
+  void reconnect();
+
   void dispose();
 }
 
@@ -652,6 +656,17 @@ class HttpAgentsClient implements AgentsSource {
     } catch (_) {
       // The event stream will catch up on its own.
     }
+  }
+
+  @override
+  void reconnect() {
+    if (_closed) return;
+    _backoff.reset();
+    _sleepTimer?.cancel();
+    _client?.close(force: true); // ends the stream: the loop reloads the config
+    _client = null;
+    _configKey = null;
+    if (_sleeping case final c? when !c.isCompleted) c.complete();
   }
 
   @override

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The deck's background (DeckHud.bg) and accent (DeckHud.accent), for the
+         window before Flutter draws and for the launcher icon. -->
+    <color name="deck_bg">#0A0A0A</color>
+    <color name="deck_accent">#FF4D00</color>
+</resources>
