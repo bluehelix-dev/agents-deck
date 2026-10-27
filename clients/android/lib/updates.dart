@@ -128,19 +128,23 @@ class GitHubReleases implements ReleaseSource {
   }
 }
 
-/// The releases listing of [repo]: the newest first, pre-releases included
-/// (`/releases/latest` would skip those, and every release of this fork is
-/// one so far).
+/// The releases listing of [repo], pre-releases included (`/releases/latest`
+/// would skip those, and every release of this fork is one so far). GitHub
+/// orders it by tag name as text, so "rc.10" comes after "rc.2": the newest
+/// is picked by its date, not its place in the list.
 Uri releasesUrl(String repo) =>
-    Uri.parse('https://api.github.com/repos/$repo/releases?per_page=10');
+    Uri.parse('https://api.github.com/repos/$repo/releases?per_page=30');
 
 final _apkName = RegExp(r'^agents-deck-.*\.apk$');
 
 /// The newest published release in a GitHub releases listing that carries
-/// the app, or null. Drafts are skipped; the listing comes newest first.
+/// the app, or null: the one published last, whatever its place in the
+/// list. Drafts are skipped.
 AppRelease? pickRelease(String listing) {
   final j = jsonDecode(listing);
   if (j is! List) return null;
+  AppRelease? best;
+  DateTime? bestAt;
   for (final r in j) {
     if (r is! Map || r['draft'] == true) continue;
     final assets = r['assets'];
@@ -156,16 +160,22 @@ AppRelease? pickRelease(String listing) {
     if (apk == null) continue;
     final url = apk['browser_download_url'];
     if (url is! String) continue;
+    final at =
+        DateTime.tryParse(r['published_at'] as String? ?? '') ??
+        DateTime.tryParse(r['created_at'] as String? ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+    if (bestAt != null && !at.isAfter(bestAt)) continue;
     final sumsUrl = sums?['browser_download_url'];
-    return AppRelease(
+    best = AppRelease(
       tag: r['tag_name'] as String? ?? '',
       apkName: apk['name'] as String,
       apkUrl: Uri.parse(url),
       apkSize: apk['size'] as int? ?? 0,
       sumsUrl: sumsUrl is String ? Uri.parse(sumsUrl) : null,
     );
+    bestAt = at;
   }
-  return null;
+  return best;
 }
 
 /// The checksum of [name] in a SHA256SUMS file (`hex  name` per line; a `*`

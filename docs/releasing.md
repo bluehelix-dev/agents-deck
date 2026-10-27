@@ -22,7 +22,7 @@ same tag.
 | `SHA256SUMS` | checksums of all of these, checked by `install.sh` and by the Android app |
 
 The Android app updates itself from these releases ([phone.md](phone.md#updating-the-app)): it
-takes the newest published release (pre-releases included) whose assets hold an
+takes the release published last (pre-releases included; GitHub's list orders by tag name as text, so the date decides) whose assets hold an
 `agents-deck-*.apk`, and needs the APK's line in `SHA256SUMS` to tell whether that is the build it
 runs. A release without the APK is skipped; one without `SHA256SUMS` can't be checked and is reported
 as such. Android installs the update only over an app signed with the same key, so every release

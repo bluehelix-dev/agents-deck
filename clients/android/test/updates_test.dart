@@ -44,6 +44,28 @@ void main() {
       expect(r.sumsUrl?.path, endsWith('/v0.2.0-rc.5/SHA256SUMS'));
     });
 
+    test('the newest by date, however GitHub orders the list', () {
+      // GitHub sorts by tag name as text: rc.10 lands behind rc.2.
+      final r = pickRelease(
+        jsonEncode([
+          release('v0.2.0-rc.9'),
+          release('v0.2.0-rc.8'),
+          release('v0.2.0-rc.2'),
+          release('v0.2.0-rc.10'),
+          release('v0.2.0-rc.1'),
+        ]),
+      );
+      expect(r?.tag, 'v0.2.0-rc.10');
+      // A newer date wins even over a bigger number.
+      final later = pickRelease(
+        jsonEncode([
+          release('v0.2.0-rc.10'),
+          release('v0.2.1', publishedAt: '2026-10-27T09:00:00Z'),
+        ]),
+      );
+      expect(later?.tag, 'v0.2.0-rc.10');
+    });
+
     test('no release, or none with the app: null', () {
       expect(pickRelease('[]'), isNull);
       expect(pickRelease(listing(['v0.3.0'], withApk: false)), isNull);

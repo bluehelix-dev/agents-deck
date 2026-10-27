@@ -56,10 +56,12 @@ Map<String, Object?> release(
   bool withApk = true,
   bool withSums = true,
   int size = 4,
+  String? publishedAt,
 }) => {
   'tag_name': tag,
   'draft': tag == 'draft',
   'prerelease': tag.contains('rc'),
+  'published_at': publishedAt ?? publishedFor(tag),
   'assets': [
     if (withApk)
       {
@@ -88,6 +90,13 @@ String listing(
 ]);
 
 String apkName(String tag) => 'agents-deck-${tag.replaceFirst('v', '')}.apk';
+
+/// A date that grows with the rc number, so "rc.10" is newer than "rc.9"
+/// however the list is ordered.
+String publishedFor(String tag) {
+  final n = int.tryParse(tag.split('.').last) ?? 0;
+  return DateTime.utc(2026, 10, 27, 10, n).toIso8601String();
+}
 
 String sha256Of(List<int> bytes) => sha256.convert(bytes).toString();
 
