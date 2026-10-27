@@ -225,7 +225,9 @@ func (d *Daemon) subagents(e *store.Entry) bool {
 		e.Background = false
 		changed = true
 	}
-	if e.Background {
+	// A session that runs for its subagents shows them; so does one running
+	// by Claude's own account with nothing of its own going on.
+	if e.Background || (e.A.Status == model.Running && len(subs) > 0 && (e.A.Activity == nil || subagentActivity(e.A.Activity))) {
 		detail, tool := "1 subagent working", claude.SubagentTool
 		if len(subs) != 1 {
 			detail = fmt.Sprintf("%d subagents working", len(subs))
@@ -240,8 +242,17 @@ func (d *Daemon) subagents(e *store.Entry) bool {
 			e.A.Activity = &model.Activity{Tool: tool, Detail: detail}
 			changed = true
 		}
+	} else if len(subs) == 0 && subagentActivity(e.A.Activity) {
+		e.A.Activity = nil // they are done; the session goes on as Claude reports it
+		changed = true
 	}
 	return changed
+}
+
+// subagentActivity tells the activity subagents sets ("N subagents working",
+// "workflow · …") from a tool call of the session's own.
+func subagentActivity(a *model.Activity) bool {
+	return a != nil && (a.Tool == claude.SubagentTool || a.Tool == "Workflow") && strings.Contains(a.Detail, "working")
 }
 
 func sameWorkflow(a, b *model.Workflow) bool {

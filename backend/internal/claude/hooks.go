@@ -194,7 +194,9 @@ func applySubagent(e *store.Entry, ev Event) (changed, scanPane bool) {
 		e.A.Waiting = PromptFor(e, ev.ToolName, ev.ToolInput)
 		return true, true
 	}
-	if e.A.Status == model.Idle || (e.A.Status == model.Waiting && e.Background) {
+	// Idle, or running with nothing of its own going on (the daemon
+	// restarted into it, or it is between tools): it is the subagent's work.
+	if e.A.Status == model.Idle || (e.A.Status == model.Running && e.A.Activity == nil) || (e.A.Status == model.Waiting && e.Background) {
 		e.Background = true
 		e.SetStatus(model.Running)
 		e.A.Activity = &model.Activity{Tool: SubagentTool, Detail: "1 subagent working"}

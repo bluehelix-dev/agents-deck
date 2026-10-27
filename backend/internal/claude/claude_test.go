@@ -484,6 +484,14 @@ func TestSubagentHooks(t *testing.T) {
 	if e.A.Status != model.Running || !e.Background || e.A.Waiting != nil {
 		t.Fatalf("after the answer: %+v", e.A)
 	}
+	// Running with nothing of its own going on (the daemon restarted into
+	// it): the subagent's work too.
+	e.Background = false
+	e.SetStatus(model.Idle)
+	e.SetStatus(model.Running)
+	if changed, _ := Apply(e, sub); !changed || !e.Background || e.A.Activity == nil || e.A.Activity.Tool != SubagentTool {
+		t.Fatalf("running without activity: %+v %+v", e.A, e.A.Activity)
+	}
 	// Mid-turn, the session's own activity stays.
 	e.Background = false
 	Apply(e, Event{Name: "PreToolUse", ToolName: "Agent", ToolInput: json.RawMessage(`{"description":"review"}`), TranscriptPath: "/h/.claude/projects/p/s.jsonl"})

@@ -84,6 +84,13 @@ func TestWatchedSessionHooks(t *testing.T) {
 	if !d.subagents(&e) || e.A.Status != model.Idle || e.A.Activity != nil {
 		t.Fatalf("no subagent writing: %s %+v", e.A.Status, e.A.Activity)
 	}
+	// A session running by Claude's own account shows its subagents the same
+	// way, and keeps running (as Claude says) once they are done.
+	e.SetStatus(model.Running)
+	e.A.Activity = &model.Activity{Tool: claude.SubagentTool, Detail: "2 subagents working"}
+	if !d.subagents(&e) || e.A.Status != model.Running || e.A.Activity != nil {
+		t.Fatalf("subagents done: %s %+v", e.A.Status, e.A.Activity)
+	}
 	// Back to a turn with a prompt, for the rest of the test.
 	ev = `{"hook_event_name":"PermissionRequest","session_id":"` + sid + `","cwd":"/w/app","tool_name":"Bash","tool_input":{"command":"npm test"}}`
 	if err := d.Hook("", []byte(ev)); err != nil {

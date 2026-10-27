@@ -248,7 +248,7 @@ func (d *Daemon) liveStatus(e *store.Entry, l claude.Live) bool {
 		if e.A.Activity != nil {
 			cur = e.A.Activity.Tool
 		}
-		if cur != tool {
+		if cur != tool && !(tool == "" && subagentActivity(e.A.Activity)) {
 			e.A.Activity = nil
 			if tool != "" {
 				e.A.Activity = &model.Activity{Tool: tool}
