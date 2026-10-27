@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -119,6 +120,11 @@ type Store struct {
 	subs    map[chan struct{}]struct{}
 	path    string // "" = no persistence (demo)
 	saveReq chan struct{}
+	// slots remembers where mirrored agents (watched sessions, Codex threads:
+	// External, never in the registry) last sat, by id, so a restart puts
+	// them back instead of dealing slots out afresh. Persisted next to the
+	// registry as slots.json.
+	slots   map[string]int
 	Name    string
 	Version string
 	Focus   bool // the daemon can bring terminals to the front here (model.Server.Focus)
@@ -132,17 +138,29 @@ type Store struct {
 
 func New(path, name, version string) *Store {
 	s := &Store{entries: map[string]*Entry{}, subs: map[chan struct{}]struct{}{}, path: path,
-		saveReq: make(chan struct{}, 1), Name: name, Version: version}
+		saveReq: make(chan struct{}, 1), Name: name, Version: version, slots: map[string]int{}}
 	if path != "" {
 		go s.saver()
 	}
 	return s
 }
 
-// Load restores persisted entries (best effort).
+// Load restores persisted entries and the remembered slots (best effort).
 func (s *Store) Load() {
 	if s.path == "" {
 		return
+	}
+	if b, err := os.ReadFile(s.slotsPath()); err == nil {
+		var slots map[string]int
+		if json.Unmarshal(b, &slots) == nil {
+			s.mu.Lock()
+			for id, slot := range slots {
+				if slot >= 0 && slot <= MaxSlot {
+					s.slots[id] = slot
+				}
+			}
+			s.mu.Unlock()
+		}
 	}
 	b, err := os.ReadFile(s.path)
 	if err != nil {
@@ -158,6 +176,8 @@ func (s *Store) Load() {
 	}
 	s.mu.Unlock()
 }
+
+func (s *Store) slotsPath() string { return filepath.Join(filepath.Dir(s.path), "slots.json") }
 
 func (s *Store) saver() {
 	for range s.saveReq {
@@ -177,9 +197,12 @@ func (s *Store) Flush() {
 	for _, e := range s.entries {
 		if !e.External {
 			list = append(list, e)
+		} else {
+			s.slots[e.A.ID] = e.A.Slot // where it sits now, for the next restart
 		}
 	}
 	b, err := json.MarshalIndent(list, "", " ")
+	sb, serr := json.Marshal(s.slots)
 	s.mu.Unlock()
 	if err != nil {
 		return
@@ -189,6 +212,12 @@ func (s *Store) Flush() {
 	tmp := s.path + ".tmp"
 	if os.WriteFile(tmp, b, 0o600) == nil {
 		_ = os.Rename(tmp, s.path)
+	}
+	if serr == nil {
+		tmp := s.slotsPath() + ".tmp"
+		if os.WriteFile(tmp, sb, 0o600) == nil {
+			_ = os.Rename(tmp, s.slotsPath())
+		}
 	}
 }
 
@@ -227,7 +256,9 @@ func (s *Store) Subscribe() (chan struct{}, func()) {
 	}
 }
 
-// Add registers a new agent in the first free slot.
+// Add registers a new agent in the first free slot; a mirrored agent that
+// sat somewhere before (a watched session after a restart) goes back there
+// when that slot is free.
 func (s *Store) Add(e *Entry) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -238,6 +269,12 @@ func (s *Store) Add(e *Entry) {
 	slot := 0
 	for used[slot] {
 		slot++
+	}
+	if e.External {
+		if was, ok := s.slots[e.A.ID]; ok && !used[was] {
+			slot = was
+		}
+		s.slots[e.A.ID] = slot
 	}
 	e.A.Slot = slot
 	now := time.Now().UTC()
