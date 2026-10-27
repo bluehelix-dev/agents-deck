@@ -447,6 +447,51 @@ func TestCompaction(t *testing.T) {
 	}
 }
 
+// A subagent's hooks carry the session's id. They don't make the session
+// show the subagent's tool: a session whose turn is over shows working for
+// its subagents (the daemon ends that when their transcripts go quiet), one
+// mid-turn goes on as it is, and a subagent's permission prompt shows like
+// the session's own.
+func TestSubagentHooks(t *testing.T) {
+	e := &store.Entry{Transcript: "/h/.claude/projects/p/s.jsonl"}
+	e.SetStatus(model.Idle)
+	sub := Event{Name: "PreToolUse", ToolName: "Bash", ToolInput: json.RawMessage(`{"command":"npm test"}`),
+		TranscriptPath: `C:\h\.claude\projects\p\s\subagents\agent-a1.jsonl`}
+	if !FromSubagent(sub) || !FromSubagent(Event{AgentID: "a1"}) || FromSubagent(Event{TranscriptPath: "/h/.claude/projects/p/s.jsonl"}) {
+		t.Fatal("telling a subagent's hooks")
+	}
+	if changed, _ := Apply(e, sub); !changed {
+		t.Fatal("an idle session with a subagent at work changes")
+	}
+	if e.A.Status != model.Running || !e.Background || e.A.Activity == nil || e.A.Activity.Tool != SubagentTool || e.A.Activity.Detail != "1 subagent working" {
+		t.Fatalf("delegating: %+v %+v", e.A, e.A.Activity)
+	}
+	if e.Transcript != "/h/.claude/projects/p/s.jsonl" {
+		t.Fatalf("the session's transcript swapped to the subagent's: %s", e.Transcript)
+	}
+	if changed, _ := Apply(e, Event{Name: "PostToolUse", ToolName: "Bash", AgentID: "a1"}); changed || e.A.Activity == nil {
+		t.Fatalf("a subagent's next step changes nothing: %+v", e.A.Activity)
+	}
+	// The subagent asks for permission: the session waits, with the command.
+	if _, scan := Apply(e, Event{Name: "PermissionRequest", ToolName: "Bash", ToolInput: json.RawMessage(`{"command":"rm -r build"}`), AgentID: "a1"}); !scan {
+		t.Fatal("a permission prompt scans the pane")
+	}
+	if e.A.Status != model.Waiting || e.A.Waiting == nil || e.A.Waiting.Detail != "rm -r build" {
+		t.Fatalf("subagent's prompt: %+v", e.A.Waiting)
+	}
+	// Answered: back to delegating.
+	Apply(e, Event{Name: "PostToolUse", ToolName: "Bash", AgentID: "a1"})
+	if e.A.Status != model.Running || !e.Background || e.A.Waiting != nil {
+		t.Fatalf("after the answer: %+v", e.A)
+	}
+	// Mid-turn, the session's own activity stays.
+	e.Background = false
+	Apply(e, Event{Name: "PreToolUse", ToolName: "Agent", ToolInput: json.RawMessage(`{"description":"review"}`), TranscriptPath: "/h/.claude/projects/p/s.jsonl"})
+	if changed, _ := Apply(e, sub); changed || e.A.Activity.Tool != "Agent" || e.Background {
+		t.Fatalf("own activity overwritten: %+v", e.A.Activity)
+	}
+}
+
 func TestStaleCompaction(t *testing.T) {
 	e := &store.Entry{}
 	e.SetStatus(model.Running)

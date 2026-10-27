@@ -205,7 +205,7 @@ func (d *Daemon) enableFocusReports(list []tmux.Client) {
 // subagents tracks the session's working subagents, and shows an idle agent
 // as running while any are left, back to idle once they are done or quiet.
 func (d *Daemon) subagents(e *store.Entry) bool {
-	if e.A.Status != model.Running {
+	if e.A.Status != model.Running && e.A.Status != model.Waiting {
 		e.Background = false
 	}
 	subs := claude.Subagents(e.Transcript, 2*time.Minute, 30*time.Minute)
@@ -226,7 +226,7 @@ func (d *Daemon) subagents(e *store.Entry) bool {
 		changed = true
 	}
 	if e.Background {
-		detail, tool := "1 subagent working", "Task"
+		detail, tool := "1 subagent working", claude.SubagentTool
 		if len(subs) != 1 {
 			detail = fmt.Sprintf("%d subagents working", len(subs))
 		}

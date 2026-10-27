@@ -56,15 +56,27 @@ type Event struct {
 	Source           string          `json:"source"`
 	Reason           string          `json:"reason"`
 	Trigger          string          `json:"trigger"` // PreCompact, PostCompact: manual | auto
+	AgentID          string          `json:"agent_id"` // set on a subagent's own hooks
+}
+
+// SubagentTool is the activity shown while subagents work for an idle session.
+const SubagentTool = "Task"
+
+// FromSubagent tells a subagent's own hooks from the session's: they carry
+// the session's id, with the subagent's id (Claude Code 2.1+) and a
+// transcript of its own under the session's subagents folder.
+func FromSubagent(ev Event) bool {
+	return ev.AgentID != "" || strings.Contains(filepath.ToSlash(ev.TranscriptPath), "/subagents/")
 }
 
 // Apply folds one hook event into the agent. It returns true when the agent
 // changed and whether the pane should be scanned for prompt options.
 func Apply(e *store.Entry, ev Event) (changed, scanPane bool) {
+	if FromSubagent(ev) {
+		return applySubagent(e, ev)
+	}
 	e.Background = false // hooks are the real status again
-	// Only the main transcript counts; a subagent's own file would swap the
-	// context ring to the subagent's and force a full re-read on the way back.
-	if ev.TranscriptPath != "" && e.Transcript != ev.TranscriptPath && !strings.Contains(ev.TranscriptPath, "/subagents/") {
+	if ev.TranscriptPath != "" && e.Transcript != ev.TranscriptPath {
 		e.Transcript, e.Offset, e.Usage, e.Pending = ev.TranscriptPath, 0, nil, ""
 	}
 	if ev.SessionID != "" {
@@ -167,6 +179,28 @@ func Apply(e *store.Entry, ev Event) (changed, scanPane bool) {
 		return false, false
 	}
 	return true, false
+}
+
+// applySubagent folds a subagent's hook into the session: what the subagent
+// runs is its own business (the ladder shows it), the session is delegating.
+// Its turn may well be over (a background agent): then it shows working for
+// its subagents until their transcripts go quiet (daemon.go subagents). A
+// subagent's permission prompt is answered in the session's terminal like
+// the session's own, so it shows like one.
+func applySubagent(e *store.Entry, ev Event) (changed, scanPane bool) {
+	if ev.Name == "PermissionRequest" {
+		e.Background = true
+		e.SetStatus(model.Waiting)
+		e.A.Waiting = PromptFor(e, ev.ToolName, ev.ToolInput)
+		return true, true
+	}
+	if e.A.Status == model.Idle || (e.A.Status == model.Waiting && e.Background) {
+		e.Background = true
+		e.SetStatus(model.Running)
+		e.A.Activity = &model.Activity{Tool: SubagentTool, Detail: "1 subagent working"}
+		return true, false
+	}
+	return false, false
 }
 
 // EndCompact clears a running compaction: one that began idle (a /compact you

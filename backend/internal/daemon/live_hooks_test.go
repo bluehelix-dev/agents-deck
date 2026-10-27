@@ -62,6 +62,28 @@ func TestWatchedSessionHooks(t *testing.T) {
 	if !d.liveStatus(&e, claude.Live{Reported: true, Busy: false}) || e.A.Status != model.Idle || e.A.Activity != nil {
 		t.Fatalf("stale compaction of an idle session: %s %+v", e.A.Status, e.A.Activity)
 	}
+	// (The copy above went idle; the stored one ends its compaction by the
+	// PostCompact hook, as Claude Code 2.1.3xx sends it.)
+	if err := d.Hook("", []byte(`{"hook_event_name":"PostCompact","session_id":"`+sid+`","trigger":"auto"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if e, _ := d.Store.Get("l1"); e.A.Status != model.Idle {
+		t.Fatalf("after PostCompact: %s", e.A.Status)
+	}
+	// A background subagent of the idle session reports through the same
+	// hooks: the session shows working for it, and goes idle again once no
+	// subagent transcript is being written (none here).
+	ev = `{"hook_event_name":"PreToolUse","session_id":"` + sid + `","agent_id":"a1","tool_name":"Bash","tool_input":{"command":"go test"}}`
+	if err := d.Hook("", []byte(ev)); err != nil {
+		t.Fatal(err)
+	}
+	e, _ = d.Store.Get("l1")
+	if e.A.Status != model.Running || e.A.Activity == nil || e.A.Activity.Tool != claude.SubagentTool || !e.Background {
+		t.Fatalf("delegating: %s %+v", e.A.Status, e.A.Activity)
+	}
+	if !d.subagents(&e) || e.A.Status != model.Idle || e.A.Activity != nil {
+		t.Fatalf("no subagent writing: %s %+v", e.A.Status, e.A.Activity)
+	}
 	// Back to a turn with a prompt, for the rest of the test.
 	ev = `{"hook_event_name":"PermissionRequest","session_id":"` + sid + `","cwd":"/w/app","tool_name":"Bash","tool_input":{"command":"npm test"}}`
 	if err := d.Hook("", []byte(ev)); err != nil {
