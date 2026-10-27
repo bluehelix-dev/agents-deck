@@ -211,6 +211,7 @@ typedef struct _agentsdeck_link_v1_Subagent {
     char title[64];
     char type[24];
     char tool[24];
+    int64_t started_at_ms; /* when it began (its transcript's creation); 0 when unknown */
 } agentsdeck_link_v1_Subagent;
 
 /* Agent mirrors the JSON Agent of docs/protocol.md field for field (times as
@@ -611,7 +612,7 @@ extern "C" {
 #define agentsdeck_link_v1_Context_init_default  {0, 0}
 #define agentsdeck_link_v1_Hat_init_default      {"", "", 0}
 #define agentsdeck_link_v1_Account_init_default  {"", ""}
-#define agentsdeck_link_v1_Subagent_init_default {"", "", "", ""}
+#define agentsdeck_link_v1_Subagent_init_default {"", "", "", "", 0}
 #define agentsdeck_link_v1_Answer_init_default   {"", "", ""}
 #define agentsdeck_link_v1_Focus_init_default    {""}
 #define agentsdeck_link_v1_Interrupt_init_default {""}
@@ -662,7 +663,7 @@ extern "C" {
 #define agentsdeck_link_v1_Context_init_zero     {0, 0}
 #define agentsdeck_link_v1_Hat_init_zero         {"", "", 0}
 #define agentsdeck_link_v1_Account_init_zero     {"", ""}
-#define agentsdeck_link_v1_Subagent_init_zero    {"", "", "", ""}
+#define agentsdeck_link_v1_Subagent_init_zero    {"", "", "", "", 0}
 #define agentsdeck_link_v1_Answer_init_zero      {"", "", ""}
 #define agentsdeck_link_v1_Focus_init_zero       {""}
 #define agentsdeck_link_v1_Interrupt_init_zero   {""}
@@ -753,6 +754,7 @@ extern "C" {
 #define agentsdeck_link_v1_Subagent_title_tag    2
 #define agentsdeck_link_v1_Subagent_type_tag     3
 #define agentsdeck_link_v1_Subagent_tool_tag     4
+#define agentsdeck_link_v1_Subagent_started_at_ms_tag 5
 #define agentsdeck_link_v1_Agent_id_tag          1
 #define agentsdeck_link_v1_Agent_slot_tag        2
 #define agentsdeck_link_v1_Agent_title_tag       3
@@ -1151,7 +1153,8 @@ X(a, STATIC,   SINGULAR, STRING,   color,             2)
 X(a, STATIC,   SINGULAR, STRING,   id,                1) \
 X(a, STATIC,   SINGULAR, STRING,   title,             2) \
 X(a, STATIC,   SINGULAR, STRING,   type,              3) \
-X(a, STATIC,   SINGULAR, STRING,   tool,              4)
+X(a, STATIC,   SINGULAR, STRING,   tool,              4) \
+X(a, STATIC,   SINGULAR, INT64,    started_at_ms,     5)
 #define agentsdeck_link_v1_Subagent_CALLBACK NULL
 #define agentsdeck_link_v1_Subagent_DEFAULT NULL
 
@@ -1449,9 +1452,9 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Account_size          30
 #define agentsdeck_link_v1_Activity_size         155
 #define agentsdeck_link_v1_AddLive_size          52
-#define agentsdeck_link_v1_AgentChanged_size     3701
+#define agentsdeck_link_v1_AgentChanged_size     3767
 #define agentsdeck_link_v1_AgentRemoved_size     13
-#define agentsdeck_link_v1_Agent_size            3698
+#define agentsdeck_link_v1_Agent_size            3764
 #define agentsdeck_link_v1_Answer_size           39
 #define agentsdeck_link_v1_CertIssued_size       1788
 #define agentsdeck_link_v1_CertRequest_size      603
@@ -1459,7 +1462,7 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Dismiss_size          13
 #define agentsdeck_link_v1_Display_size          14
 #define agentsdeck_link_v1_Focus_size            13
-#define agentsdeck_link_v1_Frame_size            3711
+#define agentsdeck_link_v1_Frame_size            3777
 #define agentsdeck_link_v1_GetState_size         0
 #define agentsdeck_link_v1_Handoff_size          30
 #define agentsdeck_link_v1_HatList_size          1868
@@ -1488,7 +1491,7 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_SetHat_size           175
 #define agentsdeck_link_v1_SnapshotBegin_size    95
 #define agentsdeck_link_v1_SnapshotEnd_size      0
-#define agentsdeck_link_v1_Subagent_size         128
+#define agentsdeck_link_v1_Subagent_size         139
 #define agentsdeck_link_v1_Subscribe_size        18
 #define agentsdeck_link_v1_Tokens_size           44
 #define agentsdeck_link_v1_Welcome_size          166

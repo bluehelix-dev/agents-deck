@@ -221,7 +221,7 @@ func Subagents(transcript string, window, toolWindow time.Duration) []model.Suba
 			continue
 		}
 		id := strings.TrimPrefix(strings.TrimSuffix(filepath.Base(f), ".jsonl"), "agent-")
-		s := model.Subagent{ID: id, Tool: tool}
+		s := model.Subagent{ID: id, Tool: tool, StartedAt: start.UTC().Truncate(time.Second)}
 		var meta struct {
 			Type        string `json:"agentType"`
 			Description string `json:"description"`

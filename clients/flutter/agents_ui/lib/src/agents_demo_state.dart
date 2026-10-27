@@ -55,19 +55,22 @@ const agentsDemoStateJson = r'''
           "id": "a1f3c9",
           "title": "map the payment retry paths",
           "type": "Explore",
-          "tool": "Grep"
+          "tool": "Grep",
+          "startedAt": "2026-10-08T00:49:00Z"
         },
         {
           "id": "b72e01",
           "title": "write tests for refunds",
           "type": "general-purpose",
-          "tool": "Edit"
+          "tool": "Edit",
+          "startedAt": "2026-10-08T00:50:00Z"
         },
         {
           "id": "c90d4a",
           "title": "check the webhook docs",
           "type": "general-purpose",
-          "tool": "WebFetch"
+          "tool": "WebFetch",
+          "startedAt": "2026-10-08T00:50:20Z"
         }
       ],
       "hat": {

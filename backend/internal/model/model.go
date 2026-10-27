@@ -86,6 +86,9 @@ type Subagent struct {
 	Title string `json:"title"`          // the task description it was given
 	Type  string `json:"type,omitempty"` // agent type (Explore, general-purpose, fork…)
 	Tool  string `json:"tool,omitempty"` // tool of its latest call, for the critter's pose
+	// When it began (its transcript's creation), for "Grep · 2m" on the card;
+	// omitted when unknown.
+	StartedAt time.Time `json:"startedAt,omitzero"`
 }
 
 // Workflow is a run of the Workflow tool: its phases in the script's order,

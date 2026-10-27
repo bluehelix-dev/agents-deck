@@ -1066,14 +1066,14 @@ function crewKind(x) {
 }
 function crewUpdate(crew, a) {
   const subs = a.subagents || [];
-  const key = subs.map((x) => `${x.id}:${x.tool || ''}:${x.type || ''}:${x.title}`).join(',') + `|${a.hat ? a.hat.shape + a.hat.color : ''}`;
+  const key = subs.map((x) => `${x.id}:${x.tool || ''}:${x.type || ''}:${x.title}:${x.startedAt ? rel(x.startedAt) : ''}`).join(',') + `|${a.hat ? a.hat.shape + a.hat.color : ''}`;
   if (crew.dataset.key === key) return;
   crew.dataset.key = key;
   crew.hidden = subs.length === 0;
   const shown = subs.slice(0, CREW_MAX);
   const lines = shown.map((x) => {
     const [title, kind] = crewKind(x);
-    const tool = x.tool || 'thinking';
+    const tool = (x.tool || 'thinking') + (x.startedAt ? ` · ${rel(x.startedAt)}` : '');
     const m = h('span', { class: 'd-mini' });
     setSprite(m, x.tool ? TOOL_POSE[x.tool.toLowerCase()] || 'run' : 'think', 'claude', a.hat);
     return h('li', { class: 'd-crew-line', 'aria-label': [title, kind, tool].filter(Boolean).join(', ') }, m,
@@ -1625,6 +1625,7 @@ async function startFixture() {
     a.statusSince = iso(t0 - ago);
     a.startedAt = iso(t0 - ago - 40 * 60000);
     a.updatedAt = iso(t0 - 5000);
+    (a.subagents || []).forEach((s, i) => { s.startedAt = iso(t0 - [120, 60, 40][i % 3] * 1000); });
   }
   if (params.has('empty')) data.agents = [];
   if (params.has('many')) data.agents = Array.from({ length: 40 }, (_, i) => ({ ...data.agents[i % data.agents.length], id: `m${String(i).padStart(5, '0')}`, slot: i }));

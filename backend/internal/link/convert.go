@@ -76,7 +76,7 @@ func toPB(a model.Agent, fields uint32) *linkpb.Agent {
 		}
 		p.Resumable, p.Attached = a.Resumable, a.Attached
 		for _, s := range a.Subagents {
-			p.Subagents = append(p.Subagents, &linkpb.Subagent{Id: s.ID, Title: s.Title, Type: s.Type, Tool: s.Tool})
+			p.Subagents = append(p.Subagents, &linkpb.Subagent{Id: s.ID, Title: s.Title, Type: s.Type, Tool: s.Tool, StartedAtMs: ms(s.StartedAt)})
 		}
 		p.StartedAtMs, p.UpdatedAtMs = ms(a.StartedAt), ms(a.UpdatedAt)
 	}

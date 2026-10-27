@@ -104,7 +104,8 @@ The full state is small (≤ a few KB per agent), so there are no deltas.
   "account": { "name": "work", "color": "yellow" }, // omitted while only one Claude account is set up:
                                   // the account (Claude config folder) the session runs in; color is a hat colour
   "subagents": [                  // omitted when none: subagents still working, oldest first
-    { "id": "a1f3c9", "title": "map the payment retry paths", "type": "Explore", "tool": "Grep" }
+    { "id": "a1f3c9", "title": "map the payment retry paths", "type": "Explore", "tool": "Grep",
+      "startedAt": "2026-10-08T00:49:00Z" } // startedAt: when it began; omitted when unknown
   ],
   "startedAt": "2026-10-08T00:13:00Z",
   "updatedAt": "2026-10-08T00:51:02Z"

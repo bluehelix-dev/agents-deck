@@ -36,6 +36,17 @@ class FakeAgentsSource implements AgentsSource {
       final slot = (a['slot'] as num).toInt();
       final age = _demoAges[slot % _demoAges.length];
       a['statusSince'] = now.subtract(age).toIso8601String();
+      // Subagents at it for 2m, 1m and 40s.
+      const at = [
+        Duration(minutes: 2),
+        Duration(minutes: 1),
+        Duration(seconds: 40),
+      ];
+      for (final (i, s) in ((a['subagents'] as List?) ?? const []).indexed) {
+        (s as Map)['startedAt'] = now
+            .subtract(at[i % at.length])
+            .toIso8601String();
+      }
     }
     return FakeAgentsSource._(json, animate: animate, liveClock: true);
   }

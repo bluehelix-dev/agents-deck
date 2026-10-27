@@ -284,6 +284,7 @@ message Subagent {
   string title = 2;
   string type = 3;
   string tool = 4;
+  int64 started_at_ms = 5;  // when it began (its transcript's creation); 0 when unknown
 }
 
 // ---- commands ------------------------------------------------------------

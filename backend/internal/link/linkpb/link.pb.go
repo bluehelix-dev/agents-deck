@@ -2587,6 +2587,7 @@ type Subagent struct {
 	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
 	Tool          string                 `protobuf:"bytes,4,opt,name=tool,proto3" json:"tool,omitempty"`
+	StartedAtMs   int64                  `protobuf:"varint,5,opt,name=started_at_ms,json=startedAtMs,proto3" json:"started_at_ms,omitempty"` // when it began (its transcript's creation); 0 when unknown
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2647,6 +2648,13 @@ func (x *Subagent) GetTool() string {
 		return x.Tool
 	}
 	return ""
+}
+
+func (x *Subagent) GetStartedAtMs() int64 {
+	if x != nil {
+		return x.StartedAtMs
+	}
+	return 0
 }
 
 type Answer struct {
@@ -4330,12 +4338,13 @@ const file_agentsdeck_link_v1_link_proto_rawDesc = "" +
 	"\tautomatic\x18\x03 \x01(\bR\tautomatic\"3\n" +
 	"\aAccount\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05color\x18\x02 \x01(\tR\x05color\"X\n" +
+	"\x05color\x18\x02 \x01(\tR\x05color\"|\n" +
 	"\bSubagent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x12\x12\n" +
-	"\x04tool\x18\x04 \x01(\tR\x04tool\"R\n" +
+	"\x04tool\x18\x04 \x01(\tR\x04tool\x12\"\n" +
+	"\rstarted_at_ms\x18\x05 \x01(\x03R\vstartedAtMs\"R\n" +
 	"\x06Answer\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1b\n" +
 	"\tprompt_id\x18\x02 \x01(\tR\bpromptId\x12\x10\n" +

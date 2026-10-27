@@ -646,6 +646,7 @@ void main() {
         'title': 'find every caller of resetTool',
         'type': 'Explore',
         'tool': 'Grep',
+        'startedAt': '2026-10-08T00:49:00Z',
       },
       {
         'id': 's2',
@@ -662,7 +663,11 @@ void main() {
     expect(list, findsOneWidget);
     expect(find.text('6 subagents'), findsOneWidget);
     final first = find.byKey(const Key('agent-subagent-s1'));
-    for (final t in ['find every caller of resetTool', 'Explore', 'Grep']) {
+    for (final t in [
+      'find every caller of resetTool',
+      'Explore',
+      'Grep · 2m',
+    ]) {
       expect(
         find.descendant(of: first, matching: find.text(t)),
         findsOneWidget,
@@ -678,6 +683,14 @@ void main() {
       'propeller',
     );
     expect(find.text('general'), findsOneWidget);
+    // Without a start time the tool stands alone.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('agent-subagent-s2')),
+        matching: find.text('Edit'),
+      ),
+      findsOneWidget,
+    );
     // On the 720 px panel two lines fit next to the last prompt; the rest
     // is counted.
     expect(find.byKey(const Key('agent-subagent-s2')), findsOneWidget);

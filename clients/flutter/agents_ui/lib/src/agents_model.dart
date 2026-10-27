@@ -174,6 +174,7 @@ class AgentSubagent {
     required this.title,
     this.type = '',
     this.tool = '',
+    this.startedAt,
   });
 
   final String id;
@@ -187,11 +188,15 @@ class AgentSubagent {
   /// Tool of its latest call, for the mini critter's pose.
   final String tool;
 
+  /// When it began, on the daemon's clock; null when unknown.
+  final DateTime? startedAt;
+
   static AgentSubagent fromJson(Map<String, dynamic> j) => AgentSubagent(
     id: _str(j['id']),
     title: _str(j['title']),
     type: _str(j['type']),
     tool: _str(j['tool']),
+    startedAt: _time(j['startedAt']),
   );
 }
 

@@ -536,7 +536,8 @@ class _AgentTileState extends State<AgentTile> {
                       child: SizedBox.square(
                         dimension: _tileDesign,
                         child: Stack(
-                          fit: StackFit.expand, // the column keeps the cell's width: centred
+                          fit: StackFit
+                              .expand, // the column keeps the cell's width: centred
                           children: [
                             if (a.subagents.isNotEmpty)
                               Positioned(

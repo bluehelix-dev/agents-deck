@@ -136,6 +136,11 @@ func TestSubagents(t *testing.T) {
 		t.Fatalf("want a1, a3 and w1 working: %+v", subs)
 	}
 	for _, x := range subs {
+		if x.StartedAt.IsZero() || time.Since(x.StartedAt) > time.Hour {
+			t.Fatalf("start time from the transcript's creation: %+v", x)
+		}
+	}
+	for _, x := range subs {
 		if x.ID == "w1" && (x.Type != WorkflowAgent || x.Title != "find:auth · Suche" || x.Tool != "Grep") {
 			t.Fatalf("workflow agent: %+v", x)
 		}

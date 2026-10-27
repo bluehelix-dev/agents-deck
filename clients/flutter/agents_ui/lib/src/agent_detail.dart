@@ -752,6 +752,7 @@ class _AgentDetailState extends State<AgentDetail> {
                 hat: a.hat,
                 body: body,
                 cut: DeckHud.bg,
+                now: state.serverNow(),
               ),
             ),
             const SizedBox(height: 26),
@@ -1503,7 +1504,8 @@ class WorkflowPhases extends StatelessWidget {
 
 /// An agent's working subagents as a crew list: a line each, with its critter
 /// posed by its latest tool and in the session's hat, what it was sent to do,
-/// its kind (a workflow agent's phase), and the tool it is in. Up to four
+/// its kind (a workflow agent's phase), and the tool it is in with how long
+/// it has been at it ("Grep · 2m"). Up to four
 /// lines, fewer when the card is short, then "+N more".
 class SubagentList extends StatelessWidget {
   const SubagentList({
@@ -1512,6 +1514,7 @@ class SubagentList extends StatelessWidget {
     required this.body,
     required this.cut,
     this.hat,
+    this.now,
   });
 
   static const max = 4;
@@ -1525,6 +1528,9 @@ class SubagentList extends StatelessWidget {
   final AgentHat? hat;
   final Color body;
   final Color cut;
+
+  /// "Now" on the daemon's clock, for how long each has been at it.
+  final DateTime? now;
 
   /// What it was sent to do, and its kind: a workflow agent's title is
   /// "label · phase", and the phase is its kind.
@@ -1583,7 +1589,12 @@ class SubagentList extends StatelessWidget {
 
   Widget _line(AgentSubagent s, bool kinds, TextStyle meta) {
     final (title, kind) = titleAndKind(s);
-    final tool = s.tool.isEmpty ? 'thinking' : s.tool;
+    var tool = s.tool.isEmpty ? 'thinking' : s.tool;
+    final since = s.startedAt, at = now;
+    if (since != null && at != null) {
+      final d = at.difference(since);
+      tool += ' · ${shortDuration(d.isNegative ? Duration.zero : d)}';
+    }
     return Semantics(
       label: [title, kind, tool].where((x) => x.isNotEmpty).join(', '),
       excludeSemantics: true,
@@ -1620,7 +1631,7 @@ class SubagentList extends StatelessWidget {
           ],
           const SizedBox(width: 12),
           SizedBox(
-            width: 84, // fixed, so the kind column lines up
+            width: 128, // fixed, so the kind column lines up
             child: Text(
               tool,
               maxLines: 1,

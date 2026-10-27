@@ -210,13 +210,14 @@ class DeckGrid extends StatelessWidget {
 /// Opens an agent's card from its tile. The desk panel passes its own
 /// tile-to-card morph (with the shell's back gesture); [CardMorph] is the
 /// built-in one.
-typedef AgentCardOpener = void Function(
-  BuildContext tileContext,
-  GlobalKey tileKey, {
-  required String id,
-  required Color fill,
-  required Widget Function(VoidCallback close) builder,
-});
+typedef AgentCardOpener =
+    void Function(
+      BuildContext tileContext,
+      GlobalKey tileKey, {
+      required String id,
+      required Color fill,
+      required Widget Function(VoidCallback close) builder,
+    });
 
 /// The built-in card opener: the card grows out of its tile to fill this
 /// widget, and shrinks back into it on close.
