@@ -191,7 +191,10 @@ func (d *Daemon) syncLive() {
 
 // liveStatus reads a watched session's state off the end of its transcript:
 // working until Claude's final reply of the turn, then idle (hungry once a
-// turn finishes while we watch).
+// turn finishes while we watch). A turn that stopped at a question
+// (AskUserQuestion), or at a tool call while Claude Code reports the session
+// idle (a permission prompt), is waiting: the card shows the question and its
+// choices, or the command, to be answered in the session's own terminal.
 func (d *Daemon) liveStatus(e *store.Entry, l claude.Live) bool {
 	running, tool := claude.TranscriptTurn(e.Transcript, 10*time.Minute)
 	changed := false
@@ -202,14 +205,28 @@ func (d *Daemon) liveStatus(e *store.Entry, l claude.Live) bool {
 				e.SetStatus(model.Waiting)
 				e.A.Waiting = &model.Prompt{ID: e.NextPromptID(), Kind: "input",
 					Title: "needs you", Context: "answer it in its own terminal"}
+				e.LiveToolUse = ""
 				return true
 			}
 			return false
 		}
-		if e.A.Status == model.Waiting { // answered elsewhere
-			e.SetStatus(model.Running)
-			changed = true
+	}
+	if id, ptool, input, ok := claude.PendingToolCall(e.Transcript); ok && (ptool == "AskUserQuestion" || (l.Reported && !l.Busy)) {
+		if e.A.Status == model.Waiting && e.LiveToolUse == id {
+			return false
 		}
+		p := claude.PromptFor(e, ptool, input)
+		p.Context = "answer it in its own terminal · " + p.Context
+		e.SetStatus(model.Waiting)
+		e.A.Waiting = p
+		e.A.Activity = nil
+		e.LiveToolUse = id
+		return true
+	}
+	if e.A.Status == model.Waiting { // answered elsewhere
+		e.LiveToolUse = ""
+		e.SetStatus(model.Running)
+		changed = true
 	}
 	switch {
 	case running && e.A.Status != model.Running:

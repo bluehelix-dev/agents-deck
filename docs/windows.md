@@ -27,7 +27,9 @@ delete that `Run` value and end `agentctl.exe` in Task Manager.
 
 - **Claude Code sessions you run yourself**, in any terminal and in the Claude desktop app: `agentctl
   live` lists them (from `claude agents --json`), `agentctl add <session>` puts one on the deck, where
-  its status, activity, context and cost come from its transcript. Background sessions show up too.
+  its status, activity, context and cost come from its transcript, and a question or a permission
+  prompt it stops at shows on its card (answered in the session itself). Background sessions show up
+  too.
   `"liveAutoAdd": true` in `config.json` puts every found session on the deck by itself
   ([features.md](features.md#claude-sessions-you-start-yourself)).
 - **The browser dashboard** on `127.0.0.1:7340`: the same deck, prompts, stop, remove from deck.
