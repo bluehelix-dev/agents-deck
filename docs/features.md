@@ -38,6 +38,15 @@ Tap a tile for its card:
 | **Serial boards** | ESP32 boards on USB with Deck Link: see below. |
 | **Terminal** | `agentctl ls`, `sessions`, `resume`… Agent terminals are tmux sessions you attach to with `agentctl attach`, or jump to with **focus terminal**. |
 
+## Claude sessions you start yourself
+
+Claude Code sessions running in any terminal, or in the Claude desktop app, are found by themselves:
+`agentctl live` lists them, and `agentctl add <session>` (or a tap on a free tile) puts one on the
+deck, where its status, activity, context and cost come from its transcript. It stays on the deck
+whenever it runs; **remove** takes it off. With `"liveAutoAdd": true` in `config.json`, every session
+found with a terminal goes on the deck as soon as it is seen, and one you remove stays off until you
+add it again; background sessions (`claude --bg`) stay yours to add.
+
 ## Codex sessions
 
 Threads from the Codex app (and Codex CLI) active in the last 6 hours appear on the board automatically, drawn as an onigiri, with no wrapper and no login. agents deck reads Codex's local files read-only: names, folder, branch and model from `~/.codex/state_*.sqlite` (opened with `sqlite3 -readonly`), live status from the end of each thread's `rollout-*.jsonl`.

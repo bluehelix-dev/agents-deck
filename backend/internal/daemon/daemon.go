@@ -39,6 +39,10 @@ type Config struct {
 	Cmux *bool `json:"cmux"`
 	// CodexWindowHours: threads updated within this many hours are shown (default 6).
 	CodexWindowHours float64 `json:"codexWindowHours"`
+	// LiveAutoAdd: every Claude session found running in a terminal goes on
+	// the deck by itself (default off: `agentctl add` or a free tile puts one
+	// there). One you take off stays off; background sessions stay manual.
+	LiveAutoAdd bool `json:"liveAutoAdd"`
 	// ExitedTTLSeconds: how long exited agents stay visible (0 = 10 min, <0 = forever).
 	ExitedTTLSeconds int `json:"exitedTTLSeconds"`
 }

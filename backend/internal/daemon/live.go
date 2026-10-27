@@ -47,6 +47,7 @@ type liveWatch struct {
 	mu         sync.Mutex
 	candidates []LiveCandidate
 	added      map[string]bool // session id -> on the deck (persisted)
+	removed    map[string]bool // session id -> taken off, not to come back by itself (persisted)
 	loaded     bool
 
 	claudeBin  string        // resolved once from the login shell
@@ -56,6 +57,13 @@ type liveWatch struct {
 }
 
 func addedPath() string { return filepath.Join(paths.Data(), "watched.json") }
+
+// watchedFile is watched.json: the sessions on the deck and, with
+// liveAutoAdd, the ones taken off. Older files are a bare list of the former.
+type watchedFile struct {
+	Added   []string `json:"added"`
+	Removed []string `json:"removed,omitempty"`
+}
 
 // liveAgentID derives a stable board id ([a-z0-9]{6}) from a session id.
 func liveAgentID(sessionID string) string {
@@ -67,24 +75,34 @@ func (d *Daemon) liveAdded() map[string]bool {
 	if !d.live.loaded {
 		d.live.loaded = true
 		d.live.added = map[string]bool{}
-		var ids []string
+		d.live.removed = map[string]bool{}
+		var f watchedFile
 		if b, err := os.ReadFile(addedPath()); err == nil {
-			_ = json.Unmarshal(b, &ids)
+			if json.Unmarshal(b, &f) != nil {
+				_ = json.Unmarshal(b, &f.Added) // the older bare list
+			}
 		}
-		for _, id := range ids {
+		for _, id := range f.Added {
 			d.live.added[id] = true
+		}
+		for _, id := range f.Removed {
+			d.live.removed[id] = true
 		}
 	}
 	return d.live.added
 }
 
 func (d *Daemon) saveAdded() {
-	ids := make([]string, 0, len(d.live.added))
+	f := watchedFile{Added: make([]string, 0, len(d.live.added))}
 	for id := range d.live.added {
-		ids = append(ids, id)
+		f.Added = append(f.Added, id)
 	}
-	sort.Strings(ids)
-	if b, err := json.Marshal(ids); err == nil {
+	for id := range d.live.removed {
+		f.Removed = append(f.Removed, id)
+	}
+	sort.Strings(f.Added)
+	sort.Strings(f.Removed)
+	if b, err := json.Marshal(f); err == nil {
 		_ = os.WriteFile(addedPath(), b, 0o600)
 	}
 }
@@ -116,6 +134,19 @@ func (d *Daemon) syncLive() {
 
 	d.live.mu.Lock()
 	added := d.liveAdded()
+	if d.Cfg.LiveAutoAdd { // every session with a terminal, unless taken off before
+		newly := false
+		for _, l := range found {
+			if !l.Background && !added[l.SessionID] && !d.live.removed[l.SessionID] {
+				added[l.SessionID] = true
+				newly = true
+				log.Printf("found live session %s: on the deck (liveAutoAdd)", l.SessionID)
+			}
+		}
+		if newly {
+			d.saveAdded()
+		}
+	}
 	cands := make([]LiveCandidate, 0, len(found))
 	want := map[string]claude.Live{}
 	for _, l := range found {
@@ -228,6 +259,7 @@ func (d *Daemon) AddLive(sessionID string, slot int) error {
 	}
 	if found {
 		d.liveAdded()[sessionID] = true
+		delete(d.live.removed, sessionID)
 		d.saveAdded()
 	}
 	d.live.mu.Unlock()
@@ -242,10 +274,12 @@ func (d *Daemon) AddLive(sessionID string, slot int) error {
 	return nil
 }
 
-// removeLive takes a watched session off the deck (it keeps running).
+// removeLive takes a watched session off the deck (it keeps running), and
+// keeps it off when liveAutoAdd would otherwise bring it back.
 func (d *Daemon) removeLive(e store.Entry) {
 	d.live.mu.Lock()
 	delete(d.liveAdded(), e.SessionID)
+	d.live.removed[e.SessionID] = true
 	d.saveAdded()
 	d.live.mu.Unlock()
 	d.Store.Remove(e.A.ID)

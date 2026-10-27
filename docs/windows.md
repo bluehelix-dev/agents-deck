@@ -28,6 +28,8 @@ delete that `Run` value and end `agentctl.exe` in Task Manager.
 - **Claude Code sessions you run yourself**, in any terminal and in the Claude desktop app: `agentctl
   live` lists them (from `claude agents --json`), `agentctl add <session>` puts one on the deck, where
   its status, activity, context and cost come from its transcript. Background sessions show up too.
+  `"liveAutoAdd": true` in `config.json` puts every found session on the deck by itself
+  ([features.md](features.md#claude-sessions-you-start-yourself)).
 - **The browser dashboard** on `127.0.0.1:7340`: the same deck, prompts, stop, remove from deck.
 - **Paired devices over Wi-Fi**: the TLS listener on `:7341`, `agentctl pair`, `agentctl devices`, the
   desk panel, boards on Wi-Fi and the [Android app](phone.md). Pair those with `--host <this PC's LAN
