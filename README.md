@@ -9,14 +9,15 @@
 # agents deck
 
 **Mission control for your Claude Code and Codex agents**: in your menu bar, in the browser, on your
-desk, and on a little screen you flash yourself.
+desk, on your phone, and on a little screen you flash yourself.
 
-A small program on your Mac (the daemon, `agentctl`) keeps track of every coding agent you run: who's
-working, who needs you, what each one is doing, its context and cost. You see them all as a deck of
-tiles, each agent a pixel critter, and you can answer an agent's question or permission prompt, stop
-it, or jump to its terminal from any screen. Everything stays on your Mac. The boards are optional
-and cheap: plug one in with a USB cable and it shows the same deck; give it your Wi-Fi once and it
-works from anywhere on your desk.
+A small program on your computer (the daemon, `agentctl`, on macOS or Windows) keeps track of every
+coding agent you run: who's working, who needs you, what each one is doing, its context and cost. You
+see them all as a deck of tiles, each agent a pixel critter, and you can answer an agent's question
+or permission prompt, stop it, or jump to its terminal from any screen. Everything stays on your
+machine. The boards are optional and cheap: plug one in with a USB cable and it shows the same deck;
+give it your Wi-Fi once and it works from anywhere on your desk. The Android app shows the same deck
+on a phone or tablet, at home or over a VPN, and buzzes when an agent needs you.
 
 - [What you need](#what-you-need)
 - [Quick start](#quick-start-the-mac-part)
@@ -52,13 +53,14 @@ git clone https://github.com/brushknight/agents-deck && cd agents-deck
 ./install.sh --source --app
 ```
 
-On Windows, build the daemon from a clone and register it as a login item (details and limits in
-[docs/windows.md](docs/windows.md)):
+On Windows, build the daemon from a clone, register it as a login item, and let the sessions you
+start yourself report to it (details and limits in [docs/windows.md](docs/windows.md)):
 
 ```powershell
 git clone https://github.com/brushknight/agents-deck; cd agents-deck\backend
 go build -o "$env:USERPROFILE\.local\bin\agentctl.exe" ./cmd/agentctl
 agentctl install
+agentctl hooks install
 ```
 
 Agents you already run in Orca, herdr, cmux or Codex show up right away. To start your own:
@@ -232,7 +234,7 @@ nothing to set up: the deck finds them and lets you answer, interrupt and jump t
 | [cmux](https://cmux.com) | Claude agents in cmux's terminals, while cmux is open (answering needs one cmux setting, see [features](docs/features.md#cmux)) |
 | Codex app and Codex CLI | threads from the last 6 hours, read-only |
 | agentctl (built in) | agents it starts with `agentctl new`, each in a tmux session with a status header |
-| Claude Code on its own | sessions you started by hand in any terminal, once you add them (`agentctl live`, `agentctl add`) |
+| Claude Code on its own | sessions you started by hand, in any terminal or in the Claude desktop app: add them (`agentctl live`, `agentctl add`) or let `"liveAutoAdd": true` do it; with `agentctl hooks install` they report their prompts and tool calls like the deck's own agents |
 
 **Your harness missing?** Open a pull request ([docs/harnesses.md](docs/harnesses.md) walks through
 adding one), or name it in the [harness tracking issue](https://github.com/brushknight/agents-deck/issues/7).
@@ -245,6 +247,7 @@ agentctl attach <id|title>          show an agent in this terminal (ctrl-q detac
 agentctl ls                         the fleet at a glance
 agentctl web                        open the dashboard
 agentctl live / add <session>       Claude sessions started by hand; put one on the deck
+agentctl hooks install|remove       let sessions you start yourself report to the deck (Claude Code's user settings)
 agentctl sessions [words]           look up any Claude session by id, title, folder, branch or last prompt
 agentctl resume <id-prefix>         continue a Claude session as an agent
 agentctl restore                    bring back agents lost with the tmux server (crash, reboot)
@@ -252,7 +255,7 @@ agentctl rm <id|title>              stop and forget an agent
 agentctl link [ports | add <port>]  boards: how each is connected, find ports, register one
 agentctl link wifi --default --ssid NAME   the Wi-Fi network every board gets (asks for the password)
 agentctl devices [approve | scope | revoke <name>]   boards and paired devices
-agentctl pair <name> [--bundle F]   pair the desk panel: its own certificate, scope view|act|admin
+agentctl pair <name> [--qr | --bundle F] [--host ADDR]   pair a phone or the desk panel: its own certificate, scope view|act|admin
 agentctl sim start|stop             pretend agents for demos
 ```
 
@@ -268,7 +271,7 @@ flowchart LR
     O["Orca"]
     H["herdr"]
     M["cmux"]
-    L["Claude Code<br/>in any terminal"]
+    L["Claude Code<br/>in any terminal or the desktop app"]
     X["Codex app and CLI"]
   end
   D["agentctl serve<br/>(the daemon, on your Mac)"]:::a
@@ -276,14 +279,14 @@ flowchart LR
     direction TB
     W["web dashboard"]
     MB["menu bar app"]
-    P["desk panel"]
+    P["desk panel · Android app"]
     B["boards (ESP32)"]
   end
   A <-->|"hooks, transcripts · send-keys"| D
   O <-->|"orca CLI"| D
   H <-->|"herdr socket"| D
   M <-->|"cmux socket, hook file"| D
-  L -->|"transcripts (agentctl add)"| D
+  L -->|"transcripts · hooks (agentctl hooks install)"| D
   X -->|"~/.codex, read-only"| D
   D <-->|"/v1 + SSE · 127.0.0.1"| W
   D <-->|"/v1 · unix socket"| MB
@@ -305,13 +308,14 @@ protobuf version of it.
 
 ## Security & privacy
 
-- **Nothing leaves your machine:** no telemetry, no update checks. The only Go dependency is Google's protobuf module.
+- **Nothing leaves your machine:** no telemetry, no update checks from the daemon. The only Go dependency is Google's protobuf module. (The Android app alone asks GitHub for its own newer release, and only to update itself; the deck's data never goes anywhere.)
 - **The web dashboard is loopback-only,** behind a one-time login link, a strict CSP and host and origin checks.
 - **The menu bar app** uses the daemon's unix socket: nothing crosses the network.
-- **The desk panel and boards on Wi-Fi** connect over TLS 1.3 with their own client certificate,
-  signed by the deck's local CA (its key is in the macOS Keychain). Each device has a scope (view, act
-  or admin), shows up in `agentctl devices`, can be revoked on its own, and every action it takes lands
-  in an audit log.
+- **The desk panel, the Android app and boards on Wi-Fi** connect over TLS 1.3 with their own client
+  certificate, signed by the deck's local CA (its key is in the macOS Keychain, a file under your
+  profile on Windows). A phone makes its key itself and pairs with a QR code that is good for two
+  minutes. Each device has a scope (view, act or admin), shows up in `agentctl devices`, can be revoked
+  on its own, and every action it takes lands in an audit log.
 - **Boards on USB** are only heard on ports you registered (`agentctl link add`). A new board plugged
   into one is approved at once with scope `act`: physical USB on your Mac counts as your consent
   (`agentctl devices auto-approve usb off` makes them wait for `agentctl devices approve`). Never over
@@ -322,14 +326,14 @@ protobuf version of it.
 
 ## Docs
 
-[Devices](docs/devices.md) · [Flashing](docs/flashing.md) · [Features](docs/features.md) · [Protocol](docs/protocol.md) · [Deck Link](docs/link/protocol.md) · [New device](docs/link/new-device.md) · [Harnesses](docs/harnesses.md) · [Releasing](docs/releasing.md) · [Roadmap](docs/roadmap.md)
+[Devices](docs/devices.md) · [Flashing](docs/flashing.md) · [Features](docs/features.md) · [Phone app](docs/phone.md) · [Windows](docs/windows.md) · [Protocol](docs/protocol.md) · [Deck Link](docs/link/protocol.md) · [New device](docs/link/new-device.md) · [Harnesses](docs/harnesses.md) · [Releasing](docs/releasing.md) · [Roadmap](docs/roadmap.md)
 
 | path | |
 |---|---|
 | `backend/` | Go daemon and CLI (`agentctl`), with the web UI embedded. `go test -race ./...` |
 | `clients/flutter/agents_ui` | The deck UI as a Flutter package, shared by the desk panel and the menu bar app. |
 | `clients/macos` | The menu bar app (Flutter + a small Swift shell). |
-| `clients/android` | The deck on an Android phone (Flutter + a small Kotlin shell), paired with a bundle. |
+| `clients/android` | The deck on an Android phone or tablet (Flutter + a small Kotlin shell): pairs with a QR code, buzzes when an agent needs you, updates itself from the releases. |
 | `proto/` | `link.proto`: the Deck Link contract for boards. |
 | `firmware/deck-link` | The C firmware kit for Deck Link boards (ESP32), with examples. |
 | `firmware/devices` | Firmware for each board, one folder each ([devices](docs/devices.md)). |

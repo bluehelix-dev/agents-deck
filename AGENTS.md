@@ -1,7 +1,8 @@
 # Notes for coding agents
 
-agents deck shows coding agents (Claude Code, Codex) running on a Mac on a 4×4 deck: in the browser, in
-the menu bar, on a desk panel, and on small boards over USB serial.
+agents deck shows coding agents (Claude Code, Codex) running on a Mac or a Windows PC on a 4×4 deck:
+in the browser, in the menu bar, on a desk panel, on an Android phone or tablet, and on small boards
+over USB serial or Wi-Fi.
 
 ## Layout
 
@@ -13,15 +14,16 @@ the menu bar, on a desk panel, and on small boards over USB serial.
 | `proto/agentsdeck/link/v1` | `link.proto` and `link.options`: the Deck Link contract |
 | `clients/flutter/agents_ui` | the deck UI as a Flutter package (desk panel, menu bar app) |
 | `clients/macos` | the menu bar app |
-| `clients/android` | the Android app (the same package, a Kotlin shell for the file picker) |
+| `clients/android` | the Android app: the same package in a Kotlin shell (file picker, QR scanner, pairing, alerts, self-update from the releases) |
 | `firmware/deck-link` | the C firmware kit for Deck Link boards, with examples |
 | `firmware/devices` | firmware for specific devices |
-| `docs/` | `protocol.md` (the API and security), `link/` (Deck Link), `features.md`, `harnesses.md` (adding a harness) |
+| `docs/` | `protocol.md` (the API and security), `link/` (Deck Link), `features.md`, `harnesses.md` (adding a harness), `phone.md` (the Android app and pairing), `windows.md` (what works on Windows), `releasing.md` |
 
 ## Before you open a PR
 
 - `cd backend && go vet ./... && go test ./...`
-- `cd clients/flutter/agents_ui && flutter analyze && flutter test` if you touched Flutter
+- `cd clients/flutter/agents_ui && flutter analyze && flutter test` if you touched Flutter, and
+  `cd clients/android && flutter analyze && flutter test` if you touched the Android app
 - `make -C firmware/deck-link/test/host test` and the PlatformIO builds if you touched firmware
 - Keep `docs/` in step with the code: the API table in `docs/protocol.md` is checked against Deck Link
   by a test, and so are `link.options` and the Go limits.

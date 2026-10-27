@@ -6,10 +6,11 @@ the screen's shape, and scaled to it: a phone upright gets the tall board, a tab
 wide one, a 4:3 tablet the panel's square. It connects to `agentctl` on your
 computer over TLS with its own certificate, exactly like the desk panel.
 
-Pair it once: on the computer, `agentctl pair phone --qr`, then **scan QR code** on the app's first
-screen: a viewfinder opens, reads the code, and the phone makes its own key and trades
-the code for its certificate ([docs/phone.md](../../docs/phone.md) has the details and what it
-protects). Without a camera, **paste the code** takes what `agentctl pair phone` prints from the
+Pair it once: on the computer, `agentctl pair phone --qr --host <address>` (the computer's LAN
+address, or its VPN address so the phone reaches the deck from anywhere), then **scan QR code** on
+the app's first screen: a viewfinder opens, reads the code, and the phone makes its own key and
+trades the code for its certificate ([docs/phone.md](../../docs/phone.md) has the details and what
+it protects). Without a camera, **paste the code** takes what `agentctl pair phone` prints from the
 clipboard, and **import phone.json** takes a bundle from `agentctl pair phone --bundle phone.json
 --host <the computer's LAN address>`. `agentctl devices revoke phone` cuts the phone off.
 

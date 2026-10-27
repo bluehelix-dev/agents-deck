@@ -40,19 +40,26 @@ Tap a tile for its card:
 
 ## Claude sessions you start yourself
 
-Claude Code sessions running in any terminal, or in the Claude desktop app, are found by themselves:
-`agentctl live` lists them, and `agentctl add <session>` (or a tap on a free tile) puts one on the
-deck, where its status, activity, context and cost come from its transcript. When the session
-stops at a question, its card shows the question and the choices and the tile turns orange like any
-other agent's; you answer in the session's own terminal, and the deck notices. A permission prompt
-looks like a running tool from the outside, so it shows only once the session reports through hooks:
-`agentctl hooks install` puts the deck's hook into Claude Code's user settings (`~/.claude/settings.json`,
-next to any hooks of your own), and from their next start every session on the machine tells the
-deck what it runs and what it waits for, including permission prompts with the command. The deck
-only listens: you still answer in the session itself, and a session never waits for the deck
-(`agentctl hooks remove` takes the hook out again, `agentctl hooks status` shows it). It stays on the deck whenever it runs; **remove** takes it off. With `"liveAutoAdd": true` in `config.json`, every session
-found with a terminal goes on the deck as soon as it is seen, and one you remove stays off until you
-add it again; background sessions (`claude --bg`) stay yours to add.
+Claude Code sessions running in any terminal, or in the Claude desktop app, are found by themselves.
+
+- **Finding and adding.** `agentctl live` lists them; `agentctl add <session>` (or a tap on a free
+  tile) puts one on the deck, and it stays there whenever it runs, until **remove** takes it off.
+  With `"liveAutoAdd": true` in `config.json`, every session found with a terminal goes on the deck
+  as soon as it is seen, one you remove stays off until you add it again, and background sessions
+  (`claude --bg`) stay yours to add.
+- **What the deck reads.** Status, activity, context and cost come from the session's transcript.
+  When the session stops at a question, its card shows the question and the choices, and the tile
+  turns orange like any other agent's; you answer in the session's own terminal, and the deck
+  notices.
+- **Hooks for the rest.** A permission prompt looks like a running tool from the outside, so it
+  shows only once the session reports through hooks: `agentctl hooks install` puts the deck's hook
+  into Claude Code's user settings (`~/.claude/settings.json`, next to any hooks of your own), and
+  from their next start every session on the machine tells the deck what it runs and what it waits
+  for, including permission prompts with the command. The deck only listens: you still answer in
+  the session itself, and a session never waits for the deck. `agentctl hooks remove` takes the hook
+  out again, `agentctl hooks status` shows it.
+- **Where it keeps its place.** A watched session goes back to the slot it had when it shows up
+  again, across restarts of the daemon too (`slots.json` next to the registry).
 
 ## Codex sessions
 
