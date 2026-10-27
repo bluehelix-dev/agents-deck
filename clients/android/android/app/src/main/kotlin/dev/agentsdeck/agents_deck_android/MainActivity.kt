@@ -4,17 +4,21 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.view.WindowManager
+import androidx.core.content.FileProvider
 import com.journeyapps.barcodescanner.ScanIntentResult
 import com.journeyapps.barcodescanner.ScanOptions
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.security.MessageDigest
 
 // The native side of `agents_deck/files`: where the pairing bundle lives
 // (the app's private folder, which no other app can read), the system file
 // picker that reads one in, the QR scanner (a live viewfinder in this app,
-// ZXing's), the pairing itself (Pairing.kt), and the screen's wake lock. No
-// plugins: a MethodChannel is enough.
+// ZXing's), the pairing itself (Pairing.kt), the screen's wake lock, and the
+// app's own version and installer (updates from GitHub releases, updates.dart).
+// No plugins: a MethodChannel is enough.
 class MainActivity : FlutterActivity() {
     private var pending: MethodChannel.Result? = null
 
@@ -26,6 +30,8 @@ class MainActivity : FlutterActivity() {
                 "pickBundle" -> pickBundle(result)
                 "scanQr" -> scanQr(result)
                 "pair" -> pair(call.arguments as? String ?: "", result)
+                "appInfo" -> appInfo(result)
+                "installApk" -> installApk(call.arguments as? String ?: "", result)
                 "keepScreenOn" -> {
                     // A status board that goes dark isn't one; the user turns this off in settings.
                     val flag = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
@@ -73,6 +79,61 @@ class MainActivity : FlutterActivity() {
         }.createScanIntent(this)
         pending = result
         startActivityForResult(intent, SCAN)
+    }
+
+    // This build: its version, and the SHA-256 of the installed APK, which is
+    // how the app tells whether the latest release is what it is running
+    // (the hash takes a moment over 40 MB, so off the main thread). And the
+    // cache folder an update is downloaded to.
+    private fun appInfo(result: MethodChannel.Result) {
+        Thread {
+            val info = packageManager.getPackageInfo(packageName, 0)
+            @Suppress("DEPRECATION")
+            val build = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode.toInt() else info.versionCode
+            val sha = try {
+                val md = MessageDigest.getInstance("SHA-256")
+                File(applicationInfo.sourceDir).inputStream().use { s ->
+                    val buf = ByteArray(1 shl 16)
+                    while (true) {
+                        val n = s.read(buf)
+                        if (n < 0) break
+                        md.update(buf, 0, n)
+                    }
+                }
+                md.digest().joinToString("") { "%02x".format(it) }
+            } catch (e: Exception) {
+                ""
+            }
+            val answer = mapOf(
+                "version" to (info.versionName ?: ""),
+                "build" to build,
+                "apkSha256" to sha,
+                "cacheDir" to File(cacheDir, "updates").apply { mkdirs() }.absolutePath,
+            )
+            runOnUiThread { result.success(answer) }
+        }.start()
+    }
+
+    // Hands a downloaded APK (in our cache, under updates/) to the system's
+    // package installer, which asks the user and installs it over this app.
+    // The first time, Android asks to allow installs from this app.
+    private fun installApk(path: String, result: MethodChannel.Result) {
+        val file = File(path)
+        if (!file.exists()) {
+            result.error("install", "the downloaded update is gone", null)
+            return
+        }
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            startActivity(intent)
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("install", "could not open the installer: ${e.message ?: e.javaClass.simpleName}", null)
+        }
     }
 
     // Pairs with the deck a QR code (or a pasted pairing code) names, off

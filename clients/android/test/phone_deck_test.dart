@@ -3,10 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:agents_deck_android/main.dart';
+import 'package:agents_deck_android/updates.dart';
 import 'package:agents_deck_ui/agents_deck_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'fake_releases.dart';
 
 /// The phone's native side, recorded.
 class FakeHost implements PhoneHost {
@@ -21,6 +24,14 @@ class FakeHost implements PhoneHost {
   Object? Function(String payload)? pairing;
   final paired = <String>[];
   final screenOn = <bool>[];
+
+  /// This build, as the native side would report it (the cache folder is
+  /// the test's temp dir).
+  String cacheDir = '';
+  String apkSha256 = '';
+
+  /// The APKs handed to the installer.
+  final installed = <String>[];
 
   @override
   Future<String?> pickBundle() async => nextPick;
@@ -44,6 +55,17 @@ class FakeHost implements PhoneHost {
 
   @override
   Future<void> keepScreenOn(bool on) async => screenOn.add(on);
+
+  @override
+  Future<AppInfo> appInfo() async => AppInfo(
+    version: '0.2.0',
+    build: 4,
+    apkSha256: apkSha256,
+    cacheDir: cacheDir,
+  );
+
+  @override
+  Future<void> installApk(String path) async => installed.add(path);
 }
 
 /// A bundle built from the package's test PKI.
@@ -66,12 +88,14 @@ const payload =
 void main() {
   late Directory dir;
   late FakeHost host;
+  late FakeReleaseSource releases;
   late Phone phone;
 
   setUp(() {
     dir = Directory.systemTemp.createTempSync('agents-deck-phone');
-    host = FakeHost();
-    phone = Phone(dir: dir.path, host: host);
+    host = FakeHost()..cacheDir = dir.path;
+    releases = FakeReleaseSource();
+    phone = Phone(dir: dir.path, host: host, releases: releases);
   });
   tearDown(() => dir.deleteSync(recursive: true));
 
@@ -243,6 +267,104 @@ void main() {
       await tester.pump();
       expect(host.paired, [payload]);
       expect(find.byKey(const Key('settings-problem')), findsNothing);
+    });
+  });
+
+  group('updates', () {
+    const installed = [1, 2, 3, 4];
+    const newer = [5, 6, 7, 8];
+
+    /// A newer release on GitHub than the APK this phone runs.
+    void newerRelease() {
+      host.apkSha256 = sha256Of(installed);
+      releases
+        ..listing = listing(['v0.2.0-rc.5'])
+        ..apk = newer
+        ..sums = sumsFor('v0.2.0-rc.5', newer);
+    }
+
+    testWidgets('start checks quietly; the board hints, the settings update', (
+      tester,
+    ) async {
+      newerRelease();
+      File(phone.bundlePath).writeAsStringSync(bundle());
+      await phone.start();
+      await pumpPhone(tester, const Size(1080, 2340));
+      await tester.pump();
+      expect(phone.updater.state.value.phase, UpdatePhase.available);
+      expect(find.byKey(const Key('update-hint')), findsOneWidget);
+      expect(find.textContaining('v0.2.0-rc.5 is out'), findsOneWidget);
+
+      // The hint opens the settings, which show the build and the offer.
+      await tester.tap(find.byKey(const Key('update-hint')));
+      await tester.pump();
+      expect(find.byKey(const Key('settings-card')), findsOneWidget);
+      expect(find.byKey(const Key('update-hint')), findsNothing);
+      Text value(String key) => tester.widget<Text>(
+        find.descendant(of: find.byKey(Key(key)), matching: find.byType(Text)),
+      );
+      expect(value('settings-app').data, '0.2.0 (4)');
+      String? status() =>
+          tester.widget<Text>(find.byKey(const Key('update-status'))).data;
+      expect(status(), startsWith('v0.2.0-rc.5 is out'));
+
+      // Updating downloads, checks and opens the installer. The download
+      // and the checksum are real file I/O, which needs the real event loop.
+      await tester.ensureVisible(find.byKey(const Key('update-button')));
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const Key('update-button')));
+        while (phone.updater.state.value.phase == UpdatePhase.available ||
+            phone.updater.state.value.phase == UpdatePhase.downloading) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      });
+      await tester.pump();
+      expect(host.installed, ['${dir.path}/agents-deck-0.2.0-rc.5.apk']);
+      expect(File(host.installed.single).readAsBytesSync(), newer);
+      expect(status(), startsWith('the installer has'));
+    });
+
+    testWidgets('later hides the hint for this run', (tester) async {
+      newerRelease();
+      File(phone.bundlePath).writeAsStringSync(bundle());
+      await phone.start();
+      await pumpPhone(tester, const Size(1080, 2340));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('update-hint')));
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('update-later')));
+      await tester.tap(find.byKey(const Key('update-later')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('settings-done')));
+      await tester.pump();
+      expect(find.byKey(const Key('update-hint')), findsNothing);
+      // Still on offer in the settings.
+      expect(phone.updater.state.value.phase, UpdatePhase.available);
+    });
+
+    testWidgets('up to date, and a check that fails, in the settings', (
+      tester,
+    ) async {
+      host.apkSha256 = sha256Of(installed);
+      releases
+        ..listing = listing(['v0.2.0-rc.4'])
+        ..sums = sumsFor('v0.2.0-rc.4', installed);
+      File(phone.bundlePath).writeAsStringSync(bundle());
+      await phone.start();
+      await pumpPhone(tester, const Size(1080, 2340));
+      await tester.pump();
+      expect(find.byKey(const Key('update-hint')), findsNothing);
+      await tester.longPressAt(boardBackground(tester));
+      await tester.pump();
+      String? status() =>
+          tester.widget<Text>(find.byKey(const Key('update-status'))).data;
+      expect(status(), 'up to date: v0.2.0-rc.4 is the latest release');
+
+      releases.failWith = const SocketException('no route');
+      await tester.ensureVisible(find.byKey(const Key('update-button')));
+      await tester.tap(find.byKey(const Key('update-button')));
+      await tester.pumpAndSettle();
+      expect(status(), contains('no connection'));
     });
   });
 

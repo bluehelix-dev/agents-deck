@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,12 +6,13 @@ import 'package:agents_deck_ui/agents_deck_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'updates.dart';
+
 /// The native side (MainActivity.kt): the app's private folder, the system
 /// file picker that reads a pairing bundle, the QR scanner that reads
-/// a QR code, the pairing itself (Pairing.kt), and the screen's wake lock.
+/// a QR code, the pairing itself (Pairing.kt), the screen's wake lock, and
+/// the app's own version and installer (updates.dart).
 const _files = MethodChannel('agents_deck/files');
-
-const appVersion = '0.1.0';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,6 +60,14 @@ abstract class PhoneHost {
 
   /// Keeps the screen from dimming while the app is in front.
   Future<void> keepScreenOn(bool on);
+
+  /// This build: version, build number, the installed APK's checksum and
+  /// the folder an update downloads to.
+  Future<AppInfo> appInfo();
+
+  /// Hands a downloaded APK to the system's package installer. Throws a
+  /// [PlatformException] when it can't open.
+  Future<void> installApk(String path);
 }
 
 class ChannelHost implements PhoneHost {
@@ -82,16 +92,31 @@ class ChannelHost implements PhoneHost {
   @override
   Future<void> keepScreenOn(bool on) =>
       channel.invokeMethod<void>('keepScreenOn', on);
+
+  @override
+  Future<AppInfo> appInfo() async =>
+      AppInfo.fromMap((await channel.invokeMethod<Map>('appInfo')) ?? {});
+
+  @override
+  Future<void> installApk(String path) =>
+      channel.invokeMethod<void>('installApk', path);
 }
 
 /// This phone's own state, in the app's private folder: the pairing bundle
 /// (`agents.json`: from a QR code, a pasted pairing code, or
 /// `agentctl pair <name> --bundle FILE`) and the settings (`settings.json`).
 class Phone {
-  Phone({required this.dir, required this.host});
+  Phone({required this.dir, required this.host, ReleaseSource? releases})
+    : updater = Updater(source: releases ?? GitHubReleases());
 
   final String dir;
   final PhoneHost host;
+
+  /// Updates from the app's GitHub releases (updates.dart).
+  final Updater updater;
+
+  /// This build, once [start] asked the native side; null in between.
+  AppInfo? info;
 
   String get bundlePath => '$dir/${AgentsConfig.fileName}';
   String get settingsPath => '$dir/settings.json';
@@ -119,6 +144,25 @@ class Phone {
       // No settings yet, or unreadable: the defaults.
     }
     await host.keepScreenOn(keepScreenOn.value);
+    try {
+      info = await host.appInfo();
+    } on PlatformException {
+      // The settings then show no version and offer no update.
+    }
+    // Once per start, quietly: the board shows a hint if there is one.
+    unawaited(checkForUpdate());
+  }
+
+  /// Compares the newest GitHub release with this build.
+  Future<void> checkForUpdate() async {
+    final i = info;
+    if (i != null) await updater.check(i);
+  }
+
+  /// Downloads the release on offer and opens the installer with it.
+  Future<void> installUpdate() async {
+    final i = info;
+    if (i != null) await updater.install(i, host.installApk);
   }
 
   Future<void> setKeepScreenOn(bool on) async {
@@ -387,6 +431,22 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
                             ],
                           ),
                         ),
+                        if (!_settingsOpen)
+                          ValueListenableBuilder<UpdateState>(
+                            valueListenable: widget.phone.updater.state,
+                            builder: (context, update, _) =>
+                                ValueListenableBuilder<bool>(
+                                  valueListenable: widget.phone.updater.snoozed,
+                                  builder: (context, snoozed, _) =>
+                                      update.phase == UpdatePhase.available &&
+                                          !snoozed
+                                      ? UpdateHint(
+                                          tag: update.release?.tag ?? '',
+                                          onTap: _openSettings,
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                          ),
                         if (_settingsOpen)
                           SettingsCard(
                             phone: widget.phone,
@@ -402,6 +462,49 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
                 ),
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A strip along the board's bottom edge while a newer release is on
+/// GitHub: a tap opens the settings, where the update is.
+class UpdateHint extends StatelessWidget {
+  const UpdateHint({super.key, required this.tag, required this.onTap});
+
+  final String tag;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: PhoneDeck.pad,
+      right: PhoneDeck.pad,
+      bottom: 0,
+      child: GestureDetector(
+        key: const Key('update-hint'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          color: DeckHud.panel,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            children: [
+              Container(width: 10, height: 10, color: DeckHud.accent),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'agents deck $tag is out · tap to update',
+                  style: DeckHud.mono(size: 15, color: DeckHud.ink),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -698,6 +801,99 @@ class _SettingsCardState extends State<SettingsCard>
     with _PairingRunner<SettingsCard> {
   bool _armed = false; // "forget pairing" wants a second tap
 
+  /// Updates from GitHub: where the check or the update stands, and the one
+  /// button that moves it along.
+  Widget _updateBlock() {
+    final phone = widget.phone;
+    return ValueListenableBuilder<UpdateState>(
+      valueListenable: phone.updater.state,
+      builder: (context, u, _) {
+        final tag = u.release?.tag ?? '';
+        final (
+          String status,
+          String label,
+          VoidCallback? go,
+          bool filled,
+        ) = switch (u.phase) {
+          UpdatePhase.unknown => (
+            'updates come from the releases of $updateRepo on github',
+            'check for updates',
+            phone.checkForUpdate,
+            false,
+          ),
+          UpdatePhase.checking => ('checking…', 'checking…', null, false),
+          UpdatePhase.none => (
+            'up to date: $tag is the latest release',
+            'check again',
+            phone.checkForUpdate,
+            false,
+          ),
+          UpdatePhase.available => (
+            '$tag is out. the download goes to the system installer, '
+                'which asks before it installs',
+            'update to $tag',
+            phone.installUpdate,
+            true,
+          ),
+          UpdatePhase.downloading => (
+            'downloading $tag · ${(u.progress * 100).round()} %',
+            'downloading…',
+            null,
+            false,
+          ),
+          UpdatePhase.installing => (
+            'the installer has $tag. if it did not open, tap again',
+            'open the installer',
+            phone.installUpdate,
+            false,
+          ),
+          UpdatePhase.failed => (
+            u.problem ?? 'could not update',
+            u.release != null ? 'try again' : 'check again',
+            u.release != null ? phone.installUpdate : phone.checkForUpdate,
+            false,
+          ),
+        };
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('updates', style: DeckHud.rm(20, DeckHud.ink)),
+            const SizedBox(height: 6),
+            Text(
+              status,
+              key: const Key('update-status'),
+              style: DeckHud.mono(
+                size: 15,
+                color: u.phase == UpdatePhase.failed
+                    ? DeckHud.accent
+                    : DeckHud.dim,
+              ).copyWith(height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 14,
+              runSpacing: 14,
+              children: [
+                DeckButton(
+                  key: const Key('update-button'),
+                  label: label,
+                  filled: filled,
+                  onTap: phone.info == null ? null : go,
+                ),
+                if (u.phase == UpdatePhase.available)
+                  DeckButton(
+                    key: const Key('update-later'),
+                    label: 'later',
+                    onTap: () => phone.updater.snoozed.value = true,
+                  ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _forget() {
     if (!_armed) {
       setState(() => _armed = true);
@@ -800,6 +996,11 @@ class _SettingsCardState extends State<SettingsCard>
                   ),
                   key: const Key('settings-link'),
                 ),
+                row(
+                  'app',
+                  value(widget.phone.info?.label ?? '–'),
+                  key: const Key('settings-app'),
+                ),
               ],
             );
           },
@@ -867,8 +1068,10 @@ class _SettingsCardState extends State<SettingsCard>
         ),
         problemText(problem, const Key('settings-problem')),
         const SizedBox(height: 40),
+        _updateBlock(),
+        const SizedBox(height: 40),
         Text(
-          'agents deck $appVersion · a long press on the board opens this; '
+          'a long press on the board opens this; '
           'a tap on a free tile adds a session.',
           style: DeckHud.mono(
             size: 14,

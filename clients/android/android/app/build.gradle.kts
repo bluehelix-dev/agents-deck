@@ -53,4 +53,6 @@ dependencies {
     // ZXing's decoder (pure Java) under it. It asks for the camera permission.
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("com.google.zxing:core:3.5.3")
+    // FileProvider: hands the package installer a downloaded update from our cache.
+    implementation("androidx.core:core:1.13.1")
 }

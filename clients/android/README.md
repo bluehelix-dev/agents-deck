@@ -15,8 +15,12 @@ clipboard, and **import phone.json** takes a bundle from `agentctl pair phone --
 
 A long press on the board opens the settings: which deck the phone is paired with and at what address,
 whether the screen stays on while the deck is in front (on by default, like the panel), pairing again
-(a QR code, a pasted code or a bundle), and forgetting the pairing. The system's back gesture closes an open card or the
-settings before it leaves the app.
+(a QR code, a pasted code or a bundle), forgetting the pairing, and the app's own version with
+**check for updates**. The app updates itself from this repository's GitHub releases: once per start it
+compares the newest release's APK (by its `SHA256SUMS` entry) with the one it runs from, a strip on
+the board says when a newer one is out, and **update to v…** downloads it, checks it and opens the
+system installer ([docs/phone.md](../../docs/phone.md#updating-the-app)). The system's back gesture
+closes an open card or the settings before it leaves the app.
 
 The launcher icon is the deck's own critter; `flutter test tool/render_icons_test.dart` renders its
 PNGs from the sprite the board draws.
@@ -25,5 +29,7 @@ Build: `flutter build apk --release` here (Flutter 3.35+, Android SDK 36), then 
 `build/app/outputs/flutter-apk/app-release.apk` on the phone. No Flutter plugins: the native side is
 two Kotlin files over one method channel. `MainActivity.kt` has the app's folder, the system file
 picker, the QR scanner (ZXing's viewfinder activity from `zxing-android-embedded`, the one library;
-it asks for the camera permission when you tap scan) and the screen's wake lock; `Pairing.kt` makes
+it asks for the camera permission when you tap scan), the screen's wake lock, the app's version and
+APK checksum, and the hand-off of a downloaded update to the package installer; `Pairing.kt` makes
 the key and the certificate request and does the pinned TLS request with the system's TLS stack.
+`lib/updates.dart` talks to GitHub (plain Dart `HttpClient`, `crypto` for SHA-256).

@@ -69,6 +69,23 @@ The other way, the desk panel's, with a bundle you carry over yourself:
 The difference from the QR code: the key is made on the computer and travels in a file. For your own
 phone on your own network that's the desk panel's trade-off, and revoking is the same one command.
 
+## Updating the app
+
+The app updates itself from this repository's GitHub releases (the repository is a constant in
+`clients/android/lib/updates.dart`). Once per start it asks GitHub for the newest published release
+that carries an `agents-deck-<version>.apk` (pre-releases included) and compares that file's entry in
+the release's `SHA256SUMS` with the checksum of the APK it is running from. Equal means up to date;
+anything else is an update on offer: a strip along the board's bottom edge says so (a tap opens the
+settings; **later** hides it for this run), and the settings show the build you have and an **update
+to v…** button. That downloads the APK into the app's cache, checks it against `SHA256SUMS`, and
+hands it to Android's package installer, which asks you before it installs over the running app. The
+first time, Android also asks to allow installs from this app.
+
+There is no version arithmetic: a build nobody released (your own `flutter build apk`) simply counts
+as not the latest, and you can ignore the offer. An update installs only if it is signed with the
+same key as the app it replaces, so every release is built with one keystore (see
+[releasing.md](releasing.md)). The check needs the internet; the deck connection doesn't.
+
 ## The design: pairing with a QR code
 
 The phone has to trust the deck, and the deck has to trust the phone, before either has talked to
