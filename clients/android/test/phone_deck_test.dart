@@ -7,42 +7,71 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('the demo deck fits a phone', (tester) async {
-    tester.view.physicalSize = const Size(1080, 2340);
+  Future<void> pumpPhone(
+    WidgetTester tester,
+    Size physical, {
+    AgentsSource? source,
+    Future<String?> Function()? importBundle,
+  }) async {
+    tester.view.physicalSize = physical;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       PhoneDeck(
-        source: FakeAgentsSource.demo(),
-        importBundle: () async => null,
+        source: source ?? FakeAgentsSource.demo(),
+        importBundle: importBundle ?? () async => null,
         animate: false,
       ),
     );
     await tester.pump();
+  }
+
+  testWidgets('upright: the demo deck is 3×6 and fills the phone', (
+    tester,
+  ) async {
+    await pumpPhone(tester, const Size(1080, 2340));
     expect(find.byType(AgentsApp), findsOneWidget);
     expect(find.byKey(const Key('phone-pairing')), findsNothing);
+    final grid = tester.widget<DeckGrid>(find.byType(DeckGrid));
+    expect((grid.columns, grid.rows), (3, 6));
+    // The board takes the whole width and (nearly) the whole height.
+    final board = tester.getRect(find.byType(AgentsApp));
+    expect(board.width, 360);
+    expect(board.height, greaterThan(700));
+  });
+
+  testWidgets('on its side: the panel\'s 4×4', (tester) async {
+    await pumpPhone(tester, const Size(2340, 1080));
+    final grid = tester.widget<DeckGrid>(find.byType(DeckGrid));
+    expect((grid.columns, grid.rows), (4, 4));
+    final board = tester.getRect(find.byType(AgentsApp));
+    expect(board.height, 360);
+    expect(board.width, 360);
+  });
+
+  test('columnsFor: 3 for a tall screen, 4 for a wide or square one', () {
+    expect(PhoneDeck.columnsFor(const Size(360, 780)), 3);
+    expect(PhoneDeck.columnsFor(const Size(780, 360)), 4);
+    expect(PhoneDeck.columnsFor(const Size(800, 1000)), 4); // a tablet
+    expect(PhoneDeck.boardSize(3), const Size(542, 1076));
+    expect(PhoneDeck.boardSize(4), const Size(720, 720));
   });
 
   testWidgets('no bundle: the pairing card imports one', (tester) async {
-    tester.view.physicalSize = const Size(1080, 2340);
-    tester.view.devicePixelRatio = 3;
-    addTearDown(tester.view.reset);
     final source = HttpAgentsClient(
       loadConfig: () => (null, null),
       unconfiguredPoll: const Duration(hours: 1),
     );
     var asked = 0;
-    await tester.pumpWidget(
-      PhoneDeck(
-        source: source,
-        importBundle: () async {
-          asked++;
-          return 'not a pairing bundle: missing url';
-        },
-        animate: false,
-      ),
+    await pumpPhone(
+      tester,
+      const Size(1080, 2340),
+      source: source,
+      importBundle: () async {
+        asked++;
+        return 'not a pairing bundle: missing url';
+      },
     );
-    await tester.pump();
     expect(find.byKey(const Key('phone-pairing')), findsOneWidget);
     await tester.tap(find.byKey(const Key('import-bundle')));
     await tester.pump();

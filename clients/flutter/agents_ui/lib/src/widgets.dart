@@ -151,12 +151,22 @@ class _HudClockState extends State<HudClock> {
 /// space allows, centred. With [square] false the cells fill the space
 /// instead (a little shorter than wide when room is needed below the grid).
 class DeckGrid extends StatelessWidget {
-  const DeckGrid({super.key, required this.cells, this.square = true});
+  const DeckGrid({
+    super.key,
+    required this.cells,
+    this.square = true,
+    this.columns = 4,
+    this.rows = 4,
+  });
 
   final List<Widget> cells;
   final bool square;
 
-  static const columns = 4, rows = 4;
+  /// The grid's shape: 4×4 on the panel; a phone held upright uses 3×6 for
+  /// the same 16 slots (the last two cells stay empty).
+  final int columns;
+  final int rows;
+
   static const gap = 8.0;
 
   @override
@@ -200,14 +210,13 @@ class DeckGrid extends StatelessWidget {
 /// Opens an agent's card from its tile. The desk panel passes its own
 /// tile-to-card morph (with the shell's back gesture); [CardMorph] is the
 /// built-in one.
-typedef AgentCardOpener =
-    void Function(
-      BuildContext tileContext,
-      GlobalKey tileKey, {
-      required String id,
-      required Color fill,
-      required Widget Function(VoidCallback close) builder,
-    });
+typedef AgentCardOpener = void Function(
+  BuildContext tileContext,
+  GlobalKey tileKey, {
+  required String id,
+  required Color fill,
+  required Widget Function(VoidCallback close) builder,
+});
 
 /// The built-in card opener: the card grows out of its tile to fill this
 /// widget, and shrinks back into it on close.

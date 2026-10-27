@@ -410,6 +410,7 @@ void main() {
       final der = base64.decode(
         pem['server.pem']!
             .split('\n')
+            .map((l) => l.trim()) // CRLF on a Windows checkout
             .where((l) => l.isNotEmpty && !l.startsWith('-----'))
             .join(),
       );

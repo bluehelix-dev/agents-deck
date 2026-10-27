@@ -33,6 +33,7 @@ class AgentsApp extends StatefulWidget {
     this.pairingCard,
     this.visible,
     this.backButton = false,
+    this.columns = 4,
   }) : assert(
          (openCard == null) == (cardHost == null),
          'openCard and cardHost come together',
@@ -59,6 +60,10 @@ class AgentsApp extends StatefulWidget {
 
   /// False freezes every critter on its first frame (goldens, tests).
   final bool animate;
+
+  /// Tiles per row. 4 is the panel's 4×4; 3 lays the same 16 slots out as
+  /// 3×6, which fills a phone held upright.
+  final int columns;
 
   @override
   State<AgentsApp> createState() => _AgentsAppState();
@@ -279,8 +284,12 @@ class _AgentsAppState extends State<AgentsApp> {
                 controller: _pager,
                 itemCount: pages,
                 onPageChanged: (p) => setState(() => _page = p),
-                itemBuilder: (context, p) =>
-                    DeckGrid(cells: _cellsFor(state, p), square: pages < 2),
+                itemBuilder: (context, p) => DeckGrid(
+                  cells: _cellsFor(state, p),
+                  columns: widget.columns,
+                  rows: (_cells + widget.columns - 1) ~/ widget.columns,
+                  square: pages < 2,
+                ),
               ),
             ),
             if (pages > 1)

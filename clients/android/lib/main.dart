@@ -55,8 +55,9 @@ String? checkBundle(String raw) {
   }
 }
 
-/// The deck as the desk panel draws it: laid out at the panel's 720×720 and
-/// scaled to the phone's width, the rest of the screen the board's background.
+/// The deck as the desk panel draws it, laid out in the panel's units and
+/// scaled to the screen. Held upright, the 16 slots go 3×6 so the board
+/// fills the phone; on its side (or on a tablet) it is the panel's 4×4.
 class PhoneDeck extends StatelessWidget {
   const PhoneDeck({
     super.key,
@@ -73,7 +74,22 @@ class PhoneDeck extends StatelessWidget {
   /// False freezes the critters (tests).
   final bool animate;
 
-  static const design = 720.0;
+  /// The panel's units: 170 px tiles, 8 px between them, 8 px around.
+  static const tile = 170.0, gap = 8.0, pad = 8.0;
+
+  /// Tiles per row for a screen of this shape: 3 when it is clearly taller
+  /// than wide (a phone held upright), else the panel's 4.
+  static int columnsFor(Size screen) =>
+      screen.height > screen.width * 1.4 ? 3 : 4;
+
+  /// The board's size in panel units for [columns] tiles per row.
+  static Size boardSize(int columns) {
+    final rows = (16 + columns - 1) ~/ columns;
+    return Size(
+      columns * tile + (columns - 1) * gap + 2 * pad,
+      rows * tile + (rows - 1) * gap + 2 * pad,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,28 +99,34 @@ class PhoneDeck extends StatelessWidget {
       builder: (context, _) => ColoredBox(
         color: DeckHud.bg,
         child: SafeArea(
-          child: Center(
-            child: FittedBox(
-              child: SizedBox.square(
-                dimension: design,
-                // An Overlay for drag-to-rearrange (there's no Navigator).
-                child: Overlay(
-                  initialEntries: [
-                    OverlayEntry(
-                      builder: (context) => AgentsApp(
-                        source: source,
-                        animate: animate,
-                        backButton: true, // no edge swipe on a phone
-                        pairingCard: (problem) => PairingCard(
-                          problem: problem,
-                          importBundle: importBundle,
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final columns = columnsFor(box.biggest);
+              return Center(
+                child: FittedBox(
+                  child: SizedBox.fromSize(
+                    size: boardSize(columns),
+                    // An Overlay for drag-to-rearrange (there's no Navigator).
+                    child: Overlay(
+                      initialEntries: [
+                        OverlayEntry(
+                          builder: (context) => AgentsApp(
+                            source: source,
+                            animate: animate,
+                            columns: columns,
+                            backButton: true, // no edge swipe on a phone
+                            pairingCard: (problem) => PairingCard(
+                              problem: problem,
+                              importBundle: importBundle,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
