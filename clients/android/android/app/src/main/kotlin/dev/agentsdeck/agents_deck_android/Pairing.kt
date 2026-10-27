@@ -44,7 +44,9 @@ object Pairing {
         }
         val url = j.optString("url").trim().trimEnd('/')
         if (!url.startsWith("https://")) throw Problem("not a pairing code: url must be https://host:port")
-        val ca = j.optString("ca").trim().removePrefix("sha256:").removePrefix("SHA256:").replace(":", "").replace(" ", "")
+        // "sha256:" and 64 hex digits, with or without colons between them (and
+        // the prefix's colon may have gone with the rest).
+        val ca = j.optString("ca").trim().replace(":", "").replace(" ", "").replaceFirst(Regex("^(?i)sha-?256"), "")
         if (!Regex("^[0-9a-fA-F]{64}$").matches(ca)) throw Problem("not a pairing code: ca must be the CA's SHA-256 fingerprint")
         val code = j.optString("code").trim()
         if (code.isEmpty()) throw Problem("not a pairing code: no code in it")

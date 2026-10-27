@@ -912,10 +912,12 @@ func pair(args []string) error {
 }
 
 // pairingQR is what the QR code carries: the listener's URL, the CA's
-// SHA-256 fingerprint (without the colons, to keep the code small) and the
-// one-time code, as JSON. The app reads it (clients/android, Pairing.kt).
+// SHA-256 fingerprint ("sha256:" and 64 hex digits, without the colons
+// between them, to keep the code small) and the one-time code, as JSON. The
+// app reads it (clients/android, Pairing.kt).
 func pairingQR(url, caFingerprint, code string) []byte {
-	b, _ := json.Marshal(map[string]string{"url": url, "ca": strings.ReplaceAll(caFingerprint, ":", ""), "code": code})
+	hex := strings.ReplaceAll(strings.TrimPrefix(caFingerprint, "sha256:"), ":", "")
+	b, _ := json.Marshal(map[string]string{"url": url, "ca": "sha256:" + hex, "code": code})
 	return b
 }
 
