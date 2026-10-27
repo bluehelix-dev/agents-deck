@@ -18,6 +18,7 @@ same tag.
 | `agents-deck-<board>-<version>.bin` | a board's firmware, one image flashed at `0x0`: bootloader, partition table, `boot_app0` and the app |
 | `agents-deck-<board>-<version>.manifest.json` | an [ESP Web Tools](https://esphome.github.io/esp-web-tools/) manifest for that image |
 | `firmware-manifest.json` | every board's image: board, chip, file, offset, size, sha256, env, version |
+| `agents-deck-<version>.apk` | the Android app, built by hand for now (`flutter build apk --release` in `clients/android`) and attached to the release; its version in `clients/android/pubspec.yaml` matches the tag |
 | `SHA256SUMS` | checksums of all of these, checked by `install.sh` |
 
 `<board>` is the board's folder under `firmware/devices/`, and its image is built from the firmware
