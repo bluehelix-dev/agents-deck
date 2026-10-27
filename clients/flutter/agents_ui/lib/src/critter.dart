@@ -174,10 +174,10 @@ int critterFrame(CritterPose pose, int tick) => switch (pose) {
   CritterPose.read => (tick ~/ 6) % 4,
   // Squeeze, squeeze harder, ease off, let go: 300 ms each.
   CritterPose.compact => (tick ~/ 6) % 4,
-  // Legs every 100 ms (in a hurry); cursor blinks at 1 Hz. Writing looks
-  // the same as bash for now.
+  // Legs every 200 ms (busy, not frantic); cursor blinks at 1 Hz. Writing
+  // looks the same as bash for now.
   CritterPose.bash ||
-  CritterPose.write => ((tick ~/ 2) % 2) * 10 + (tick ~/ 10) % 2,
+  CritterPose.write => ((tick ~/ 4) % 2) * 10 + (tick ~/ 10) % 2,
   // The globe turns every 400 ms.
   CritterPose.web => (tick ~/ 8) % 2,
   // One more box ticked every 500 ms.
@@ -623,8 +623,14 @@ class _CritterPainter extends CustomPainter {
       canvas.drawRect(cell(8.5, legY, 2, 1.4), fill);
     } else if (pose != CritterPose.exited) {
       // Short legs under the block.
+      // While the body bobs up the legs reach up to it: no gap under it.
+      // (A hop lifts the legs with the body already.)
+      final reach = hop ? 0.0 : bob;
       for (final lx in legsB ? _legsB : _legsA) {
-        canvas.drawRect(cell(lx.toDouble(), legY - 1, 1, 1.6), fill);
+        canvas.drawRect(
+          cell(lx.toDouble(), legY - 1 + reach, 1, 1.6 - reach),
+          fill,
+        );
       }
     }
     if (pose == CritterPose.delegate) {

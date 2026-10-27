@@ -271,7 +271,7 @@ body.offline .main { opacity: 0.4; }
 .dots { animation: dots 1.2s steps(3) infinite; }
 .zz { animation: zz 2.4s steps(4) infinite; }
 /* working poses (mirrors critter.dart on the panel) */
-.fast { animation-duration: .2s !important; }
+.quick { animation-duration: .4s !important; } /* busy, not frantic: a step every 200 ms */
 .slow { animation-duration: .8s !important; }
 @keyframes glance { 0%, 49% { transform: translateX(-1px) } 50%, 100% { transform: translateX(1px) } }
 @keyframes scan { 0%, 24% { transform: translateX(0) } 25%, 49% { transform: translateX(-1px) } 50%, 74% { transform: translateX(0) } 75%, 100% { transform: translateX(1px) } }

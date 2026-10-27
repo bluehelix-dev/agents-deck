@@ -156,7 +156,11 @@ function pillText(a) {
 const BODY = 'M1 0h12v6h-12z';
 const LEGS_A = [2, 4, 9, 11];
 const LEGS_B = [3, 5, 8, 10];
-const critterLegs = (xs, cls = '') => xs.map((x) => `<rect class="b ${cls}" x="${x}" y="6" width="1" height="1.6"/>`).join('');
+// The B legs show while the body bobs up half a cell: they reach up to it,
+// so the critter never floats above its feet.
+const critterLegs = (xs, cls = '') => xs.map((x) => xs === LEGS_B
+  ? `<rect class="b ${cls}" x="${x}" y="5.5" width="1" height="2.1"/>`
+  : `<rect class="b ${cls}" x="${x}" y="6" width="1" height="1.6"/>`).join('');
 // Codex onigiri: a rounded rice triangle wrapped in nori, on two little feet that
 // step in turn (legs B lifts the left foot).
 const botFeet = (xs, cls = '') => `<rect class="b ${cls}" x="3.5" y="${xs === LEGS_B ? 6.4 : 7}" width="2" height="1.4"/><rect class="b ${cls}" x="8.5" y="7" width="2" height="1.4"/>`;
@@ -579,7 +583,7 @@ function spriteSVG(pose, species = 'claude', hat = null, opts = {}) {
       bubble = pixels(['.##..', '#..#.', '#..#.', '.##..', '....#'], 14.6, 0.75, '', 0.75);
       break;
     case 'bash':
-      eyes = eyesOpen(2); feet = legs(LEGS_A, 'la fast') + legs(LEGS_B, 'lb fast'); grp = 'bob fast';
+      eyes = eyesOpen(2); feet = legs(LEGS_A, 'la quick') + legs(LEGS_B, 'lb quick'); grp = 'bob quick';
       bubble = pixels(['#..', '.#.', '#..'], 14.5, 0.7, '', 0.8, -3.7) + '<rect class="b cursor" x="16.5" y="-1.7" width="1.2" height="0.5"/>';
       break;
     case 'web':
