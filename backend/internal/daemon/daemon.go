@@ -219,16 +219,44 @@ func (d *Daemon) subagents(e *store.Entry) bool {
 		changed = true
 	}
 	if e.Background {
-		detail := "1 subagent working"
+		detail, tool := "1 subagent working", "Task"
 		if len(subs) != 1 {
 			detail = fmt.Sprintf("%d subagents working", len(subs))
 		}
+		if n, phase := workflowAgents(subs); n > 0 {
+			tool, detail = "Workflow", fmt.Sprintf("workflow · %d agent%s working", n, plural(n))
+			if phase != "" {
+				detail += " · " + phase
+			}
+		}
 		if e.A.Activity == nil || e.A.Activity.Detail != detail {
-			e.A.Activity = &model.Activity{Tool: "Task", Detail: detail}
+			e.A.Activity = &model.Activity{Tool: tool, Detail: detail}
 			changed = true
 		}
 	}
 	return changed
+}
+
+// workflowAgents counts the subagents a workflow runs, and names the phase
+// the latest of them is in.
+func workflowAgents(subs []model.Subagent) (n int, phase string) {
+	for _, s := range subs {
+		if s.Type != claude.WorkflowAgent {
+			continue
+		}
+		n++
+		if i := strings.LastIndex(s.Title, " · "); i >= 0 {
+			phase = s.Title[i+3:]
+		}
+	}
+	return n, phase
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // exitedTTL is how long an exited agent stays on the board, resumable, before

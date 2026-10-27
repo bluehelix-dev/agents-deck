@@ -738,14 +738,15 @@ function updateTile(t, a) {
   setText(t.meta, meta);
   // Subagents at work: a small critter in the top-left corner (+ a count).
   const list = a.subagents || [];
-  const subsKey = list.length ? `${list.length}|${list[0].tool || ''}` : '';
+  const subsKey = list.length ? `${list.length}|${list[0].tool || ''}|${list.some((x) => x.type === 'workflow')}` : '';
   if (t.subsKey !== subsKey) {
     t.subsKey = subsKey;
     t.subs.hidden = !list.length;
     if (list.length) {
       const m = h('span', { class: 'subs-spr' });
       setSprite(m, list[0].tool ? TOOL_POSE[list[0].tool.toLowerCase()] || 'run' : 'think', 'claude');
-      t.subs.replaceChildren(m, list.length > 1 ? h('span', { class: 'subs-n', text: `×${list.length}` }) : '');
+      const wf = list.some((x) => x.type === 'workflow');
+      t.subs.replaceChildren(m, list.length > 1 || wf ? h('span', { class: 'subs-n', text: `${wf ? 'wf ' : ''}×${list.length}` }) : '');
     }
   }
   const acctKey = a.account ? `${a.account.name}|${a.account.color}` : '';
@@ -753,7 +754,7 @@ function updateTile(t, a) {
     t.acctKey = acctKey;
     t.chip.style.background = a.account ? acctColor(a.account) : '';
   }
-  const subsNote = list.length ? `, ${list.length} subagent${list.length === 1 ? '' : 's'} working` : '';
+  const subsNote = list.length ? (list.some((x) => x.type === 'workflow') ? `, a workflow with ${list.length} agent${list.length === 1 ? '' : 's'} working` : `, ${list.length} subagent${list.length === 1 ? '' : 's'} working`) : '';
   const acctNote = a.account ? `, ${a.account.name} account` : '';
   const label = `${a.title}, ${a.tool}, ${a.status === 'waiting' ? 'needs you' : a.status}: ${meta}${subsNote}${acctNote}${a.focused ? ', focused terminal' : ''}`;
   if (t.label !== label) { t.el.setAttribute('aria-label', label); t.label = label; }
@@ -1011,7 +1012,7 @@ const closeIcon = () => {
 const CREW_MAX = 6;
 function crewUpdate(crew, a) {
   const subs = a.subagents || [];
-  const key = subs.map((x) => `${x.id}:${x.tool || ''}`).join(',');
+  const key = subs.map((x) => `${x.id}:${x.tool || ''}:${x.type || ''}`).join(',');
   if (crew.dataset.key === key) return;
   crew.dataset.key = key;
   crew.hidden = subs.length === 0;
@@ -1022,7 +1023,8 @@ function crewUpdate(crew, a) {
     return m;
   });
   const more = subs.length - shown.length;
-  const label = `${subs.length} subagent${subs.length === 1 ? '' : 's'}` + (more > 0 ? ` · +${more}` : '');
+  const wf = subs.some((x) => x.type === 'workflow');
+  const label = (wf ? `workflow · ${subs.length} agent${subs.length === 1 ? '' : 's'}` : `${subs.length} subagent${subs.length === 1 ? '' : 's'}`) + (more > 0 ? ` · +${more}` : '');
   crew.replaceChildren(...minis, h('span', { class: 'd-crew-n', text: label }));
   crew.setAttribute('aria-label', `${label}: ${subs.map((x) => x.title).join(', ')}`);
 }

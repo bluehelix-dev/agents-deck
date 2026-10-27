@@ -118,7 +118,32 @@ func TestSubagents(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// w1: an agent of a workflow run, under workflows/<run>/, labelled.
+	wfDir := filepath.Join(sub, "workflows", "wf_1")
+	if err := os.MkdirAll(wfDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{
+		"agent-w1.jsonl":     toolCall + "\n",
+		"agent-w1.meta.json": `{"agentType":"workflow-subagent","description":"find:auth","workflowPhase":"Suche","model":"sonnet"}`,
+	} {
+		if err := os.WriteFile(filepath.Join(wfDir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	subs := Subagents(tr, time.Minute, time.Hour)
+	if len(subs) != 3 {
+		t.Fatalf("want a1, a3 and w1 working: %+v", subs)
+	}
+	for _, x := range subs {
+		if x.ID == "w1" && (x.Type != WorkflowAgent || x.Title != "find:auth · Suche" || x.Tool != "Grep") {
+			t.Fatalf("workflow agent: %+v", x)
+		}
+	}
+	if err := os.Remove(filepath.Join(wfDir, "agent-w1.jsonl")); err != nil {
+		t.Fatal(err)
+	}
+	subs = Subagents(tr, time.Minute, time.Hour)
 	if len(subs) != 2 || subs[1].ID != "a3" && subs[0].ID != "a3" {
 		t.Fatalf("want a1 and a3 working: %+v", subs)
 	}

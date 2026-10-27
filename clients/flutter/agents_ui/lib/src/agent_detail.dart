@@ -1467,10 +1467,12 @@ class SubagentCrew extends StatelessWidget {
     final shown = subagents.take(max).toList();
     final more = subagents.length - shown.length;
     final n = subagents.length;
+    final workflow = subagents.any((s) => s.type == 'workflow');
+    final what = workflow
+        ? 'workflow · $n agent${n == 1 ? '' : 's'}'
+        : '$n subagent${n == 1 ? '' : 's'}';
     return Semantics(
-      label:
-          '$n subagent${n == 1 ? '' : 's'}: '
-          '${subagents.map((s) => s.title).join(', ')}',
+      label: '$what: ${subagents.map((s) => s.title).join(', ')}',
       child: Row(
         key: const Key('agent-subagents'),
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -1488,7 +1490,7 @@ class SubagentCrew extends StatelessWidget {
             ),
           const SizedBox(width: 4),
           Text(
-            '$n subagent${n == 1 ? '' : 's'}${more > 0 ? ' · +$more' : ''}',
+            '$what${more > 0 ? ' · +$more' : ''}',
             style: DeckHud.rm(13, body),
           ),
         ],

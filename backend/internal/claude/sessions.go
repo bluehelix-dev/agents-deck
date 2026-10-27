@@ -199,7 +199,12 @@ func Subagents(transcript string, window, toolWindow time.Duration) []model.Suba
 	if transcript == "" {
 		return nil
 	}
-	files, _ := filepath.Glob(filepath.Join(strings.TrimSuffix(transcript, ".jsonl"), "subagents", "agent-*.jsonl"))
+	base := filepath.Join(strings.TrimSuffix(transcript, ".jsonl"), "subagents")
+	files, _ := filepath.Glob(filepath.Join(base, "agent-*.jsonl"))
+	// A workflow (the Workflow tool) runs its agents under workflows/<run>/,
+	// each with a label and the phase it belongs to.
+	wf, _ := filepath.Glob(filepath.Join(base, "workflows", "*", "agent-*.jsonl"))
+	files = append(files, wf...)
 	now := time.Now()
 	type found struct {
 		s     model.Subagent
@@ -220,9 +225,18 @@ func Subagents(transcript string, window, toolWindow time.Duration) []model.Suba
 		var meta struct {
 			Type        string `json:"agentType"`
 			Description string `json:"description"`
+			Phase       string `json:"workflowPhase"`
 		}
 		if b, err := os.ReadFile(strings.TrimSuffix(f, ".jsonl") + ".meta.json"); err == nil && json.Unmarshal(b, &meta) == nil {
 			s.Title, s.Type = clip(oneLine(meta.Description), 80), meta.Type
+			if meta.Type == "workflow-subagent" || filepath.Base(filepath.Dir(filepath.Dir(f))) == "workflows" {
+				// Type "workflow" is what the clients mark; the phase goes
+				// with the label, as `/workflows` shows it.
+				s.Type = WorkflowAgent
+				if meta.Phase != "" {
+					s.Title = clip(oneLine(meta.Description), 60) + " · " + meta.Phase
+				}
+			}
 		}
 		if s.Title == "" {
 			s.Title = "subagent"
@@ -239,6 +253,10 @@ func Subagents(transcript string, window, toolWindow time.Duration) []model.Suba
 	}
 	return subs
 }
+
+// WorkflowAgent is the Subagent.Type of an agent a workflow (the Workflow
+// tool) runs; its title is "label · phase".
+const WorkflowAgent = "workflow"
 
 // ReadSession reads one session transcript's metadata (title, folder, branch,
 // last prompt).

@@ -442,10 +442,14 @@ class _AgentTileState extends State<AgentTile> {
                               ),
                             ),
                           ),
-                          if (a.subagents.length > 1)
+                          if (a.subagents.length > 1 ||
+                              a.subagents.any((s) => s.type == 'workflow'))
                             Padding(
                               padding: const EdgeInsets.only(left: 3),
                               child: Text(
+                                // A workflow's agents are marked: they are
+                                // many, and they come and go by phase.
+                                '${a.subagents.any((s) => s.type == 'workflow') ? 'wf ' : ''}'
                                 '×${a.subagents.length}',
                                 style: DeckHud.mono(
                                   size: 11,

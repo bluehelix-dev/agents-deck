@@ -562,6 +562,36 @@ void main() {
     expect(find.text('×3'), findsOneWidget);
   });
 
+  testWidgets('a workflow at work is marked on the tile and the card', (
+    tester,
+  ) async {
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final api = (j['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['id'] == 'k3f9a2',
+    );
+    api['subagents'] = [
+      {
+        'id': 'w1',
+        'title': 'scout · Scout',
+        'type': 'workflow',
+        'tool': 'Grep',
+      },
+      {
+        'id': 'w2',
+        'title': 'find:auth · Suche',
+        'type': 'workflow',
+        'tool': 'Read',
+      },
+    ];
+    await _pumpApp(tester, FakeAgentsSource.fromState(j));
+    expect(find.text('wf ×2'), findsOneWidget);
+    await _open(tester, 'checkout-api');
+    expect(find.text('workflow · 2 agents'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a quick tap still opens the agent (no drag)', (tester) async {
     final source = FakeAgentsSource.demo();
     await _pumpApp(tester, source);
