@@ -53,6 +53,13 @@ func toPB(a model.Agent, fields uint32) *linkpb.Agent {
 			p.Activity = &linkpb.Activity{Tool: a.Activity.Tool}
 		}
 		p.SubagentCount = uint32(len(a.Subagents))
+		if a.Workflow != nil {
+			w := &linkpb.Workflow{Name: a.Workflow.Name}
+			for _, ph := range a.Workflow.Phases {
+				w.Phases = append(w.Phases, &linkpb.WorkflowPhase{Title: ph.Title, Running: uint32(ph.Running), Done: uint32(ph.Done)})
+			}
+			p.Workflow = w
+		}
 	}
 	if has(linkpb.FieldGroup_FIELDS_CARD) {
 		p.AiTitle, p.Cwd, p.Branch = a.AITitle, a.Cwd, a.Branch

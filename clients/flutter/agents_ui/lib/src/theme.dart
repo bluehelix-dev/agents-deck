@@ -3,6 +3,9 @@ import 'package:flutter/widgets.dart';
 /// The deck's design tokens: near-black surfaces, warm ink, one accent, and
 /// two monospace faces (Share Tech Mono for labels, Roboto Mono for values).
 abstract final class DeckHud {
+  /// A running workflow's colour: its own, apart from the status orange.
+  static const workflow = Color(0xFF3D8BFF);
+
   static const bg = Color(0xFF0A0A0A);
   static const panel = Color(0xFF141412);
   static const ink = Color(0xFFE8E4DC);

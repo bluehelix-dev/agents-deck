@@ -114,6 +114,60 @@ class AgentActivity {
 }
 
 /// One of an agent's subagents that is still working.
+/// A run of the Workflow tool an agent has going: its phases in the
+/// script's order, each with the agents it has running and done.
+class AgentWorkflow {
+  const AgentWorkflow({required this.name, required this.phases});
+
+  static AgentWorkflow? fromJson(Object? j) {
+    if (j is! Map<String, dynamic>) return null;
+    return AgentWorkflow(
+      name: _str(j['name']),
+      phases: [
+        if (j['phases'] case final List l)
+          for (final p in l)
+            if (p is Map<String, dynamic>)
+              AgentWorkflowPhase(
+                title: _str(p['title']),
+                running: _int(p['running']),
+                done: _int(p['done']),
+              ),
+      ],
+    );
+  }
+
+  final String name;
+  final List<AgentWorkflowPhase> phases;
+
+  /// The phase the run is in: the last with agents running, else the last
+  /// with any done; -1 before the first agent starts.
+  int get current {
+    var i = phases.lastIndexWhere((p) => p.running > 0);
+    if (i < 0) i = phases.lastIndexWhere((p) => p.done > 0);
+    return i;
+  }
+
+  /// "Suche 5/5 · 2 of 6": the tile's line while the run is on.
+  String get line {
+    final i = current;
+    if (i < 0) return 'workflow · starting';
+    final p = phases[i];
+    return '${p.title} ${p.done}/${p.done + p.running} · ${i + 1} of ${phases.length}';
+  }
+}
+
+class AgentWorkflowPhase {
+  const AgentWorkflowPhase({
+    required this.title,
+    this.running = 0,
+    this.done = 0,
+  });
+
+  final String title;
+  final int running;
+  final int done;
+}
+
 class AgentSubagent {
   const AgentSubagent({
     required this.id,
@@ -303,6 +357,7 @@ class Agent {
     this.external = false,
     this.app = '',
     this.subagents = const [],
+    this.workflow,
     this.hat,
     this.account,
     this.startedAt,
@@ -360,6 +415,9 @@ class Agent {
 
   /// Subagents still working, oldest first.
   final List<AgentSubagent> subagents;
+
+  /// The Workflow run it has going, or null.
+  final AgentWorkflow? workflow;
 
   /// The pixel hat for its working folder; null = none.
   final AgentHat? hat;
@@ -439,6 +497,7 @@ class Agent {
           for (final x in l)
             if (x is Map<String, dynamic>) AgentSubagent.fromJson(x),
       ],
+      workflow: AgentWorkflow.fromJson(j['workflow']),
       startedAt: _time(j['startedAt']),
       updatedAt: _time(j['updatedAt']),
     );

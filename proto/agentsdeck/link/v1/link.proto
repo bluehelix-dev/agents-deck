@@ -125,7 +125,7 @@ message Subscribe {
 // Bits of Subscribe.fields. id and slot are always sent.
 enum FieldGroup {
   FIELDS_NONE = 0;
-  FIELDS_TILE = 1;       // title, tool, status, status_since, folder, context, unseen, lost, focused, external, app, hat, account, activity.tool, subagent_count
+  FIELDS_TILE = 1;       // title, tool, status, status_since, folder, context, unseen, lost, focused, external, app, hat, account, activity.tool, subagent_count, workflow
   FIELDS_CARD = 2;       // ai_title, cwd, branch, model, model_label, effort, activity.detail, last_prompt, error, resumable, attached, subagents, started_at, updated_at
   FIELDS_PROMPT = 4;     // waiting
   FIELDS_NUMBERS = 8;    // tokens, cost_usd, turns
@@ -212,6 +212,20 @@ message Agent {
   int64 updated_at_ms = 32;
   string app = 33;             // the app it runs in when not agentctl's: "orca", "herdr", "cmux"
   Account account = 34;  // the Claude account it runs in; unset while only one is set up
+  Workflow workflow = 35; // the Workflow run it has going (TILE: its phases make the tile's bar)
+}
+
+// A run of the Workflow tool: phases in the script's order, each with the
+// agents it has running and done.
+message Workflow {
+  string name = 1;
+  repeated WorkflowPhase phases = 2;
+}
+
+message WorkflowPhase {
+  string title = 1;
+  uint32 running = 2;
+  uint32 done = 3;
 }
 
 message Activity {

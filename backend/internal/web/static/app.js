@@ -88,6 +88,34 @@ const needsYou = (a) => a.status === 'waiting' || a.status === 'error';
 // Finished a turn nobody has reviewed yet: hungry until its terminal is focused.
 const hungry = (a) => a.status === 'idle' && a.unseen;
 
+// A running workflow: which phase it is in, by the journal (the last phase
+// with agents running, else the last with any done).
+function workflowPhase(w) {
+  const ps = w?.phases || [];
+  let i = -1;
+  ps.forEach((p, k) => { if (p.running > 0) i = k; });
+  if (i < 0) ps.forEach((p, k) => { if (p.done > 0) i = k; });
+  return i;
+}
+function workflowLine(w) {
+  const ps = w.phases || [];
+  const i = workflowPhase(w);
+  if (i < 0) return 'workflow · starting';
+  const p = ps[i];
+  return `${p.title} ${p.done}/${p.done + p.running} · ${i + 1} of ${ps.length}`;
+}
+// The tile's bar: one segment per phase, done ones dimmed, the running one lit.
+function workflowBar(t, w) {
+  const key = w ? (w.phases || []).map((p) => `${p.title}:${p.running}:${p.done}`).join(',') : '';
+  if (t.wfKey === key) return;
+  t.wfKey = key;
+  t.wf.hidden = !w;
+  if (!w) { t.wf.replaceChildren(); return; }
+  const i = workflowPhase(w);
+  t.wf.replaceChildren(...(w.phases || []).map((p, k) => h('span', { class: 'wf-seg' + (k === i ? ' on' : k < i || (p.done > 0 && p.running === 0) ? ' past' : ''), title: `${p.title}: ${p.done} done, ${p.running} running` })));
+  t.wf.setAttribute('aria-label', `workflow ${w.name}: ${workflowLine(w)}`);
+}
+
 function tileMeta(a) {
   if (hungry(a)) return 'hungry · feed me';
   switch (a.status) {
@@ -667,15 +695,16 @@ function makeTile(a) {
   const spr = h('span', { class: 'spr' });
   const name = h('span', { class: 'name' });
   const meta = h('span', { class: 'meta' });
+  const wf = h('span', { class: 'wf', hidden: true }); // a running workflow: its phases as a bar
   const ring = makeRing();
   const subs = h('span', { class: 'subs', 'aria-hidden': 'true', hidden: true });
   const bar = h('span', { class: 'ctxbar', 'aria-hidden': 'true' }); // the ring, as a bar, on phones
   const chip = h('span', { class: 'chip', 'aria-hidden': 'true' }); // the tool's colour, or its Claude account's
   const el = h('button', { type: 'button', class: 'tile', 'data-id': a.id },
-    chip, subs, spr, name, meta, ring.svg, bar);
+    chip, subs, spr, name, wf, meta, ring.svg, bar);
   el.addEventListener('click', () => openDetail(a.id));
   wireDrag(el, a.id);
-  return { el, spr, name, meta, subs, chip, bar, subsKey: '', acctKey: '', ring: ring.fill, dash: '', cls: '', label: '' };
+  return { el, spr, name, meta, wf, wfKey: '', subs, chip, bar, subsKey: '', acctKey: '', ring: ring.fill, dash: '', cls: '', label: '' };
 }
 
 // ---------------------------------------------------------------- arrange
@@ -733,9 +762,10 @@ function updateTile(t, a) {
   const used = a.context?.window > 0 ? Math.min(100, (a.context.used / a.context.window) * 100) : 0;
   const dash = `${used.toFixed(2)} 100`;
   if (t.dash !== dash) { t.ring.setAttribute('stroke-dasharray', dash); t.bar.style.width = `${used.toFixed(2)}%`; t.dash = dash; }
-  const meta = tileMeta(a);
+  const meta = a.workflow ? workflowLine(a.workflow) : tileMeta(a);
   setText(t.name, a.title);
   setText(t.meta, meta);
+  workflowBar(t, a.workflow);
   // Subagents at work: a small critter in the top-left corner (+ a count).
   const list = a.subagents || [];
   const subsKey = list.length ? `${list.length}|${list[0].tool || ''}|${list.some((x) => x.type === 'workflow')}` : '';

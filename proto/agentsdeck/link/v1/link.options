@@ -36,6 +36,9 @@ agentsdeck.link.v1.Prompt.options        max_count:6
 agentsdeck.link.v1.Option.key            max_size:8
 agentsdeck.link.v1.Option.label          max_size:96
 agentsdeck.link.v1.Hat.shape             max_size:16
+agentsdeck.link.v1.Workflow.name         max_size:24
+agentsdeck.link.v1.Workflow.phases       max_count:8
+agentsdeck.link.v1.WorkflowPhase.title   max_size:24
 agentsdeck.link.v1.Hat.color             max_size:12
 agentsdeck.link.v1.Account.name          max_size:16
 agentsdeck.link.v1.Account.color         max_size:12

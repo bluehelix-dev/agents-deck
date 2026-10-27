@@ -208,6 +208,10 @@ func (d *Daemon) subagents(e *store.Entry) bool {
 	subs := claude.Subagents(e.Transcript, 2*time.Minute, 30*time.Minute)
 	changed := !slices.Equal(subs, e.A.Subagents)
 	e.A.Subagents = subs
+	if wf := claude.Workflow(e.Transcript, 2*time.Minute); !sameWorkflow(wf, e.A.Workflow) {
+		e.A.Workflow = wf
+		changed = true
+	}
 	switch {
 	case len(subs) > 0 && e.A.Status == model.Idle:
 		e.SetStatus(model.Running)
@@ -235,6 +239,13 @@ func (d *Daemon) subagents(e *store.Entry) bool {
 		}
 	}
 	return changed
+}
+
+func sameWorkflow(a, b *model.Workflow) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Name == b.Name && slices.Equal(a.Phases, b.Phases)
 }
 
 // workflowAgents counts the subagents a workflow runs, and names the phase

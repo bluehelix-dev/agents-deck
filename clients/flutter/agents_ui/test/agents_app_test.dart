@@ -592,6 +592,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a running workflow draws its phases on the tile', (
+    tester,
+  ) async {
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final api = (j['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['id'] == 'k3f9a2',
+    );
+    api['workflow'] = {
+      'name': 'bughunt',
+      'phases': [
+        {'title': 'Scout', 'running': 0, 'done': 1},
+        {'title': 'Suche', 'running': 2, 'done': 3},
+        {'title': 'Jury', 'running': 0, 'done': 0},
+      ],
+    };
+    final a = Agent.fromJson(api);
+    expect(a.workflow?.current, 1);
+    expect(a.workflow?.line, 'Suche 3/5 · 2 of 3');
+    await _pumpApp(tester, FakeAgentsSource.fromState(j));
+    expect(find.byKey(const Key('agent-tile-workflow')), findsOneWidget);
+    expect(find.text('Suche 3/5 · 2 of 3'), findsOneWidget);
+    await _open(tester, 'checkout-api');
+    expect(find.byKey(const Key('agent-workflow')), findsOneWidget);
+    expect(find.text('Jury 0/0'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a quick tap still opens the agent (no drag)', (tester) async {
     final source = FakeAgentsSource.demo();
     await _pumpApp(tester, source);

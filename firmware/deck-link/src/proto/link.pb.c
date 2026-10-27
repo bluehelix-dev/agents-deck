@@ -45,6 +45,12 @@ PB_BIND(agentsdeck_link_v1_AgentRemoved, agentsdeck_link_v1_AgentRemoved, AUTO)
 PB_BIND(agentsdeck_link_v1_Agent, agentsdeck_link_v1_Agent, 2)
 
 
+PB_BIND(agentsdeck_link_v1_Workflow, agentsdeck_link_v1_Workflow, 2)
+
+
+PB_BIND(agentsdeck_link_v1_WorkflowPhase, agentsdeck_link_v1_WorkflowPhase, AUTO)
+
+
 PB_BIND(agentsdeck_link_v1_Activity, agentsdeck_link_v1_Activity, AUTO)
 
 

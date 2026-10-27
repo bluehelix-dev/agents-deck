@@ -746,6 +746,12 @@ class _AgentDetailState extends State<AgentDetail> {
             cut: DeckHud.bg,
           ),
           const SizedBox(height: 26),
+          if (a.workflow case final wf?) ...[
+            _label('workflow · ${wf.name}', DeckHud.dim),
+            const SizedBox(height: 8),
+            WorkflowPhases(workflow: wf),
+            const SizedBox(height: 26),
+          ],
           _label(nowLabel, DeckHud.dim),
           const SizedBox(height: 8),
           nowValue,
@@ -1448,6 +1454,39 @@ class _AgentDetailState extends State<AgentDetail> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A running workflow's phases, each with its agents done and running; the
+/// phase the run is in stands in the workflow's blue.
+class WorkflowPhases extends StatelessWidget {
+  const WorkflowPhases({super.key, required this.workflow});
+
+  final AgentWorkflow workflow;
+
+  @override
+  Widget build(BuildContext context) {
+    final i = workflow.current;
+    return Wrap(
+      key: const Key('agent-workflow'),
+      spacing: 18,
+      runSpacing: 8,
+      children: [
+        for (final (k, p) in workflow.phases.indexed)
+          Text(
+            '${p.title} ${p.done}/${p.done + p.running}',
+            style: DeckHud.rm(
+              17,
+              k == i
+                  ? DeckHud.workflow
+                  : (k < i || (p.done > 0 && p.running == 0))
+                  ? DeckHud.ink
+                  : DeckHud.dim,
+              weight: k == i ? 700 : 400,
+            ),
+          ),
+      ],
     );
   }
 }

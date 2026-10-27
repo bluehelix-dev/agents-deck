@@ -28,7 +28,7 @@ typedef enum _agentsdeck_link_v1_Scope {
 /* Bits of Subscribe.fields. id and slot are always sent. */
 typedef enum _agentsdeck_link_v1_FieldGroup {
     agentsdeck_link_v1_FieldGroup_FIELDS_NONE = 0,
-    agentsdeck_link_v1_FieldGroup_FIELDS_TILE = 1, /* title, tool, status, status_since, folder, context, unseen, lost, focused, external, app, hat, account, activity.tool, subagent_count */
+    agentsdeck_link_v1_FieldGroup_FIELDS_TILE = 1, /* title, tool, status, status_since, folder, context, unseen, lost, focused, external, app, hat, account, activity.tool, subagent_count, workflow */
     agentsdeck_link_v1_FieldGroup_FIELDS_CARD = 2, /* ai_title, cwd, branch, model, model_label, effort, activity.detail, last_prompt, error, resumable, attached, subagents, started_at, updated_at */
     agentsdeck_link_v1_FieldGroup_FIELDS_PROMPT = 4, /* waiting */
     agentsdeck_link_v1_FieldGroup_FIELDS_NUMBERS = 8 /* tokens, cost_usd, turns */
@@ -147,6 +147,20 @@ typedef struct _agentsdeck_link_v1_AgentRemoved {
     char id[12];
 } agentsdeck_link_v1_AgentRemoved;
 
+typedef struct _agentsdeck_link_v1_WorkflowPhase {
+    char title[24];
+    uint32_t running;
+    uint32_t done;
+} agentsdeck_link_v1_WorkflowPhase;
+
+/* A run of the Workflow tool: phases in the script's order, each with the
+ agents it has running and done. */
+typedef struct _agentsdeck_link_v1_Workflow {
+    char name[24];
+    pb_size_t phases_count;
+    agentsdeck_link_v1_WorkflowPhase phases[8];
+} agentsdeck_link_v1_Workflow;
+
 typedef struct _agentsdeck_link_v1_Activity {
     char tool[24];
     char detail[128];
@@ -243,6 +257,8 @@ typedef struct _agentsdeck_link_v1_Agent {
     char app[12]; /* the app it runs in when not agentctl's: "orca", "herdr", "cmux" */
     bool has_account;
     agentsdeck_link_v1_Account account; /* the Claude account it runs in; unset while only one is set up */
+    bool has_workflow;
+    agentsdeck_link_v1_Workflow workflow; /* the Workflow run it has going (TILE: its phases make the tile's bar) */
 } agentsdeck_link_v1_Agent;
 
 typedef struct _agentsdeck_link_v1_AgentChanged {
@@ -531,6 +547,8 @@ extern "C" {
 #define agentsdeck_link_v1_Agent_status_ENUMTYPE agentsdeck_link_v1_Status
 
 
+
+
 #define agentsdeck_link_v1_Prompt_kind_ENUMTYPE agentsdeck_link_v1_PromptKind
 
 
@@ -583,7 +601,9 @@ extern "C" {
 #define agentsdeck_link_v1_Server_init_default   {"", "", 0, 0}
 #define agentsdeck_link_v1_AgentChanged_init_default {false, agentsdeck_link_v1_Agent_init_default}
 #define agentsdeck_link_v1_AgentRemoved_init_default {""}
-#define agentsdeck_link_v1_Agent_init_default    {"", 0, "", "", _agentsdeck_link_v1_Tool_MIN, _agentsdeck_link_v1_Status_MIN, 0, "", "", "", "", "", "", false, agentsdeck_link_v1_Activity_init_default, "", false, agentsdeck_link_v1_Prompt_init_default, "", false, agentsdeck_link_v1_Tokens_init_default, false, agentsdeck_link_v1_Context_init_default, 0, 0, 0, 0, 0, 0, 0, 0, false, agentsdeck_link_v1_Hat_init_default, 0, {agentsdeck_link_v1_Subagent_init_default, agentsdeck_link_v1_Subagent_init_default, agentsdeck_link_v1_Subagent_init_default, agentsdeck_link_v1_Subagent_init_default, agentsdeck_link_v1_Subagent_init_default, agentsdeck_link_v1_Subagent_init_default}, 0, 0, 0, "", false, agentsdeck_link_v1_Account_init_default}
+#define agentsdeck_link_v1_Agent_init_default    {"", 0, "", "", _agentsdeck_link_v1_Tool_MIN, _agentsdeck_link_v1_Status_MIN, 0, "", "", "", "", "", "", false, agentsdeck_link_v1_Activity_init_default, "", false, agentsdeck_link_v1_Prompt_init_default, "", false, agentsdeck_link_v1_Tokens_init_default, false, agentsdeck_link_v1_Context_init_default, 0, 0, 0, 0, 0, 0, 0, 0, false, agentsdeck_link_v1_Hat_init_default, 0, {agentsdeck_link_v1_Subagent_init_default, agentsdeck_link_v1_Subagent_init_default, agentsdeck_link_v1_Subagent_init_default, agentsdeck_link_v1_Subagent_init_default, agentsdeck_link_v1_Subagent_init_default, agentsdeck_link_v1_Subagent_init_default}, 0, 0, 0, "", false, agentsdeck_link_v1_Account_init_default, false, agentsdeck_link_v1_Workflow_init_default}
+#define agentsdeck_link_v1_Workflow_init_default {"", 0, {agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default}}
+#define agentsdeck_link_v1_WorkflowPhase_init_default {"", 0, 0}
 #define agentsdeck_link_v1_Activity_init_default {"", ""}
 #define agentsdeck_link_v1_Prompt_init_default   {"", _agentsdeck_link_v1_PromptKind_MIN, "", "", "", 0, {agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default}}
 #define agentsdeck_link_v1_Option_init_default   {"", "", 0}
@@ -632,7 +652,9 @@ extern "C" {
 #define agentsdeck_link_v1_Server_init_zero      {"", "", 0, 0}
 #define agentsdeck_link_v1_AgentChanged_init_zero {false, agentsdeck_link_v1_Agent_init_zero}
 #define agentsdeck_link_v1_AgentRemoved_init_zero {""}
-#define agentsdeck_link_v1_Agent_init_zero       {"", 0, "", "", _agentsdeck_link_v1_Tool_MIN, _agentsdeck_link_v1_Status_MIN, 0, "", "", "", "", "", "", false, agentsdeck_link_v1_Activity_init_zero, "", false, agentsdeck_link_v1_Prompt_init_zero, "", false, agentsdeck_link_v1_Tokens_init_zero, false, agentsdeck_link_v1_Context_init_zero, 0, 0, 0, 0, 0, 0, 0, 0, false, agentsdeck_link_v1_Hat_init_zero, 0, {agentsdeck_link_v1_Subagent_init_zero, agentsdeck_link_v1_Subagent_init_zero, agentsdeck_link_v1_Subagent_init_zero, agentsdeck_link_v1_Subagent_init_zero, agentsdeck_link_v1_Subagent_init_zero, agentsdeck_link_v1_Subagent_init_zero}, 0, 0, 0, "", false, agentsdeck_link_v1_Account_init_zero}
+#define agentsdeck_link_v1_Agent_init_zero       {"", 0, "", "", _agentsdeck_link_v1_Tool_MIN, _agentsdeck_link_v1_Status_MIN, 0, "", "", "", "", "", "", false, agentsdeck_link_v1_Activity_init_zero, "", false, agentsdeck_link_v1_Prompt_init_zero, "", false, agentsdeck_link_v1_Tokens_init_zero, false, agentsdeck_link_v1_Context_init_zero, 0, 0, 0, 0, 0, 0, 0, 0, false, agentsdeck_link_v1_Hat_init_zero, 0, {agentsdeck_link_v1_Subagent_init_zero, agentsdeck_link_v1_Subagent_init_zero, agentsdeck_link_v1_Subagent_init_zero, agentsdeck_link_v1_Subagent_init_zero, agentsdeck_link_v1_Subagent_init_zero, agentsdeck_link_v1_Subagent_init_zero}, 0, 0, 0, "", false, agentsdeck_link_v1_Account_init_zero, false, agentsdeck_link_v1_Workflow_init_zero}
+#define agentsdeck_link_v1_Workflow_init_zero    {"", 0, {agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero}}
+#define agentsdeck_link_v1_WorkflowPhase_init_zero {"", 0, 0}
 #define agentsdeck_link_v1_Activity_init_zero    {"", ""}
 #define agentsdeck_link_v1_Prompt_init_zero      {"", _agentsdeck_link_v1_PromptKind_MIN, "", "", "", 0, {agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero}}
 #define agentsdeck_link_v1_Option_init_zero      {"", "", 0}
@@ -700,6 +722,11 @@ extern "C" {
 #define agentsdeck_link_v1_SnapshotBegin_server_tag 1
 #define agentsdeck_link_v1_SnapshotBegin_agent_count_tag 2
 #define agentsdeck_link_v1_AgentRemoved_id_tag   1
+#define agentsdeck_link_v1_WorkflowPhase_title_tag 1
+#define agentsdeck_link_v1_WorkflowPhase_running_tag 2
+#define agentsdeck_link_v1_WorkflowPhase_done_tag 3
+#define agentsdeck_link_v1_Workflow_name_tag     1
+#define agentsdeck_link_v1_Workflow_phases_tag   2
 #define agentsdeck_link_v1_Activity_tool_tag     1
 #define agentsdeck_link_v1_Activity_detail_tag   2
 #define agentsdeck_link_v1_Option_key_tag        1
@@ -760,6 +787,7 @@ extern "C" {
 #define agentsdeck_link_v1_Agent_updated_at_ms_tag 32
 #define agentsdeck_link_v1_Agent_app_tag         33
 #define agentsdeck_link_v1_Agent_account_tag     34
+#define agentsdeck_link_v1_Agent_workflow_tag    35
 #define agentsdeck_link_v1_AgentChanged_agent_tag 1
 #define agentsdeck_link_v1_Answer_agent_id_tag   1
 #define agentsdeck_link_v1_Answer_prompt_id_tag  2
@@ -1041,7 +1069,8 @@ X(a, STATIC,   SINGULAR, UINT32,   subagent_count,   30) \
 X(a, STATIC,   SINGULAR, INT64,    started_at_ms,    31) \
 X(a, STATIC,   SINGULAR, INT64,    updated_at_ms,    32) \
 X(a, STATIC,   SINGULAR, STRING,   app,              33) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  account,          34)
+X(a, STATIC,   OPTIONAL, MESSAGE,  account,          34) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  workflow,         35)
 #define agentsdeck_link_v1_Agent_CALLBACK NULL
 #define agentsdeck_link_v1_Agent_DEFAULT NULL
 #define agentsdeck_link_v1_Agent_activity_MSGTYPE agentsdeck_link_v1_Activity
@@ -1051,6 +1080,21 @@ X(a, STATIC,   OPTIONAL, MESSAGE,  account,          34)
 #define agentsdeck_link_v1_Agent_hat_MSGTYPE agentsdeck_link_v1_Hat
 #define agentsdeck_link_v1_Agent_subagents_MSGTYPE agentsdeck_link_v1_Subagent
 #define agentsdeck_link_v1_Agent_account_MSGTYPE agentsdeck_link_v1_Account
+#define agentsdeck_link_v1_Agent_workflow_MSGTYPE agentsdeck_link_v1_Workflow
+
+#define agentsdeck_link_v1_Workflow_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, STRING,   name,              1) \
+X(a, STATIC,   REPEATED, MESSAGE,  phases,            2)
+#define agentsdeck_link_v1_Workflow_CALLBACK NULL
+#define agentsdeck_link_v1_Workflow_DEFAULT NULL
+#define agentsdeck_link_v1_Workflow_phases_MSGTYPE agentsdeck_link_v1_WorkflowPhase
+
+#define agentsdeck_link_v1_WorkflowPhase_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, STRING,   title,             1) \
+X(a, STATIC,   SINGULAR, UINT32,   running,           2) \
+X(a, STATIC,   SINGULAR, UINT32,   done,              3)
+#define agentsdeck_link_v1_WorkflowPhase_CALLBACK NULL
+#define agentsdeck_link_v1_WorkflowPhase_DEFAULT NULL
 
 #define agentsdeck_link_v1_Activity_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, STRING,   tool,              1) \
@@ -1306,6 +1350,8 @@ extern const pb_msgdesc_t agentsdeck_link_v1_Server_msg;
 extern const pb_msgdesc_t agentsdeck_link_v1_AgentChanged_msg;
 extern const pb_msgdesc_t agentsdeck_link_v1_AgentRemoved_msg;
 extern const pb_msgdesc_t agentsdeck_link_v1_Agent_msg;
+extern const pb_msgdesc_t agentsdeck_link_v1_Workflow_msg;
+extern const pb_msgdesc_t agentsdeck_link_v1_WorkflowPhase_msg;
 extern const pb_msgdesc_t agentsdeck_link_v1_Activity_msg;
 extern const pb_msgdesc_t agentsdeck_link_v1_Prompt_msg;
 extern const pb_msgdesc_t agentsdeck_link_v1_Option_msg;
@@ -1357,6 +1403,8 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_AgentChanged_fields &agentsdeck_link_v1_AgentChanged_msg
 #define agentsdeck_link_v1_AgentRemoved_fields &agentsdeck_link_v1_AgentRemoved_msg
 #define agentsdeck_link_v1_Agent_fields &agentsdeck_link_v1_Agent_msg
+#define agentsdeck_link_v1_Workflow_fields &agentsdeck_link_v1_Workflow_msg
+#define agentsdeck_link_v1_WorkflowPhase_fields &agentsdeck_link_v1_WorkflowPhase_msg
 #define agentsdeck_link_v1_Activity_fields &agentsdeck_link_v1_Activity_msg
 #define agentsdeck_link_v1_Prompt_fields &agentsdeck_link_v1_Prompt_msg
 #define agentsdeck_link_v1_Option_fields &agentsdeck_link_v1_Option_msg
@@ -1401,9 +1449,9 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Account_size          30
 #define agentsdeck_link_v1_Activity_size         155
 #define agentsdeck_link_v1_AddLive_size          52
-#define agentsdeck_link_v1_AgentChanged_size     3360
+#define agentsdeck_link_v1_AgentChanged_size     3701
 #define agentsdeck_link_v1_AgentRemoved_size     13
-#define agentsdeck_link_v1_Agent_size            3357
+#define agentsdeck_link_v1_Agent_size            3698
 #define agentsdeck_link_v1_Answer_size           39
 #define agentsdeck_link_v1_CertIssued_size       1788
 #define agentsdeck_link_v1_CertRequest_size      603
@@ -1411,7 +1459,7 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Dismiss_size          13
 #define agentsdeck_link_v1_Display_size          14
 #define agentsdeck_link_v1_Focus_size            13
-#define agentsdeck_link_v1_Frame_size            3370
+#define agentsdeck_link_v1_Frame_size            3711
 #define agentsdeck_link_v1_GetState_size         0
 #define agentsdeck_link_v1_Handoff_size          30
 #define agentsdeck_link_v1_HatList_size          1868
@@ -1445,6 +1493,8 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Tokens_size           44
 #define agentsdeck_link_v1_Welcome_size          166
 #define agentsdeck_link_v1_WifiConfig_size       102
+#define agentsdeck_link_v1_WorkflowPhase_size    37
+#define agentsdeck_link_v1_Workflow_size         337
 
 #ifdef __cplusplus
 } /* extern "C" */

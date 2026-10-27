@@ -240,6 +240,10 @@ body.offline .main { opacity: 0.4; }
   font-size: 16px; letter-spacing: 0.5px; color: var(--label);
   max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.tile .wf { display: flex; gap: 3px; height: 5px; width: 60%; margin: 6px auto 0; }
+.tile .wf-seg { flex: 1 1 0; background: var(--line); border-radius: 1px; }
+.tile .wf-seg.past { background: #3D8BFF; opacity: 0.45; }
+.tile .wf-seg.on { background: #3D8BFF; }
 .tile .meta {
   margin-top: 5px;
   font-size: 12.5px; letter-spacing: 0.4px; color: var(--meta);

@@ -26,6 +26,7 @@ var limits = map[string]limit{
 	"Prompt.id": {size: 16}, "Prompt.title": {size: 96}, "Prompt.detail": {size: 512}, "Prompt.context": {size: 96}, "Prompt.options": {count: 6},
 	"Option.key": {size: 8}, "Option.label": {size: 96},
 	"Hat.shape": {size: 16}, "Hat.color": {size: 12},
+	"Workflow.name": {size: 24}, "Workflow.phases": {count: 8}, "WorkflowPhase.title": {size: 24},
 	"Account.name": {size: 16}, "Account.color": {size: 12},
 	"Subagent.id": {size: 12}, "Subagent.title": {size: 64}, "Subagent.type": {size: 24}, "Subagent.tool": {size: 24},
 	"Answer.agent_id": {size: 12}, "Answer.prompt_id": {size: 16}, "Answer.key": {size: 8},

@@ -59,6 +59,7 @@ type Agent struct {
 	External    bool       `json:"external"`            // owned by another app (Codex): view and focus only
 	App         string     `json:"app,omitempty"`       // the app it runs in when not agentctl's: "orca", "herdr", "cmux" (answer, interrupt and focus work there)
 	Subagents   []Subagent `json:"subagents,omitempty"` // subagents still working, oldest first
+	Workflow    *Workflow  `json:"workflow,omitempty"`  // the Workflow run it has going (nil: none)
 	Hat         *Hat       `json:"hat,omitempty"`       // the pixel hat for its working folder (nil: none)
 	Account     *Account   `json:"account,omitempty"`   // the Claude account it runs in (nil: only one account is set up)
 	StartedAt   time.Time  `json:"startedAt"`
@@ -85,6 +86,19 @@ type Subagent struct {
 	Title string `json:"title"`          // the task description it was given
 	Type  string `json:"type,omitempty"` // agent type (Explore, general-purpose, fork…)
 	Tool  string `json:"tool,omitempty"` // tool of its latest call, for the critter's pose
+}
+
+// Workflow is a run of the Workflow tool: its phases in the script's order,
+// each with the agents it has running and done. The tile draws it as a bar.
+type Workflow struct {
+	Name   string          `json:"name"` // the script's name (bughunt), else the run's id
+	Phases []WorkflowPhase `json:"phases"`
+}
+
+type WorkflowPhase struct {
+	Title   string `json:"title"`
+	Running int    `json:"running"`
+	Done    int    `json:"done"`
 }
 
 type Activity struct {

@@ -348,6 +348,51 @@ class _AgentsAppState extends State<AgentsApp> {
 }
 
 /// One agent on the board: tool chip, critter, title, status line.
+/// A running workflow's phases as a bar: one segment per phase in the
+/// script's order, done ones dimmed, the running one lit in the workflow's
+/// blue, the rest in the tile's dim.
+class WorkflowBar extends StatelessWidget {
+  const WorkflowBar({
+    super.key,
+    required this.workflow,
+    required this.dim,
+    this.width = 104,
+  });
+
+  final AgentWorkflow workflow;
+  final Color dim;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final i = workflow.current;
+    return Semantics(
+      label: 'workflow ${workflow.name}: ${workflow.line}',
+      child: SizedBox(
+        key: const Key('agent-tile-workflow'),
+        width: width,
+        height: 5,
+        child: Row(
+          children: [
+            for (final (k, p) in workflow.phases.indexed) ...[
+              if (k > 0) const SizedBox(width: 3),
+              Expanded(
+                child: ColoredBox(
+                  color: k == i
+                      ? DeckHud.workflow
+                      : (k < i || (p.done > 0 && p.running == 0))
+                      ? DeckHud.workflow.withValues(alpha: 0.45)
+                      : dim.withValues(alpha: 0.35),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class AgentTile extends StatefulWidget {
   const AgentTile({
     super.key,
@@ -496,13 +541,24 @@ class _AgentTileState extends State<AgentTile> {
                               DeckHud.mono(size: 16, color: c(look.label)),
                             ),
                             const SizedBox(height: 5),
-                            _line(
-                              agentMetaLine(a, widget.state),
-                              DeckHud.mono(
-                                size: 12.5,
-                                color: c(look.meta),
-                              ).copyWith(letterSpacing: 0.4),
-                            ),
+                            if (a.workflow case final wf?) ...[
+                              WorkflowBar(workflow: wf, dim: c(look.meta)),
+                              const SizedBox(height: 5),
+                              _line(
+                                wf.line,
+                                DeckHud.mono(
+                                  size: 12.5,
+                                  color: DeckHud.workflow,
+                                ).copyWith(letterSpacing: 0.4),
+                              ),
+                            ] else
+                              _line(
+                                agentMetaLine(a, widget.state),
+                                DeckHud.mono(
+                                  size: 12.5,
+                                  color: c(look.meta),
+                                ).copyWith(letterSpacing: 0.4),
+                              ),
                           ],
                         ),
                       ),
