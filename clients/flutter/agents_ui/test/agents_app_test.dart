@@ -553,13 +553,44 @@ void main() {
     );
   });
 
-  testWidgets('subagents at work show as a corner critter on the tile', (
+  testWidgets('subagents at work climb the tile as a ladder of minis', (
     tester,
   ) async {
     await _pumpApp(tester, FakeAgentsSource.demo());
-    // Only checkout-api has subagents (three) in the demo fleet.
-    expect(find.byKey(const Key('agent-tile-subagents')), findsOneWidget);
-    expect(find.text('×3'), findsOneWidget);
+    // Only checkout-api has subagents (three) in the demo fleet: three
+    // minis, each in the session's hat, and no count yet.
+    final ladder = find.byKey(const Key('agent-tile-subagents'));
+    expect(ladder, findsOneWidget);
+    final minis = find.descendant(
+      of: ladder,
+      matching: find.byType(CritterSprite),
+    );
+    expect(minis, findsNWidgets(3));
+    expect(tester.widget<CritterSprite>(minis.first).hat?.shape, 'propeller');
+    expect(find.textContaining('+'), findsNothing);
+  });
+
+  testWidgets('a ladder of more than four subagents counts the rest', (
+    tester,
+  ) async {
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final api = (j['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['id'] == 'k3f9a2',
+    );
+    api['subagents'] = [
+      for (var i = 0; i < 6; i++)
+        {'id': 's$i', 'title': 'task $i', 'type': 'Explore', 'tool': 'Read'},
+    ];
+    await _pumpApp(tester, FakeAgentsSource.fromState(j));
+    final ladder = find.byKey(const Key('agent-tile-subagents'));
+    expect(
+      find.descendant(of: ladder, matching: find.byType(CritterSprite)),
+      findsNWidgets(4),
+    );
+    expect(find.text('+2'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('a workflow at work is marked on the tile and the card', (
@@ -586,7 +617,12 @@ void main() {
       },
     ];
     await _pumpApp(tester, FakeAgentsSource.fromState(j));
-    expect(find.text('wf ×2'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.label == 'workflow · 2 agents',
+      ),
+      findsOneWidget,
+    );
     await _open(tester, 'checkout-api');
     expect(find.text('workflow · 2 agents'), findsOneWidget);
     expect(tester.takeException(), isNull);

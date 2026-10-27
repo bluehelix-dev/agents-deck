@@ -562,6 +562,7 @@ class _AgentDetailState extends State<AgentDetail> {
                     Flexible(
                       child: SubagentCrew(
                         subagents: a.subagents,
+                        hat: a.hat,
                         body: body,
                         cut: cut,
                       ),
@@ -1499,11 +1500,15 @@ class SubagentCrew extends StatelessWidget {
     required this.subagents,
     required this.body,
     required this.cut,
+    this.hat,
   });
 
   static const max = 6;
 
   final List<AgentSubagent> subagents;
+
+  /// The session's hat: its subagents wear the same one.
+  final AgentHat? hat;
   final Color body;
   final Color cut;
 
@@ -1539,6 +1544,7 @@ class SubagentCrew extends StatelessWidget {
                   child: CritterSprite(
                     pose: critterPoseForTool(s.tool),
                     width: 36,
+                    hat: hat,
                     body: body,
                     cut: cut,
                   ),

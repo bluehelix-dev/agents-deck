@@ -348,6 +348,68 @@ class _AgentsAppState extends State<AgentsApp> {
 }
 
 /// One agent on the board: tool chip, critter, title, status line.
+/// An agent's subagents at work, climbing the tile's right edge: a small
+/// critter each, in the session's colour and hat, posed by its tool, the
+/// newest on top. Four fit; a "+N" above them counts the rest.
+class SubagentLadder extends StatelessWidget {
+  const SubagentLadder({
+    super.key,
+    required this.subagents,
+    required this.body,
+    required this.cut,
+    required this.dim,
+    this.hat,
+  });
+
+  /// The minis a tile shows before it counts.
+  static const max = 4;
+
+  /// The ladder's width on the tile's 170 px design: a 36 px mini.
+  static const width = 36.0;
+
+  final List<AgentSubagent> subagents;
+  final AgentHat? hat;
+  final Color body;
+  final Color cut;
+  final Color dim;
+
+  @override
+  Widget build(BuildContext context) {
+    final n = subagents.length;
+    final workflow = subagents.any((s) => s.type == 'workflow');
+    final shown = subagents.reversed.take(max).toList();
+    final more = n - shown.length;
+    return Semantics(
+      label: workflow
+          ? 'workflow · $n agent${n == 1 ? '' : 's'}'
+          : '$n subagent${n == 1 ? '' : 's'} at work',
+      child: Column(
+        key: const Key('agent-tile-subagents'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (more > 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 2),
+              child: Text('+$more', style: DeckHud.mono(size: 11, color: dim)),
+            ),
+          for (final (i, s) in shown.indexed)
+            Padding(
+              padding: EdgeInsets.only(top: i == 0 ? 0 : 3),
+              child: CritterSprite(
+                pose: critterPoseForTool(s.tool),
+                width: width,
+                hat: hat,
+                body: body,
+                cut: cut,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A running workflow's phases as a bar: one segment per phase in the
 /// script's order, done ones dimmed, the running one lit in the workflow's
 /// blue, the rest in the tile's dim.
@@ -465,102 +527,92 @@ class _AgentTileState extends State<AgentTile> {
                         ),
                       ),
                     ),
-                  // Subagents at work: a small critter in the top-left
-                  // corner (body only), with a count when there are more.
-                  if (a.subagents.isNotEmpty)
-                    Positioned(
-                      top: 8,
-                      left: 9,
-                      child: Row(
-                        key: const Key('agent-tile-subagents'),
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          ClipRect(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              widthFactor: 14 / 18,
-                              child: CritterSprite(
-                                pose: critterPoseForTool(
-                                  a.subagents.first.tool,
-                                ),
-                                width: 36,
-                                body: c(look.body),
-                                cut: fill,
-                              ),
-                            ),
-                          ),
-                          if (a.subagents.length > 1 ||
-                              a.subagents.any((s) => s.type == 'workflow'))
-                            Padding(
-                              padding: const EdgeInsets.only(left: 3),
-                              child: Text(
-                                // A workflow's agents are marked: they are
-                                // many, and they come and go by phase.
-                                '${a.subagents.any((s) => s.type == 'workflow') ? 'wf ' : ''}'
-                                '×${a.subagents.length}',
-                                style: DeckHud.mono(
-                                  size: 11,
-                                  color: c(look.meta),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
                   // Laid out on the deck's 170 px cell and scaled to the
                   // real one, so any grid size keeps the same composition.
+                  // With subagents out, the session steps left to make room
+                  // for their ladder up the right edge.
                   Positioned.fill(
                     child: FittedBox(
                       child: SizedBox.square(
                         dimension: _tileDesign,
-                        child: Column(
+                        child: Stack(
                           children: [
-                            const SizedBox(height: 30),
-                            CritterSprite(
-                              pose: critterPoseOf(
-                                a,
-                                inStatus: widget.state.inStatus(a),
+                            if (a.subagents.isNotEmpty)
+                              Positioned(
+                                right: 2,
+                                bottom: 8,
+                                child: SubagentLadder(
+                                  subagents: a.subagents,
+                                  hat: a.hat,
+                                  body: c(look.body),
+                                  cut: fill,
+                                  dim: c(look.meta),
+                                ),
                               ),
-                              celebrateUntil: DateTime.now().add(
-                                critterCelebration - widget.state.inStatus(a),
+                            Padding(
+                              padding: EdgeInsets.only(
+                                right: a.subagents.isEmpty
+                                    ? 0
+                                    : SubagentLadder.width + 2,
                               ),
-                              afterCelebrate: a.unseen
-                                  ? CritterPose.hungry
-                                  : CritterPose.idle,
-                              species: critterSpeciesFor(a.tool),
-                              hat: a.hat,
-                              centerBody: true,
-                              width: 92,
-                              body: c(look.body),
-                              bubble: look.bubble == null
-                                  ? null
-                                  : c(look.bubble!),
-                              cut: fill,
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 30),
+                                  CritterSprite(
+                                    pose: critterPoseOf(
+                                      a,
+                                      inStatus: widget.state.inStatus(a),
+                                    ),
+                                    celebrateUntil: DateTime.now().add(
+                                      critterCelebration -
+                                          widget.state.inStatus(a),
+                                    ),
+                                    afterCelebrate: a.unseen
+                                        ? CritterPose.hungry
+                                        : CritterPose.idle,
+                                    species: critterSpeciesFor(a.tool),
+                                    hat: a.hat,
+                                    centerBody: true,
+                                    width: 92,
+                                    body: c(look.body),
+                                    bubble: look.bubble == null
+                                        ? null
+                                        : c(look.bubble!),
+                                    cut: fill,
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _line(
+                                    a.title,
+                                    DeckHud.mono(
+                                      size: 16,
+                                      color: c(look.label),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  if (a.workflow case final wf?) ...[
+                                    WorkflowBar(
+                                      workflow: wf,
+                                      dim: c(look.meta),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    _line(
+                                      wf.line,
+                                      DeckHud.mono(
+                                        size: 12.5,
+                                        color: DeckHud.workflow,
+                                      ).copyWith(letterSpacing: 0.4),
+                                    ),
+                                  ] else
+                                    _line(
+                                      agentMetaLine(a, widget.state),
+                                      DeckHud.mono(
+                                        size: 12.5,
+                                        color: c(look.meta),
+                                      ).copyWith(letterSpacing: 0.4),
+                                    ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 14),
-                            _line(
-                              a.title,
-                              DeckHud.mono(size: 16, color: c(look.label)),
-                            ),
-                            const SizedBox(height: 5),
-                            if (a.workflow case final wf?) ...[
-                              WorkflowBar(workflow: wf, dim: c(look.meta)),
-                              const SizedBox(height: 5),
-                              _line(
-                                wf.line,
-                                DeckHud.mono(
-                                  size: 12.5,
-                                  color: DeckHud.workflow,
-                                ).copyWith(letterSpacing: 0.4),
-                              ),
-                            ] else
-                              _line(
-                                agentMetaLine(a, widget.state),
-                                DeckHud.mono(
-                                  size: 12.5,
-                                  color: c(look.meta),
-                                ).copyWith(letterSpacing: 0.4),
-                              ),
                           ],
                         ),
                       ),

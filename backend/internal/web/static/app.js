@@ -766,17 +766,24 @@ function updateTile(t, a) {
   setText(t.name, a.title);
   setText(t.meta, meta);
   workflowBar(t, a.workflow);
-  // Subagents at work: a small critter in the top-left corner (+ a count).
+  // Subagents at work: a ladder of minis up the right edge, each in the
+  // session's hat and posed by its tool, newest on top; four fit, a "+N"
+  // above them counts the rest. The session steps left to make room.
   const list = a.subagents || [];
-  const subsKey = list.length ? `${list.length}|${list[0].tool || ''}|${list.some((x) => x.type === 'workflow')}` : '';
+  const subsKey = list.length ? `${list.map((x) => x.tool || '').join(',')}|${a.hat ? a.hat.shape + a.hat.color : ''}` : '';
   if (t.subsKey !== subsKey) {
     t.subsKey = subsKey;
     t.subs.hidden = !list.length;
+    t.el.classList.toggle('has-subs', list.length > 0);
     if (list.length) {
-      const m = h('span', { class: 'subs-spr' });
-      setSprite(m, list[0].tool ? TOOL_POSE[list[0].tool.toLowerCase()] || 'run' : 'think', 'claude');
-      const wf = list.some((x) => x.type === 'workflow');
-      t.subs.replaceChildren(m, list.length > 1 || wf ? h('span', { class: 'subs-n', text: `${wf ? 'wf ' : ''}×${list.length}` }) : '');
+      const shown = list.slice().reverse().slice(0, LADDER_MAX);
+      const minis = shown.map((x) => {
+        const m = h('span', { class: 'subs-spr' });
+        setSprite(m, x.tool ? TOOL_POSE[x.tool.toLowerCase()] || 'run' : 'think', 'claude', a.hat);
+        return m;
+      });
+      const more = list.length - shown.length;
+      t.subs.replaceChildren(more > 0 ? h('span', { class: 'subs-n', text: `+${more}` }) : '', ...minis);
     }
   }
   const acctKey = a.account ? `${a.account.name}|${a.account.color}` : '';
@@ -1038,18 +1045,22 @@ const closeIcon = () => {
   return s;
 };
 
-// The agent's working subagents, as small critters next to its mascot.
+// The minis a tile's ladder shows before it counts.
+const LADDER_MAX = 4;
+
+// The agent's working subagents, as small critters next to its mascot, in
+// its hat.
 const CREW_MAX = 6;
 function crewUpdate(crew, a) {
   const subs = a.subagents || [];
-  const key = subs.map((x) => `${x.id}:${x.tool || ''}:${x.type || ''}`).join(',');
+  const key = subs.map((x) => `${x.id}:${x.tool || ''}:${x.type || ''}`).join(',') + `|${a.hat ? a.hat.shape + a.hat.color : ''}`;
   if (crew.dataset.key === key) return;
   crew.dataset.key = key;
   crew.hidden = subs.length === 0;
   const shown = subs.slice(0, CREW_MAX);
   const minis = shown.map((x) => {
     const m = h('span', { class: 'd-mini', title: x.type ? `${x.title} · ${x.type}` : x.title });
-    setSprite(m, x.tool ? TOOL_POSE[x.tool.toLowerCase()] || 'run' : 'think', 'claude');
+    setSprite(m, x.tool ? TOOL_POSE[x.tool.toLowerCase()] || 'run' : 'think', 'claude', a.hat);
     return m;
   });
   const more = subs.length - shown.length;
