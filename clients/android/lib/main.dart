@@ -309,6 +309,11 @@ class PhoneDeck extends StatefulWidget {
     return shapes.reduce((a, b) => miss(b) < miss(a) ? b : a);
   }
 
+  /// What to call this device in the cards: a tablet from 600 dp on the
+  /// short side (Android's own line), else a phone.
+  static String deviceFor(Size screen) =>
+      screen.shortestSide >= 600 ? 'tablet' : 'phone';
+
   /// The board's size in panel units for [columns] tiles per row.
   static Size boardSize(int columns) {
     final rows = (16 + columns - 1) ~/ columns;
@@ -388,6 +393,7 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
           child: LayoutBuilder(
             builder: (context, box) {
               final columns = PhoneDeck.columnsFor(box.biggest);
+              final device = PhoneDeck.deviceFor(box.biggest);
               return Center(
                 child: FittedBox(
                   child: SizedBox.fromSize(
@@ -424,6 +430,7 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
                                       ),
                                   pairingCard: (problem) => PairingCard(
                                     problem: problem,
+                                    device: device,
                                     ways: _ways,
                                   ),
                                 ),
@@ -450,6 +457,7 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
                         if (_settingsOpen)
                           SettingsCard(
                             phone: widget.phone,
+                            device: device,
                             source: widget.source,
                             ways: _ways,
                             onForget: _forget,
@@ -590,11 +598,25 @@ class DeckToggle extends StatelessWidget {
 }
 
 /// The card's frame: the panel surface with the deck's padding, scrolling
-/// when its content is taller than the board.
-class _Card extends StatelessWidget {
+/// when its content is taller than the board, with a thin bar at the right
+/// edge whenever there is more below.
+class _Card extends StatefulWidget {
   const _Card({super.key, required this.children});
 
   final List<Widget> children;
+
+  @override
+  State<_Card> createState() => _CardState();
+}
+
+class _CardState extends State<_Card> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -602,11 +624,20 @@ class _Card extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       child: Container(
         color: DeckHud.panel,
-        padding: const EdgeInsets.fromLTRB(40, 44, 40, 36),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: children,
+        padding: const EdgeInsets.fromLTRB(40, 44, 16, 36),
+        child: RawScrollbar(
+          controller: _scroll,
+          thumbVisibility: true,
+          thumbColor: DeckHud.dim,
+          thickness: 6,
+          radius: Radius.zero,
+          child: SingleChildScrollView(
+            controller: _scroll,
+            padding: const EdgeInsets.only(right: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: widget.children,
+            ),
           ),
         ),
       ),
@@ -671,10 +702,18 @@ mixin _PairingRunner<T extends StatefulWidget> on State<T> {
 
 /// Not paired yet: the QR code to scan, and the two other ways in.
 class PairingCard extends StatefulWidget {
-  const PairingCard({super.key, this.problem, required this.ways});
+  const PairingCard({
+    super.key,
+    this.problem,
+    required this.device,
+    required this.ways,
+  });
 
   /// Why the saved bundle wasn't usable (from the client), if any.
   final String? problem;
+
+  /// "phone" or "tablet": what this device is called in the text.
+  final String device;
   final PairingWays ways;
 
   @override
@@ -721,13 +760,14 @@ class _PairingCardState extends State<PairingCard>
         _title('pair with your computer'),
         const SizedBox(height: 10),
         _lead(
-          'this phone makes its own key and trades a one-time code for its '
-          'certificate. The code is a QR code on the computer running agentctl.',
+          'this ${widget.device} makes its own key and trades a one-time code '
+          'for its certificate. The code is a QR code on the computer running '
+          'agentctl.',
         ),
         const SizedBox(height: 26),
         step('1', [
           const TextSpan(text: 'on the computer:\n'),
-          code('agentctl pair phone --qr'),
+          code('agentctl pair ${widget.device} --qr'),
         ]),
         step('2', [
           const TextSpan(
@@ -746,9 +786,9 @@ class _PairingCardState extends State<PairingCard>
         ),
         const SizedBox(height: 26),
         _lead(
-          'no camera here? copy what `agentctl pair phone` prints and paste '
-          'it, or import a bundle from `agentctl pair phone --bundle '
-          'phone.json --host <its address>`.',
+          'no camera here? copy what `agentctl pair ${widget.device}` prints '
+          'and paste it, or import a bundle from `agentctl pair '
+          '${widget.device} --bundle phone.json --host <its address>`.',
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -775,12 +815,14 @@ class _PairingCardState extends State<PairingCard>
   }
 }
 
-/// This phone's settings: where it is connected, the screen, the pairing.
+/// This device's settings: where it is connected, the screen, the pairing,
+/// the app's updates.
 /// Opens with a long press on the board; back closes it.
 class SettingsCard extends StatefulWidget {
   const SettingsCard({
     super.key,
     required this.phone,
+    required this.device,
     required this.source,
     required this.ways,
     required this.onForget,
@@ -788,6 +830,9 @@ class SettingsCard extends StatefulWidget {
   });
 
   final Phone phone;
+
+  /// "phone" or "tablet": what this device is called in the text.
+  final String device;
   final AgentsSource source;
   final PairingWays ways;
   final VoidCallback onForget;
@@ -937,7 +982,7 @@ class _SettingsCardState extends State<SettingsCard>
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _title('this phone')),
+            Expanded(child: _title('this ${widget.device}')),
             DeckButton(
               key: const Key('settings-done'),
               label: 'done',
@@ -948,10 +993,10 @@ class _SettingsCardState extends State<SettingsCard>
         const SizedBox(height: 10),
         _lead(
           paired
-              ? 'paired with a deck. the deck knows this phone by its name; '
-                    '`agentctl devices` lists it there.'
-              : 'not paired yet: scan the QR code from `agentctl pair phone '
-                    '--qr` below, or on the board.',
+              ? 'paired with a deck. the deck knows this ${widget.device} by '
+                    'its name; `agentctl devices` lists it there.'
+              : 'not paired yet: scan the QR code from `agentctl pair '
+                    '${widget.device} --qr` below, or on the board.',
         ),
         const SizedBox(height: 34),
         ValueListenableBuilder<AgentsSnapshot>(
@@ -982,7 +1027,7 @@ class _SettingsCardState extends State<SettingsCard>
                   key: const Key('settings-address'),
                 ),
                 row(
-                  'this phone',
+                  'this ${widget.device}',
                   value(paired && cfg.name.isNotEmpty ? cfg.name : '–'),
                   key: const Key('settings-name'),
                 ),

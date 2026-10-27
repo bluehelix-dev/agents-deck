@@ -270,6 +270,44 @@ void main() {
     });
   });
 
+  group('device', () {
+    test('a tablet from 600 dp on the short side', () {
+      expect(PhoneDeck.deviceFor(const Size(360, 780)), 'phone');
+      expect(PhoneDeck.deviceFor(const Size(780, 360)), 'phone');
+      expect(PhoneDeck.deviceFor(const Size(600, 960)), 'tablet');
+      expect(PhoneDeck.deviceFor(const Size(1280, 800)), 'tablet');
+    });
+
+    testWidgets('the cards call a tablet a tablet', (tester) async {
+      // 2400×3840 at 3× is 800×1280 dp: a tablet, upright.
+      final source = unpairedClient();
+      await pumpPhone(tester, const Size(2400, 3840), source: source);
+      await tester.pump();
+      expect(
+        find.textContaining('agentctl pair tablet --qr', findRichText: true),
+        findsOneWidget,
+      );
+      File(phone.bundlePath).writeAsStringSync(bundle());
+      await tester.longPressAt(
+        tester.getCenter(find.byKey(const Key('phone-board'))),
+      );
+      await tester.pump();
+      expect(find.text('this tablet'), findsWidgets);
+      expect(find.text('this phone'), findsNothing);
+      source.dispose(); // before the test ends: its poll timer must be gone
+      await tester.pump();
+    });
+
+    testWidgets('and a phone a phone', (tester) async {
+      File(phone.bundlePath).writeAsStringSync(bundle());
+      await pumpPhone(tester, const Size(1080, 2340));
+      await tester.longPressAt(boardBackground(tester));
+      await tester.pump();
+      expect(find.text('this phone'), findsWidgets);
+      expect(find.text('this tablet'), findsNothing);
+    });
+  });
+
   group('updates', () {
     const installed = [1, 2, 3, 4];
     const newer = [5, 6, 7, 8];
