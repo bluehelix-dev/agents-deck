@@ -192,13 +192,17 @@ class AgentButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: pressed ? pressedFill : outline, width: 2),
         ),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: DeckHud.mono(
-            size: fontSize,
-            color: pressed ? pressedInk : ink,
+        // A label longer than the button (a phone's narrow card) shrinks
+        // rather than losing its end.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: DeckHud.mono(
+              size: fontSize,
+              color: pressed ? pressedInk : ink,
+            ),
           ),
         ),
       ),

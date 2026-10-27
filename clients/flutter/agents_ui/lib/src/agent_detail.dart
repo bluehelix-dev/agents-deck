@@ -559,7 +559,13 @@ class _AgentDetailState extends State<AgentDetail> {
                   ),
                   if (a.subagents.isNotEmpty) ...[
                     const SizedBox(width: 16),
-                    SubagentCrew(subagents: a.subagents, body: body, cut: cut),
+                    Flexible(
+                      child: SubagentCrew(
+                        subagents: a.subagents,
+                        body: body,
+                        cut: cut,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -1462,39 +1468,55 @@ class SubagentCrew extends StatelessWidget {
   final Color body;
   final Color cut;
 
+  /// One critter's width with its gap, and the room the label needs.
+  static const _critter = 45.0, _label = 130.0;
+
   @override
   Widget build(BuildContext context) {
-    final shown = subagents.take(max).toList();
-    final more = subagents.length - shown.length;
     final n = subagents.length;
     final workflow = subagents.any((s) => s.type == 'workflow');
     final what = workflow
         ? 'workflow · $n agent${n == 1 ? '' : 's'}'
         : '$n subagent${n == 1 ? '' : 's'}';
-    return Semantics(
-      label: '$what: ${subagents.map((s) => s.title).join(', ')}',
-      child: Row(
-        key: const Key('agent-subagents'),
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final s in shown)
-            Padding(
-              padding: const EdgeInsets.only(right: 9),
-              child: CritterSprite(
-                pose: critterPoseForTool(s.tool),
-                width: 36,
-                body: body,
-                cut: cut,
+    return LayoutBuilder(
+      builder: (context, box) {
+        // On a phone the header is narrow: fewer critters, the label stays.
+        var fit = max;
+        if (box.maxWidth.isFinite) {
+          fit = ((box.maxWidth - _label) / _critter).floor().clamp(0, max);
+        }
+        final shown = subagents.take(fit).toList();
+        final more = subagents.length - shown.length;
+        return Semantics(
+          label: '$what: ${subagents.map((s) => s.title).join(', ')}',
+          child: Row(
+            key: const Key('agent-subagents'),
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final s in shown)
+                Padding(
+                  padding: const EdgeInsets.only(right: 9),
+                  child: CritterSprite(
+                    pose: critterPoseForTool(s.tool),
+                    width: 36,
+                    body: body,
+                    cut: cut,
+                  ),
+                ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  '$what${more > 0 ? ' · +$more' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: DeckHud.rm(13, body),
+                ),
               ),
-            ),
-          const SizedBox(width: 4),
-          Text(
-            '$what${more > 0 ? ' · +$more' : ''}',
-            style: DeckHud.rm(13, body),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

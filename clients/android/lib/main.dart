@@ -376,6 +376,11 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Android 16 asks an app whether it handles the back gesture itself and
+    // closes it outright when it never said so (predictive back, on by
+    // default from target SDK 36). We do: didPopRoute closes cards and the
+    // settings, and lets the app go only when nothing is open.
+    SystemNavigator.setFrameworkHandlesBack(true);
     _alerts = WaitingAlerts(
       sink: widget.phone.host,
       enabled: widget.phone.alerts,
