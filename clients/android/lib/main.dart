@@ -6,7 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// The native side (MainActivity.kt): the app's private folder, the system
-/// file picker that reads a pairing bundle, and the screen's wake lock.
+/// file picker that reads a pairing bundle, the camera app that photographs
+/// a QR code, the pairing itself (Pairing.kt), and the screen's wake lock.
 const _files = MethodChannel('agents_deck/files');
 
 const appVersion = '0.1.0';
@@ -41,6 +42,20 @@ abstract class PhoneHost {
   /// The system document picker: the file's text, or null when cancelled.
   Future<String?> pickBundle();
 
+  /// The system camera app: the text of the QR code in the photo it took,
+  /// or null when it was closed without one. Throws a [PlatformException]
+  /// when the photo holds no readable code.
+  Future<String?> scanQr();
+
+  /// Pairs with the deck a pairing code names (the QR code's payload, or
+  /// what `agentctl pair <name>` prints): makes this phone's key, trades the
+  /// code for a certificate, and returns the bundle to keep. Throws a
+  /// [PlatformException] with the reason when it can't.
+  Future<String?> pair(String payload);
+
+  /// The text on the clipboard, or null.
+  Future<String?> clipboardText();
+
   /// Keeps the screen from dimming while the app is in front.
   Future<void> keepScreenOn(bool on);
 }
@@ -54,13 +69,24 @@ class ChannelHost implements PhoneHost {
   Future<String?> pickBundle() => channel.invokeMethod<String>('pickBundle');
 
   @override
+  Future<String?> scanQr() => channel.invokeMethod<String>('scanQr');
+
+  @override
+  Future<String?> pair(String payload) =>
+      channel.invokeMethod<String>('pair', payload);
+
+  @override
+  Future<String?> clipboardText() async =>
+      (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+
+  @override
   Future<void> keepScreenOn(bool on) =>
       channel.invokeMethod<void>('keepScreenOn', on);
 }
 
 /// This phone's own state, in the app's private folder: the pairing bundle
-/// (`agents.json`, from `agentctl pair <name> --bundle FILE`) and the
-/// settings (`settings.json`).
+/// (`agents.json`: from a QR code, a pasted pairing code, or
+/// `agentctl pair <name> --bundle FILE`) and the settings (`settings.json`).
 class Phone {
   Phone({required this.dir, required this.host});
 
@@ -105,6 +131,43 @@ class Phone {
     await host.keepScreenOn(on);
   }
 
+  /// Photographs the QR code `agentctl pair <name> --qr` shows and pairs
+  /// with the deck it names. Returns what went wrong, or null (also when
+  /// the camera was closed without a photo).
+  Future<String?> pairByQr() async {
+    String? payload;
+    try {
+      payload = await host.scanQr();
+    } on PlatformException catch (e) {
+      return e.message ?? e.code;
+    }
+    if (payload == null) return null;
+    return pairWith(payload);
+  }
+
+  /// Pairs from a pairing code on the clipboard: what `agentctl pair <name>`
+  /// prints, for a phone or tablet without a camera.
+  Future<String?> pairByPaste() async {
+    final payload = (await host.clipboardText())?.trim() ?? '';
+    if (payload.isEmpty) {
+      return 'nothing on the clipboard: copy what `agentctl pair phone` prints';
+    }
+    return pairWith(payload);
+  }
+
+  /// Makes this phone's key, trades the pairing [payload] for a certificate
+  /// and keeps the bundle.
+  Future<String?> pairWith(String payload) async {
+    String? bundle;
+    try {
+      bundle = await host.pair(payload);
+    } on PlatformException catch (e) {
+      return e.message ?? e.code;
+    }
+    if (bundle == null) return 'pairing gave no bundle';
+    return checkBundle(bundle) ?? saveBundle(bundle);
+  }
+
   /// Lets the user pick a bundle, checks it and keeps it. Returns what was
   /// wrong with the file, or null (also when the picker was cancelled).
   Future<String?> importBundle() async {
@@ -115,8 +178,11 @@ class Phone {
       return e.message ?? e.code;
     }
     if (raw == null) return null;
-    final problem = checkBundle(raw);
-    if (problem != null) return problem;
+    return checkBundle(raw) ?? saveBundle(raw);
+  }
+
+  /// Writes the bundle where the client reads it; a problem, or null.
+  String? saveBundle(String raw) {
     try {
       File(bundlePath).writeAsStringSync(raw, flush: true);
     } on FileSystemException catch (e) {
@@ -146,6 +212,14 @@ String? checkBundle(String raw) {
     return 'not a pairing bundle: ${e.message}';
   }
 }
+
+/// The three ways onto a deck, as the cards offer them: each resolves to a
+/// problem to show, or null.
+typedef PairingWays = ({
+  Future<String?> Function() scanQr,
+  Future<String?> Function() pasteCode,
+  Future<String?> Function() importBundle,
+});
 
 /// The deck as the desk panel draws it, laid out in the panel's units and
 /// scaled to the screen. The 16 slots of a page go 3×6, 4×4 or 6×3,
@@ -240,11 +314,19 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
     if (!_settingsOpen) setState(() => _settingsOpen = true);
   }
 
-  Future<String?> _import() async {
-    final problem = await widget.phone.importBundle();
+  /// Runs one way of pairing and, when it worked, has the client pick the
+  /// new bundle up at once.
+  Future<String?> _pair(Future<String?> Function() way) async {
+    final problem = await way();
     if (problem == null) widget.source.reconnect();
     return problem;
   }
+
+  PairingWays get _ways => (
+    scanQr: () => _pair(widget.phone.pairByQr),
+    pasteCode: () => _pair(widget.phone.pairByPaste),
+    importBundle: () => _pair(widget.phone.importBundle),
+  );
 
   void _forget() {
     widget.phone.forgetPairing();
@@ -298,7 +380,7 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
                                       ),
                                   pairingCard: (problem) => PairingCard(
                                     problem: problem,
-                                    importBundle: _import,
+                                    ways: _ways,
                                   ),
                                 ),
                               ),
@@ -309,7 +391,7 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
                           SettingsCard(
                             phone: widget.phone,
                             source: widget.source,
-                            onImport: _import,
+                            ways: _ways,
                             onForget: _forget,
                             onClose: () =>
                                 setState(() => _settingsOpen = false),
@@ -437,40 +519,73 @@ Text _lead(String s) => Text(
   style: DeckHud.mono(size: 16, color: DeckHud.dim).copyWith(height: 1.4),
 );
 
-/// No bundle on this phone yet: how to get one, and the button to import it.
+/// Runs one way of pairing at a time for a card, with the label of the one
+/// in flight and the last problem.
+mixin _PairingRunner<T extends StatefulWidget> on State<T> {
+  /// What is in flight ("scanning"), or null.
+  String? busy;
+  String? problem;
+
+  Future<void> run(String label, Future<String?> Function() way) async {
+    if (busy != null) return;
+    setState(() {
+      busy = label;
+      problem = null;
+    });
+    final p = await way();
+    if (!mounted) return;
+    setState(() {
+      busy = null;
+      problem = p;
+    });
+  }
+
+  /// A button for one way, greyed while another is in flight.
+  Widget wayButton(
+    String key,
+    String label,
+    String doing,
+    Future<String?> Function() way, {
+    bool filled = false,
+  }) => DeckButton(
+    key: Key(key),
+    label: busy == doing ? '$doing…' : label,
+    filled: filled,
+    onTap: busy != null ? null : () => run(doing, way),
+  );
+
+  Widget problemText(String? shown, Key key) => shown == null
+      ? const SizedBox.shrink()
+      : Padding(
+          padding: const EdgeInsets.only(top: 22),
+          child: Text(
+            shown,
+            key: key,
+            style: DeckHud.mono(size: 16, color: DeckHud.accent),
+          ),
+        );
+}
+
+/// Not paired yet: the QR code to scan, and the two other ways in.
 class PairingCard extends StatefulWidget {
-  const PairingCard({super.key, this.problem, required this.importBundle});
+  const PairingCard({super.key, this.problem, required this.ways});
 
   /// Why the saved bundle wasn't usable (from the client), if any.
   final String? problem;
-  final Future<String?> Function() importBundle;
+  final PairingWays ways;
 
   @override
   State<PairingCard> createState() => _PairingCardState();
 }
 
-class _PairingCardState extends State<PairingCard> {
-  String? _importProblem;
-  bool _picking = false;
-
-  Future<void> _import() async {
-    if (_picking) return;
-    setState(() => _picking = true);
-    final problem = await widget.importBundle();
-    if (!mounted) return;
-    setState(() {
-      _picking = false;
-      _importProblem = problem;
-    });
-  }
-
+class _PairingCardState extends State<PairingCard>
+    with _PairingRunner<PairingCard> {
   @override
   Widget build(BuildContext context) {
-    final problem = _importProblem ?? widget.problem;
     TextSpan code(String s) =>
         TextSpan(text: s, style: DeckHud.rm(17, DeckHud.accent));
     Widget step(String n, List<InlineSpan> text) => Padding(
-      padding: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -499,45 +614,57 @@ class _PairingCardState extends State<PairingCard> {
           body: DeckHud.ink,
           cut: DeckHud.panel,
         ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 22),
         _title('pair with your computer'),
         const SizedBox(height: 10),
         _lead(
-          'the deck needs a pairing bundle from the computer running '
-          'agentctl: its address, its certificate and a key for this phone.',
+          'this phone makes its own key and trades a one-time code for its '
+          'certificate. The code is a QR code on the computer running agentctl.',
         ),
-        const SizedBox(height: 30),
+        const SizedBox(height: 26),
         step('1', [
-          const TextSpan(
-            text:
-                'on the computer, with its address on your network '
-                '(ipconfig or ifconfig shows it):\n',
-          ),
-          code('agentctl pair phone --bundle phone.json --host 192.0.2.10'),
+          const TextSpan(text: 'on the computer:\n'),
+          code('agentctl pair phone --qr'),
         ]),
         step('2', [
-          const TextSpan(
-            text:
-                'get phone.json onto this phone (a cable, a drive, '
-                'a message to yourself), then delete it on the computer.',
-          ),
+          const TextSpan(text: 'photograph the code within two minutes:'),
         ]),
-        step('3', [const TextSpan(text: 'import it here:')]),
-        const SizedBox(height: 6),
-        DeckButton(
-          key: const Key('import-bundle'),
-          label: _picking ? 'choosing…' : 'import phone.json',
-          filled: true,
-          onTap: _picking ? null : _import,
-        ),
-        if (problem != null) ...[
-          const SizedBox(height: 22),
-          Text(
-            problem,
-            key: const Key('pairing-problem'),
-            style: DeckHud.mono(size: 16, color: DeckHud.accent),
+        Padding(
+          padding: const EdgeInsets.only(left: 34),
+          child: wayButton(
+            'scan-qr',
+            'scan QR code',
+            'scanning',
+            widget.ways.scanQr,
+            filled: true,
           ),
-        ],
+        ),
+        const SizedBox(height: 26),
+        _lead(
+          'no camera here? copy what `agentctl pair phone` prints and paste '
+          'it, or import a bundle from `agentctl pair phone --bundle '
+          'phone.json --host <its address>`.',
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 10,
+          children: [
+            wayButton(
+              'paste-code',
+              'paste the code',
+              'pairing',
+              widget.ways.pasteCode,
+            ),
+            wayButton(
+              'import-bundle',
+              'import phone.json',
+              'choosing',
+              widget.ways.importBundle,
+            ),
+          ],
+        ),
+        problemText(problem ?? widget.problem, const Key('pairing-problem')),
       ],
     );
   }
@@ -550,14 +677,14 @@ class SettingsCard extends StatefulWidget {
     super.key,
     required this.phone,
     required this.source,
-    required this.onImport,
+    required this.ways,
     required this.onForget,
     required this.onClose,
   });
 
   final Phone phone;
   final AgentsSource source;
-  final Future<String?> Function() onImport;
+  final PairingWays ways;
   final VoidCallback onForget;
   final VoidCallback onClose;
 
@@ -565,21 +692,9 @@ class SettingsCard extends StatefulWidget {
   State<SettingsCard> createState() => _SettingsCardState();
 }
 
-class _SettingsCardState extends State<SettingsCard> {
+class _SettingsCardState extends State<SettingsCard>
+    with _PairingRunner<SettingsCard> {
   bool _armed = false; // "forget pairing" wants a second tap
-  bool _picking = false;
-  String? _problem;
-
-  Future<void> _import() async {
-    if (_picking) return;
-    setState(() => _picking = true);
-    final problem = await widget.onImport();
-    if (!mounted) return;
-    setState(() {
-      _picking = false;
-      _problem = problem;
-    });
-  }
 
   void _forget() {
     if (!_armed) {
@@ -637,7 +752,8 @@ class _SettingsCardState extends State<SettingsCard> {
           paired
               ? 'paired with a deck. the deck knows this phone by its name; '
                     '`agentctl devices` lists it there.'
-              : 'not paired yet: import a bundle below, or on the board.',
+              : 'not paired yet: scan the QR code from `agentctl pair phone '
+                    '--qr` below, or on the board.',
         ),
         const SizedBox(height: 34),
         ValueListenableBuilder<AgentsSnapshot>(
@@ -720,15 +836,24 @@ class _SettingsCardState extends State<SettingsCard> {
           spacing: 14,
           runSpacing: 14,
           children: [
-            DeckButton(
-              key: const Key('settings-import'),
-              label: _picking
-                  ? 'choosing…'
-                  : paired
-                  ? 'import another bundle'
-                  : 'import a bundle',
+            wayButton(
+              'settings-scan',
+              paired ? 'pair again with a QR code' : 'scan a QR code',
+              'scanning',
+              widget.ways.scanQr,
               filled: !paired,
-              onTap: _picking ? null : _import,
+            ),
+            wayButton(
+              'settings-paste',
+              'paste a pairing code',
+              'pairing',
+              widget.ways.pasteCode,
+            ),
+            wayButton(
+              'settings-import',
+              'import a bundle',
+              'choosing',
+              widget.ways.importBundle,
             ),
             DeckButton(
               key: const Key('forget-pairing'),
@@ -738,14 +863,7 @@ class _SettingsCardState extends State<SettingsCard> {
             ),
           ],
         ),
-        if (_problem != null) ...[
-          const SizedBox(height: 22),
-          Text(
-            _problem!,
-            key: const Key('settings-problem'),
-            style: DeckHud.mono(size: 16, color: DeckHud.accent),
-          ),
-        ],
+        problemText(problem, const Key('settings-problem')),
         const SizedBox(height: 40),
         Text(
           'agents deck $appVersion · a long press on the board opens this; '

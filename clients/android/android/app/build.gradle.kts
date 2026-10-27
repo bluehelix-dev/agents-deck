@@ -47,3 +47,10 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Reads the QR code in a photo (Pairing: QrPhoto.kt). Pure Java, no camera code.
+    implementation("com.google.zxing:core:3.5.3")
+    // FileProvider: hands the camera app a file of ours to write the photo to.
+    implementation("androidx.core:core:1.13.1")
+}

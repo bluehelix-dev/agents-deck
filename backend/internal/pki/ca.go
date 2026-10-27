@@ -120,8 +120,19 @@ func (ca *CA) Fingerprint() string { return Fingerprint(ca.Cert.Raw) }
 
 // ServerCert returns the network listener's certificate, signed by the CA,
 // from certPath/keyPath; a missing, foreign or expiring one, or one that
-// doesn't cover every name and IP in hosts, is reissued.
+// doesn't cover every name and IP in hosts, is reissued. The chain carries
+// the CA too, so a device pairing from a QR code can check the CA's
+// fingerprint before it trusts anything.
 func (ca *CA) ServerCert(certPath, keyPath string, hosts []string) (tls.Certificate, error) {
+	c, err := ca.serverCert(certPath, keyPath, hosts)
+	if err != nil {
+		return c, err
+	}
+	c.Certificate = append(c.Certificate, ca.Cert.Raw)
+	return c, nil
+}
+
+func (ca *CA) serverCert(certPath, keyPath string, hosts []string) (tls.Certificate, error) {
 	if c, err := tls.LoadX509KeyPair(certPath, keyPath); err == nil {
 		if leaf, err := x509.ParseCertificate(c.Certificate[0]); err == nil &&
 			leaf.CheckSignatureFrom(ca.Cert) == nil && time.Until(leaf.NotAfter) > 30*24*time.Hour && covers(leaf, hosts) {

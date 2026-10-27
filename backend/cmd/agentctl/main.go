@@ -37,6 +37,7 @@ import (
 	"github.com/brushknight/agents-deck/backend/internal/model"
 	"github.com/brushknight/agents-deck/backend/internal/paths"
 	"github.com/brushknight/agents-deck/backend/internal/pki"
+	"github.com/brushknight/agents-deck/backend/internal/qr"
 	"github.com/brushknight/agents-deck/backend/internal/server"
 	"github.com/brushknight/agents-deck/backend/internal/sim"
 	"github.com/brushknight/agents-deck/backend/internal/store"
@@ -72,10 +73,11 @@ const usage = `agentctl — agents-terminal
                                  simulated Claudes working in real projects under DIR (for demos)
   agentctl sim stop              remove all simulated agents
   agentctl web                   open the dashboard in the browser
-  agentctl pair <name> [--scope view|act|admin] [--bundle FILE] [--host ADDR]
-                                 pair a device: a one-time code it trades for its own certificate,
-                                 or (--bundle) a key and certificate to copy to it; --host puts an IP
-                                 in the bundle for devices that can't resolve this machine's name
+  agentctl pair <name> [--scope view|act|admin] [--qr | --bundle FILE] [--host ADDR]
+                                 pair a device: a one-time code it trades for its own certificate
+                                 (--qr shows it as a QR code for the phone app), or (--bundle) a key
+                                 and certificate to copy to it; --host puts an IP in the code or
+                                 bundle for devices that can't resolve this machine's name
   agentctl devices [revoke|approve|remove <name> | scope <name> <scope>]
                                  paired devices and serial boards; cut one off, approve a board
   agentctl link [ports | add <port> [--baud N] | rm <port>]
@@ -820,7 +822,8 @@ func pair(args []string) error {
 	fs := flag.NewFlagSet("pair", flag.ExitOnError)
 	scope := fs.String("scope", "act", "what the device may do: view, act or admin")
 	bundle := fs.String("bundle", "", "write a key and certificate for the device to `FILE` (- for stdout) instead of a pairing code")
-	host := fs.String("host", "", "the address the device reaches this machine at, for the bundle's URL (an IP the listener's certificate covers; default: this machine's name)")
+	showQR := fs.Bool("qr", false, "show the pairing code as a QR code for the phone app to scan")
+	host := fs.String("host", "", "the address the device reaches this machine at, for the URL in the code or bundle (an IP the listener's certificate covers; default: this machine's LAN address for --qr, else its name)")
 	var name string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		name, args = args[0], args[1:]
@@ -830,21 +833,37 @@ func pair(args []string) error {
 		name = fs.Arg(0)
 	}
 	if name == "" {
-		return errors.New("usage: agentctl pair <name> [--scope view|act|admin] [--bundle FILE]   e.g. agentctl pair desk-panel --bundle panel.json")
+		return errors.New("usage: agentctl pair <name> [--scope view|act|admin] [--qr | --bundle FILE] [--host ADDR]   e.g. agentctl pair phone --qr")
+	}
+	if *bundle != "" && *showQR {
+		return errors.New("--qr shows a pairing code; --bundle makes the key here instead. One or the other")
 	}
 	body := map[string]string{"name": name, "scope": *scope}
+	// The URL the device will use: --host, or for a QR code this machine's
+	// LAN address (a phone can't resolve a Windows name or a .local name).
+	withHost := func(raw string) (string, error) {
+		h := *host
+		if h == "" && *showQR {
+			h = lanIP()
+		}
+		if h == "" {
+			return raw, nil
+		}
+		u, err := url.Parse(raw)
+		if err != nil {
+			return "", err
+		}
+		u.Host = net.JoinHostPort(h, u.Port())
+		return u.String(), nil
+	}
 	if *bundle != "" {
 		var b server.Bundle
 		if err := call("POST", "/local/devices/provision", body, &b); err != nil {
 			return err
 		}
-		if *host != "" {
-			u, err := url.Parse(b.URL)
-			if err != nil {
-				return err
-			}
-			u.Host = net.JoinHostPort(*host, u.Port())
-			b.URL = u.String()
+		var err error
+		if b.URL, err = withHost(b.URL); err != nil {
+			return err
 		}
 		out, _ := json.MarshalIndent(b, "", "  ")
 		if *bundle == "-" {
@@ -861,10 +880,72 @@ func pair(args []string) error {
 	if err := call("POST", "/local/devices/code", body, &res); err != nil {
 		return err
 	}
+	var err error
+	if res.URL, err = withHost(res.URL); err != nil {
+		return err
+	}
+	if *showQR {
+		code, err := qr.Encode(pairingQR(res.URL, res.CA, res.Code), qr.M)
+		if err != nil {
+			return err
+		}
+		fmt.Print(code.Terminal())
+		fmt.Printf("scan this in the agents deck app within 2 minutes to pair %s (%s) at %s.\n", name, *scope, res.URL)
+		if *host == "" {
+			var others []string
+			for _, ip := range lanIPs() {
+				if p := net.ParseIP(ip); ip != lanIP() && p != nil && !p.IsLinkLocalUnicast() {
+					others = append(others, ip)
+				}
+			}
+			if len(others) > 0 {
+				fmt.Printf("Not the address the phone can reach? This machine also has %s: agentctl pair %s --qr --host <address>\n",
+					strings.Join(others, ", "), name)
+			}
+		}
+		return nil
+	}
 	out, _ := json.MarshalIndent(map[string]string{"url": res.URL, "ca": res.CA, "code": res.Code}, "", "  ")
 	fmt.Printf("pairing code for %s (%s), valid 2 minutes, single use:\n%s\n", name, *scope, out)
 	fmt.Println("the device makes its own key and sends a certificate request with this code to POST /v1/pair")
 	return nil
+}
+
+// pairingQR is what the QR code carries: the listener's URL, the CA's
+// SHA-256 fingerprint (without the colons, to keep the code small) and the
+// one-time code, as JSON. The app reads it (clients/android, Pairing.kt).
+func pairingQR(url, caFingerprint, code string) []byte {
+	b, _ := json.Marshal(map[string]string{"url": url, "ca": strings.ReplaceAll(caFingerprint, ":", ""), "code": code})
+	return b
+}
+
+// lanIP is the address a phone on the same network most likely reaches this
+// machine at. Home and office networks are 192.168.x.x far more often than
+// VPNs and virtual adapters are, which tend to sit in 10.x.x.x and
+// 172.16-31.x.x, so those come after; anything else (Tailscale's 100.x.x.x,
+// a public address) last. The user sees the choice and can pass --host.
+func lanIP() string {
+	rank := func(ip string) int {
+		p := net.ParseIP(ip)
+		switch {
+		case p == nil:
+			return 4
+		case p.To4() != nil && p.To4()[0] == 192 && p.To4()[1] == 168:
+			return 0
+		case p.To4() != nil && p.To4()[0] == 10:
+			return 1
+		case p.IsPrivate():
+			return 2
+		}
+		return 3
+	}
+	best := ""
+	for _, ip := range lanIPs() {
+		if best == "" || rank(ip) < rank(best) {
+			best = ip
+		}
+	}
+	return best
 }
 
 func devicesCmd(args []string) error {

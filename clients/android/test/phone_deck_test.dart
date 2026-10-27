@@ -1,18 +1,46 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:agents_deck_android/main.dart';
 import 'package:agents_deck_ui/agents_deck_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The phone's native side, recorded.
 class FakeHost implements PhoneHost {
   String? nextPick;
+
+  /// What the camera "photographs": a payload, null (closed), or a
+  /// [PlatformException] to throw (no code in the photo).
+  Object? nextScan;
+  String? clipboard;
+
+  /// What pairing answers for a payload: a bundle, or a [PlatformException].
+  Object? Function(String payload)? pairing;
+  final paired = <String>[];
   final screenOn = <bool>[];
 
   @override
   Future<String?> pickBundle() async => nextPick;
+
+  @override
+  Future<String?> scanQr() async {
+    if (nextScan case final PlatformException e) throw e;
+    return nextScan as String?;
+  }
+
+  @override
+  Future<String?> pair(String payload) async {
+    paired.add(payload);
+    final answer = pairing?.call(payload);
+    if (answer case final PlatformException e) throw e;
+    return answer as String?;
+  }
+
+  @override
+  Future<String?> clipboardText() async => clipboard;
 
   @override
   Future<void> keepScreenOn(bool on) async => screenOn.add(on);
@@ -30,6 +58,10 @@ String bundle() {
     'key': pem('panel.key'),
   });
 }
+
+const payload =
+    '{"url":"https://192.0.2.10:7341","ca":"sha256:0123456789ABCDEF'
+    '0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF","code":"abc"}';
 
 void main() {
   late Directory dir;
@@ -75,6 +107,12 @@ void main() {
           (PhoneDeck.pad + 5 * cell + PhoneDeck.tile / 2) * scale,
         );
   }
+
+  /// A client that reads the phone's bundle and never polls on its own.
+  HttpAgentsClient unpairedClient() => HttpAgentsClient(
+    loadConfig: phone.loadConfig,
+    unconfiguredPoll: const Duration(hours: 1),
+  );
 
   group('shape', () {
     testWidgets('upright: the demo deck is 3×6 and fills the phone', (
@@ -192,14 +230,25 @@ void main() {
       await tester.pump();
       expect(phone.isPaired, isFalse);
     });
+
+    testWidgets('pair again with a QR code from the settings', (tester) async {
+      File(phone.bundlePath).writeAsStringSync(bundle());
+      host.nextScan = payload;
+      host.pairing = (_) => bundle();
+      await pumpPhone(tester, const Size(1080, 2340));
+      await tester.longPressAt(boardBackground(tester));
+      await tester.pump();
+      expect(find.text('pair again with a QR code'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('settings-scan')));
+      await tester.pump();
+      expect(host.paired, [payload]);
+      expect(find.byKey(const Key('settings-problem')), findsNothing);
+    });
   });
 
   group('pairing', () {
     testWidgets('no bundle: the pairing card imports one', (tester) async {
-      final source = HttpAgentsClient(
-        loadConfig: phone.loadConfig,
-        unconfiguredPoll: const Duration(hours: 1),
-      );
+      final source = unpairedClient();
       host.nextPick = 'nonsense';
       await pumpPhone(tester, const Size(1080, 2340), source: source);
       expect(find.byKey(const Key('phone-pairing')), findsOneWidget);
@@ -215,6 +264,95 @@ void main() {
       await tester.pump();
     });
 
+    testWidgets('scan QR code: the photo, the pairing, the bundle', (
+      tester,
+    ) async {
+      final source = unpairedClient();
+      await pumpPhone(tester, const Size(1080, 2340), source: source);
+      // The camera closed without a photo: nothing to say.
+      await tester.tap(find.byKey(const Key('scan-qr')));
+      await tester.pump();
+      expect(find.byKey(const Key('pairing-problem')), findsNothing);
+      // No code in the photo: the native side's reason.
+      host.nextScan = PlatformException(code: 'qr', message: 'no QR code');
+      await tester.tap(find.byKey(const Key('scan-qr')));
+      await tester.pump();
+      expect(find.text('no QR code'), findsOneWidget);
+      expect(host.paired, isEmpty);
+      // The deck refuses: its reason.
+      host.nextScan = payload;
+      host.pairing = (_) =>
+          PlatformException(code: 'pair', message: 'pairing code expired');
+      await tester.tap(find.byKey(const Key('scan-qr')));
+      await tester.pump();
+      expect(host.paired, [payload]);
+      expect(find.text('pairing code expired'), findsOneWidget);
+      expect(phone.isPaired, isFalse);
+      // Paired: the bundle is kept and the problem gone.
+      host.pairing = (_) => bundle();
+      await tester.tap(find.byKey(const Key('scan-qr')));
+      await tester.pump();
+      expect(phone.isPaired, isTrue);
+      expect(find.byKey(const Key('pairing-problem')), findsNothing);
+      source.dispose();
+      await tester.pump();
+    });
+
+    testWidgets('paste the code: the clipboard, or nothing on it', (
+      tester,
+    ) async {
+      final source = unpairedClient();
+      host.pairing = (_) => bundle();
+      await pumpPhone(tester, const Size(1080, 2340), source: source);
+      await tester.tap(find.byKey(const Key('paste-code')));
+      await tester.pump();
+      expect(find.textContaining('nothing on the clipboard'), findsOneWidget);
+      host.clipboard = ' $payload\n';
+      await tester.tap(find.byKey(const Key('paste-code')));
+      await tester.pump();
+      expect(host.paired, [payload]);
+      expect(phone.isPaired, isTrue);
+      source.dispose();
+      await tester.pump();
+    });
+
+    testWidgets('one way at a time', (tester) async {
+      final source = unpairedClient();
+      final hold = Completer<String?>();
+      final host = _SlowHost(hold.future);
+      phone = Phone(dir: dir.path, host: host);
+      await pumpPhone(tester, const Size(1080, 2340), source: source);
+      await tester.tap(find.byKey(const Key('scan-qr')));
+      await tester.pump();
+      expect(find.text('scanning…'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('import-bundle')));
+      await tester.tap(find.byKey(const Key('scan-qr')));
+      await tester.pump();
+      expect(host.scans, 1);
+      expect(host.picks, 0);
+      hold.complete(null);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('scan QR code'), findsOneWidget);
+      source.dispose();
+      await tester.pump();
+    });
+
+    test(
+      'a bundle that pairing hands back is checked before it is kept',
+      () async {
+        host.pairing = (_) => 'nonsense';
+        expect(
+          await phone.pairWith(payload),
+          startsWith('not a pairing bundle'),
+        );
+        expect(phone.isPaired, isFalse);
+        host.pairing = (_) => bundle();
+        expect(await phone.pairWith(payload), isNull);
+        expect(phone.isPaired, isTrue);
+      },
+    );
+
     test('checkBundle tells a bundle from anything else', () {
       expect(checkBundle('nonsense'), startsWith('not a pairing bundle'));
       expect(checkBundle('[1, 2]'), 'not a pairing bundle: not an object');
@@ -225,4 +363,25 @@ void main() {
       expect(checkBundle(bundle()), isNull);
     });
   });
+}
+
+/// A host whose camera stays open until [scan] completes.
+class _SlowHost extends FakeHost {
+  _SlowHost(this.scan);
+
+  final Future<String?> scan;
+  int scans = 0;
+  int picks = 0;
+
+  @override
+  Future<String?> scanQr() {
+    scans++;
+    return scan;
+  }
+
+  @override
+  Future<String?> pickBundle() async {
+    picks++;
+    return null;
+  }
 }

@@ -191,9 +191,12 @@ network. It is never logged or audited (`"action": "wifi default set"` without t
 
   Clients verify the server against `ca`; `fingerprint` (the listener's own certificate) is accepted
   when the host name isn't one the certificate covers.
-- `agentctl pair phone` prints a one-time code (2 minutes, single use). The device makes its own
-  EC P-256 or P-384 key and sends `POST /v1/pair {"code", "csr"}` (the CSR in PEM) without a client
-  certificate; the answer is `{"name", "cert", "ca"}`. Its private key never leaves it.
+- `agentctl pair phone` prints a one-time code (2 minutes, single use), with the listener's URL and
+  the CA's fingerprint; `--qr` shows the same three fields as a QR code for the phone app
+  ([phone.md](phone.md)). The device makes its own EC P-256 or P-384 key and sends
+  `POST /v1/pair {"code", "csr"}` (the CSR in PEM) without a client certificate; the answer is
+  `{"name", "cert", "ca"}`. Its private key never leaves it. The listener sends the CA in its
+  certificate chain, so a device that knows only the fingerprint can check it before it sends the code.
 
 Pairing a name again replaces its certificate. `agentctl devices` lists everything paired, and how
 each board is connected right now (USB or Wi-Fi);

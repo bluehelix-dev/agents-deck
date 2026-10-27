@@ -1,6 +1,7 @@
 package pki
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -50,6 +51,11 @@ func TestServerAndDeviceCertificatesVerify(t *testing.T) {
 		if _, err := leaf.Verify(x509.VerifyOptions{Roots: ca.Pool(), DNSName: host}); err != nil {
 			t.Errorf("server cert for %s: %v", host, err)
 		}
+	}
+	// The chain carries the CA, so a device pairing from a QR code can match
+	// its fingerprint against the scanned one.
+	if len(srv.Certificate) != 2 || !bytes.Equal(srv.Certificate[1], ca.Cert.Raw) {
+		t.Errorf("server chain has %d certificates; want the leaf and the CA", len(srv.Certificate))
 	}
 	// A second call keeps the same certificate; a new address reissues it.
 	again, _ := ca.ServerCert(filepath.Join(dir, "s.pem"), filepath.Join(dir, "s.key"), []string{"192.0.2.10"})
