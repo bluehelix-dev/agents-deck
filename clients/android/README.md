@@ -14,9 +14,10 @@ clipboard, and **import phone.json** takes a bundle from `agentctl pair phone --
 --host <the computer's LAN address>`. `agentctl devices revoke phone` cuts the phone off.
 
 A long press on the board opens the settings: which deck the phone is paired with and at what address,
-whether the screen stays on while the deck is in front (on by default, like the panel), pairing again
-(a QR code, a pasted code or a bundle), forgetting the pairing, and the app's own version with
-**check for updates**. The app updates itself from this repository's GitHub releases: once per start it
+whether the screen stays on while the deck is in front (on by default, like the panel), whether the
+phone buzzes and posts a notification when an agent turns to waiting on you (on by default; see
+[docs/phone.md](../../docs/phone.md#when-an-agent-needs-you)), pairing again (a QR code, a pasted
+code or a bundle), forgetting the pairing, and the app's own version with **check for updates**. The app updates itself from this repository's GitHub releases: once per start it
 compares the newest release's APK (by its `SHA256SUMS` entry) with the one it runs from, a strip on
 the board says when a newer one is out, and **update to v…** downloads it, checks it and opens the
 system installer ([docs/phone.md](../../docs/phone.md#updating-the-app)). The system's back gesture

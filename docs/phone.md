@@ -69,6 +69,18 @@ The other way, the desk panel's, with a bundle you carry over yourself:
 The difference from the QR code: the key is made on the computer and travels in a file. For your own
 phone on your own network that's the desk panel's trade-off, and revoking is the same one command.
 
+## When an agent needs you
+
+The board shows it (a solid orange tile), and the phone says it: when an agent on the deck turns to
+waiting, for a permission prompt or a question, the phone gives a short double buzz and posts a
+notification with the agent's name and what it asks (the command, or the question). Tapping the
+notification brings the deck to the front; it comes down by itself once the agent is answered or
+stops waiting. What is already waiting when the app connects doesn't buzz: you can see that. The
+switch **buzz when an agent needs you** in the settings turns it off; Android 13 and newer ask once
+whether the app may post notifications, and without that the buzz alone remains. The app has to be
+running for this: it hears about the deck over its live connection, which Android stops when the
+app leaves the screen.
+
 ## Updating the app
 
 The app updates itself from this repository's GitHub releases (the repository is a constant in

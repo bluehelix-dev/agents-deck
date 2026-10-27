@@ -33,6 +33,11 @@ class FakeHost implements PhoneHost {
   /// The APKs handed to the installer.
   final installed = <String>[];
 
+  /// Alerts raised and taken down, and whether the permission was asked for.
+  final alerts = <(String, String, String)>[];
+  final cleared = <String>[];
+  int alertsEnabled = 0;
+
   @override
   Future<String?> pickBundle() async => nextPick;
 
@@ -66,6 +71,16 @@ class FakeHost implements PhoneHost {
 
   @override
   Future<void> installApk(String path) async => installed.add(path);
+
+  @override
+  Future<void> alert(String id, String title, String body) async =>
+      alerts.add((id, title, body));
+
+  @override
+  Future<void> clearAlert(String id) async => cleared.add(id);
+
+  @override
+  Future<void> enableAlerts() async => alertsEnabled++;
 }
 
 /// A bundle built from the package's test PKI.
@@ -237,6 +252,41 @@ void main() {
       final again = Phone(dir: dir.path, host: FakeHost());
       await again.start();
       expect(again.keepScreenOn.value, isFalse);
+    });
+
+    testWidgets('buzz when an agent needs you: on by default, persists', (
+      tester,
+    ) async {
+      await phone.start();
+      expect(phone.alerts.value, isTrue);
+      expect(host.alertsEnabled, 1); // the permission is asked for at start
+      File(phone.bundlePath).writeAsStringSync(bundle());
+      await pumpPhone(tester, const Size(1080, 2340));
+      await tester.longPressAt(boardBackground(tester));
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('alerts')));
+      await tester.tap(find.byKey(const Key('alerts')));
+      await tester.pump();
+      expect(phone.alerts.value, isFalse);
+      final saved = jsonDecode(File(phone.settingsPath).readAsStringSync());
+      expect(saved, {'keepScreenOn': true, 'alerts': false});
+      // Off stays off across a start; turning it on asks for the permission.
+      final again = Phone(dir: dir.path, host: host, releases: releases);
+      await again.start();
+      expect(again.alerts.value, isFalse);
+      expect(host.alertsEnabled, 1);
+      await again.setAlerts(true);
+      expect(host.alertsEnabled, 2);
+    });
+
+    testWidgets('the deck buzzes the phone when an agent turns to waiting', (
+      tester,
+    ) async {
+      File(phone.bundlePath).writeAsStringSync(bundle());
+      final source = FakeAgentsSource.demo();
+      await pumpPhone(tester, const Size(1080, 2340), source: source);
+      // The demo deck has agents waiting already: seen, not buzzed.
+      expect(host.alerts, isEmpty);
     });
 
     testWidgets('forget pairing takes two taps and removes the bundle', (

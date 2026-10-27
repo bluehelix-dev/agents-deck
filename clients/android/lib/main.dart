@@ -6,6 +6,7 @@ import 'package:agents_deck_ui/agents_deck_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'alerts.dart';
 import 'updates.dart';
 
 /// The native side (MainActivity.kt): the app's private folder, the system
@@ -40,7 +41,7 @@ Future<void> main() async {
 
 /// What the shell asks of the phone itself: the native side in the app, a
 /// stand-in in tests.
-abstract class PhoneHost {
+abstract class PhoneHost implements AlertSink {
   /// The system document picker: the file's text, or null when cancelled.
   Future<String?> pickBundle();
 
@@ -68,6 +69,10 @@ abstract class PhoneHost {
   /// Hands a downloaded APK to the system's package installer. Throws a
   /// [PlatformException] when it can't open.
   Future<void> installApk(String path);
+
+  /// Asks for the notification permission where Android wants asking
+  /// (13 and up); the buzz works without it.
+  Future<void> enableAlerts();
 }
 
 class ChannelHost implements PhoneHost {
@@ -100,6 +105,17 @@ class ChannelHost implements PhoneHost {
   @override
   Future<void> installApk(String path) =>
       channel.invokeMethod<void>('installApk', path);
+
+  @override
+  Future<void> alert(String id, String title, String body) => channel
+      .invokeMethod<void>('alert', {'id': id, 'title': title, 'body': body});
+
+  @override
+  Future<void> clearAlert(String id) =>
+      channel.invokeMethod<void>('clearAlert', id);
+
+  @override
+  Future<void> enableAlerts() => channel.invokeMethod<void>('enableAlerts');
 }
 
 /// This phone's own state, in the app's private folder: the pairing bundle
@@ -125,6 +141,11 @@ class Phone {
   /// a status board that goes dark isn't one.
   final keepScreenOn = ValueNotifier<bool>(true);
 
+  /// Whether the phone buzzes and shows a notification when an agent turns
+  /// to waiting on you (alerts.dart). On by default: that is the point of a
+  /// board beside you.
+  final alerts = ValueNotifier<bool>(true);
+
   (AgentsConfig?, String?) loadConfig() =>
       AgentsConfig.load(paths: [bundlePath]);
 
@@ -140,10 +161,14 @@ class Phone {
       if (j is Map && j['keepScreenOn'] is bool) {
         keepScreenOn.value = j['keepScreenOn'] as bool;
       }
+      if (j is Map && j['alerts'] is bool) {
+        alerts.value = j['alerts'] as bool;
+      }
     } catch (_) {
       // No settings yet, or unreadable: the defaults.
     }
     await host.keepScreenOn(keepScreenOn.value);
+    if (alerts.value) await host.enableAlerts();
     try {
       info = await host.appInfo();
     } on PlatformException {
@@ -167,12 +192,27 @@ class Phone {
 
   Future<void> setKeepScreenOn(bool on) async {
     keepScreenOn.value = on;
-    try {
-      File(settingsPath).writeAsStringSync(jsonEncode({'keepScreenOn': on}));
-    } on FileSystemException {
-      // The setting still applies for this run.
-    }
+    _saveSettings();
     await host.keepScreenOn(on);
+  }
+
+  Future<void> setAlerts(bool on) async {
+    alerts.value = on;
+    _saveSettings();
+    if (on) await host.enableAlerts();
+  }
+
+  void _saveSettings() {
+    try {
+      File(settingsPath).writeAsStringSync(
+        jsonEncode({
+          'keepScreenOn': keepScreenOn.value,
+          'alerts': alerts.value,
+        }),
+      );
+    } on FileSystemException {
+      // The settings still apply for this run.
+    }
   }
 
   /// Scans the QR code `agentctl pair <name> --qr` shows and pairs with
@@ -330,15 +370,21 @@ class PhoneDeck extends StatefulWidget {
 class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
   final _stage = GlobalKey<CardMorphState>();
   bool _settingsOpen = false;
+  late final WaitingAlerts _alerts;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _alerts = WaitingAlerts(
+      sink: widget.phone.host,
+      enabled: widget.phone.alerts,
+    )..watch(widget.source.snapshot);
   }
 
   @override
   void dispose() {
+    _alerts.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -1075,6 +1121,36 @@ class _SettingsCardState extends State<SettingsCard>
                 key: const Key('keep-screen-on'),
                 on: on,
                 onChanged: widget.phone.setKeepScreenOn,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        ValueListenableBuilder<bool>(
+          valueListenable: widget.phone.alerts,
+          builder: (context, on, _) => Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'buzz when an agent needs you',
+                      style: DeckHud.rm(20, DeckHud.ink),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'a vibration and a notification for a permission '
+                      'prompt or a question',
+                      style: DeckHud.mono(size: 15, color: DeckHud.dim),
+                    ),
+                  ],
+                ),
+              ),
+              DeckToggle(
+                key: const Key('alerts'),
+                on: on,
+                onChanged: widget.phone.setAlerts,
               ),
             ],
           ),

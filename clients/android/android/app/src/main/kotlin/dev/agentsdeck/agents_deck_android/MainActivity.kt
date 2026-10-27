@@ -1,9 +1,22 @@
 package dev.agentsdeck.agents_deck_android
 
+import android.Manifest
 import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.WindowManager
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.journeyapps.barcodescanner.ScanIntentResult
 import com.journeyapps.barcodescanner.ScanOptions
@@ -16,9 +29,10 @@ import java.security.MessageDigest
 // The native side of `agents_deck/files`: where the pairing bundle lives
 // (the app's private folder, which no other app can read), the system file
 // picker that reads one in, the QR scanner (a live viewfinder in this app,
-// ZXing's), the pairing itself (Pairing.kt), the screen's wake lock, and the
-// app's own version and installer (updates from GitHub releases, updates.dart).
-// No plugins: a MethodChannel is enough.
+// ZXing's), the pairing itself (Pairing.kt), the screen's wake lock, the
+// app's own version and installer (updates from GitHub releases, updates.dart),
+// and the buzz when an agent needs you (alerts.dart). No plugins: a
+// MethodChannel is enough.
 class MainActivity : FlutterActivity() {
     private var pending: MethodChannel.Result? = null
 
@@ -31,6 +45,24 @@ class MainActivity : FlutterActivity() {
                 "scanQr" -> scanQr(result)
                 "pair" -> pair(call.arguments as? String ?: "", result)
                 "appInfo" -> appInfo(result)
+                "alert" -> {
+                    val m = call.arguments as? Map<*, *>
+                    alert(m?.get("id") as? String ?: "", m?.get("title") as? String ?: "", m?.get("body") as? String ?: "")
+                    result.success(null)
+                }
+                "clearAlert" -> {
+                    NotificationManagerCompat.from(this).cancel((call.arguments as? String ?: "").hashCode())
+                    result.success(null)
+                }
+                "enableAlerts" -> {
+                    // Android 13+ asks before an app may post notifications.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), ALERTS)
+                    }
+                    result.success(null)
+                }
                 "installApk" -> installApk(call.arguments as? String ?: "", result)
                 "keepScreenOn" -> {
                     // A status board that goes dark isn't one; the user turns this off in settings.
@@ -79,6 +111,49 @@ class MainActivity : FlutterActivity() {
         }.createScanIntent(this)
         pending = result
         startActivityForResult(intent, SCAN)
+    }
+
+    // An agent needs you: a short double buzz and a notification that names
+    // it and what it asks (tapping it brings the deck to the front). The
+    // notification's id is the agent's, so a second prompt replaces the
+    // first and clearAlert finds it. Without the notification permission
+    // only the buzz happens.
+    private fun alert(id: String, title: String, body: String) {
+        val effect = VibrationEffect.createWaveform(longArrayOf(0, 120, 90, 120), -1)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator?.vibrate(effect)
+        } else {
+            @Suppress("DEPRECATION")
+            (getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)?.vibrate(effect)
+        }
+        val manager = NotificationManagerCompat.from(this)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(CHANNEL_WAITING, "an agent needs you", NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = "a permission prompt or a question on the deck"
+                    enableVibration(true)
+                }
+            )
+        }
+        val open = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val note = NotificationCompat.Builder(this, CHANNEL_WAITING)
+            .setSmallIcon(R.mipmap.ic_launcher_monochrome)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setAutoCancel(true)
+            .setContentIntent(open)
+            .build()
+        try {
+            manager.notify(id.hashCode(), note)
+        } catch (e: SecurityException) {
+            // No permission: the buzz was the alert.
+        }
     }
 
     // This build: its version, and the SHA-256 of the installed APK, which is
@@ -189,6 +264,8 @@ class MainActivity : FlutterActivity() {
         private const val CHANNEL = "agents_deck/files"
         private const val PICK = 7341
         private const val SCAN = 7342
+        private const val ALERTS = 7343
+        private const val CHANNEL_WAITING = "waiting"
         private const val MAX_BYTES = 1 shl 20 // a bundle is a few KB
     }
 }
