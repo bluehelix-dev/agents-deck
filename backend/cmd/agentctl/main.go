@@ -245,15 +245,34 @@ func hooks(args []string) error {
 		}
 	case "status", "":
 		evs := claude.HooksInstalled(path)
-		if len(evs) == 0 {
+		switch {
+		case len(evs) == 0:
 			fmt.Printf("not installed (%s): `agentctl hooks install` makes sessions you start yourself report to the deck\n", path)
-		} else {
+		case len(evs) < len(claude.Events):
+			fmt.Printf("installed in %s for %s\nmissing %s: run `agentctl hooks install` again\n", path, strings.Join(evs, ", "), strings.Join(missing(evs), ", "))
+		default:
 			fmt.Printf("installed in %s: %s\n", path, strings.Join(evs, ", "))
 		}
 	default:
 		return fmt.Errorf("usage: agentctl hooks [install | remove | status]")
 	}
 	return nil
+}
+
+// missing lists the hook events the deck listens to that aren't installed:
+// a newer agentctl may listen to more than the one that installed them.
+func missing(installed []string) []string {
+	have := map[string]bool{}
+	for _, ev := range installed {
+		have[ev] = true
+	}
+	var out []string
+	for _, ev := range claude.Events {
+		if !have[ev] {
+			out = append(out, ev)
+		}
+	}
+	return out
 }
 
 // ---- client helpers ------------------------------------------------------------

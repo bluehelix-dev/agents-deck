@@ -278,6 +278,7 @@ func (a *agent) compact() {
 	a.ctx = 40_000 + int64(a.r.Intn(30_000))
 	a.line(map[string]any{"type": "system", "subtype": "compact_boundary", "content": "Conversation compacted"})
 	a.hook("SessionStart", map[string]any{"source": "compact"})
+	a.hook("PostCompact", map[string]any{"trigger": "auto"})
 	a.print(cDim + "✻ Conversation compacted" + cReset)
 }
 

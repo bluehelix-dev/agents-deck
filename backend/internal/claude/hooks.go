@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/brushknight/agents-deck/backend/internal/model"
 	"github.com/brushknight/agents-deck/backend/internal/store"
@@ -15,11 +16,16 @@ import (
 // Events the per-agent settings file subscribes to.
 var Events = []string{
 	"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse",
-	"PermissionRequest", "Notification", "Stop", "SessionEnd", "PreCompact",
+	"PermissionRequest", "Notification", "Stop", "SessionEnd", "PreCompact", "PostCompact",
 }
 
 // CompactTool is the activity shown while Claude compacts the conversation.
 const CompactTool = "Compact"
+
+// CompactTimeout is how long a compaction may show before the daemon ends it
+// by itself: its end (PostCompact, or the transcript's boundary line) got
+// lost, or Claude Code is too old to send it.
+const CompactTimeout = 5 * time.Minute
 
 // HooksSettings is the JSON passed to `claude --settings`: every event runs
 // `<agentctl> hook`, which forwards the payload to the daemon and prints nothing.
@@ -49,7 +55,7 @@ type Event struct {
 	NotificationType string          `json:"notification_type"`
 	Source           string          `json:"source"`
 	Reason           string          `json:"reason"`
-	Trigger          string          `json:"trigger"` // PreCompact: manual | auto
+	Trigger          string          `json:"trigger"` // PreCompact, PostCompact: manual | auto
 }
 
 // Apply folds one hook event into the agent. It returns true when the agent
@@ -69,13 +75,24 @@ func Apply(e *store.Entry, ev Event) (changed, scanPane bool) {
 	}
 	switch ev.Name {
 	case "PreCompact":
-		e.SetStatus(model.Running)
+		// Back to idle at the end when it isn't mid-turn now: a /compact you
+		// typed, or Claude Code compacting an idle session on its own (it does
+		// that after an hour, before the prompt cache expires).
+		e.CompactToIdle = ev.Trigger == "manual" || e.A.Status != model.Running
+		e.CompactSince = time.Now()
 		detail := "compacting conversation"
 		if ev.Trigger == "auto" {
 			detail = "auto-compacting · context full"
+			if e.CompactToIdle {
+				detail = "auto-compacting · idle session"
+			}
 		}
+		e.SetStatus(model.Running)
 		e.A.Activity = &model.Activity{Tool: CompactTool, Detail: detail}
-		e.CompactManual = ev.Trigger == "manual"
+	case "PostCompact":
+		if !EndCompact(e) {
+			return false, false
+		}
 	case "SessionStart":
 		if ev.Source == "compact" {
 			if !EndCompact(e) {
@@ -152,19 +169,39 @@ func Apply(e *store.Entry, ev Event) (changed, scanPane bool) {
 	return true, false
 }
 
-// EndCompact clears a running compaction: a /compact you typed leaves the
-// agent idle (it was waiting for you before), an auto-compact goes on working.
+// EndCompact clears a running compaction: one that began idle (a /compact you
+// typed, or Claude compacting an idle session) leaves the agent idle again, an
+// auto-compact mid-turn goes on working.
 func EndCompact(e *store.Entry) bool {
 	if e.A.Activity == nil || e.A.Activity.Tool != CompactTool {
 		return false
 	}
-	if e.CompactManual {
+	if e.CompactToIdle {
 		e.SetStatus(model.Idle)
 	} else {
 		e.A.Activity = nil
 	}
-	e.CompactManual = false
+	e.CompactToIdle = false
+	e.CompactSince = time.Time{}
 	return true
+}
+
+// EndStaleCompact ends a compaction whose end never arrived: one older than
+// CompactTimeout, or older than a minute while Claude Code reports the
+// session idle (reportedIdle), which then leaves the agent idle. A compaction
+// the daemon restarted into has no start time and ends at once.
+func EndStaleCompact(e *store.Entry, reportedIdle bool) bool {
+	if e.A.Activity == nil || e.A.Activity.Tool != CompactTool {
+		return false
+	}
+	age := time.Since(e.CompactSince)
+	if age < CompactTimeout && !(reportedIdle && age > time.Minute) {
+		return false
+	}
+	if reportedIdle {
+		e.CompactToIdle = true
+	}
+	return EndCompact(e)
 }
 
 // DefaultPermissionOptions mirror Claude Code's dialog when the pane can't be read.

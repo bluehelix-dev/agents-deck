@@ -57,7 +57,14 @@ Claude Code sessions running in any terminal, or in the Claude desktop app, are 
   from their next start every session on the machine tells the deck what it runs and what it waits
   for, including permission prompts with the command. The deck only listens: you still answer in
   the session itself, and a session never waits for the deck. `agentctl hooks remove` takes the hook
-  out again, `agentctl hooks status` shows it.
+  out again, `agentctl hooks status` shows it. After updating `agentctl`, run `agentctl hooks
+  install` once more: a newer deck may listen to events the old one didn't (`hooks status` names
+  what is missing).
+- **Compaction.** While Claude compacts the conversation the critter is squeezed flat and the tile
+  says so, mid-turn ("context full") and when Claude Code compacts a session that sat idle for an
+  hour ("idle session"). The end comes from Claude Code's PostCompact hook or the transcript; a
+  compaction whose end gets lost is ended by the deck after a minute once Claude Code reports the
+  session idle, or after five minutes in any case.
 - **Where it keeps its place.** A watched session goes back to the slot it had when it shows up
   again, across restarts of the daemon too (`slots.json` next to the registry).
 

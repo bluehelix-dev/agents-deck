@@ -113,6 +113,9 @@ func (d *Daemon) Run() {
 				return false // mirrored by WatchCodex
 			}
 			changed := claude.Tail(e)
+			if claude.EndStaleCompact(e, false) {
+				changed = true
+			}
 			alive := live[e.TmuxName]
 			young := time.Since(e.A.StartedAt) < 3*time.Second // tmux session still being created
 			switch {

@@ -26,7 +26,8 @@ type Entry struct {
 	CustomTitle   string      `json:"-"`                  // Claude's custom-title (/rename), from the transcript
 	External      bool        `json:"-"`                  // mirrored from another app (Codex, Orca, herdr, cmux); never persisted
 	Background    bool        `json:"-"`                  // shown running only because its subagents are writing
-	CompactManual bool        `json:"-"`                  // the running compaction is a /compact you typed
+	CompactToIdle bool        `json:"-"`                  // the running compaction began idle: it ends idle too
+	CompactSince  time.Time   `json:"-"`                  // when the running compaction began (hooks.go EndStaleCompact)
 	LiveTTY       string      `json:"-"`                  // a watched hand-started session: its terminal
 	LiveAttach    string      `json:"-"`                  // a watched background session: its `claude attach` id
 	LiveToolUse   string      `json:"-"`                  // a watched session: the tool call its prompt was built for

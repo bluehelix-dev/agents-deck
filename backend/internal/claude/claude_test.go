@@ -423,6 +423,55 @@ func TestCompaction(t *testing.T) {
 	if changed, _ := Apply(e, Event{Name: "SessionStart", Source: "compact"}); changed {
 		t.Fatal("no compaction running")
 	}
+	// PostCompact ends an auto-compact mid-turn the same way: the turn goes on.
+	Apply(e, Event{Name: "PreCompact", Trigger: "auto"})
+	Apply(e, Event{Name: "PostCompact", Trigger: "auto"})
+	if e.A.Status != model.Running || e.A.Activity != nil || e.CompactToIdle {
+		t.Fatalf("post-compact mid-turn: %+v %+v", e.A, e.A.Activity)
+	}
+	// Claude Code compacting an idle session on its own: the tile shows it,
+	// and PostCompact (the only end such a compaction has) leaves it idle and
+	// not hungry, as it was.
+	e.SetStatus(model.Idle)
+	e.A.Unseen = false
+	Apply(e, Event{Name: "PreCompact", Trigger: "auto"})
+	if e.A.Status != model.Running || e.A.Activity == nil || e.A.Activity.Detail != "auto-compacting · idle session" || !e.CompactToIdle {
+		t.Fatalf("idle start: %+v %+v", e.A, e.A.Activity)
+	}
+	Apply(e, Event{Name: "PostCompact", Trigger: "auto"})
+	if e.A.Status != model.Idle || e.A.Activity != nil || e.A.Unseen {
+		t.Fatalf("idle end: %+v %+v", e.A, e.A.Activity)
+	}
+	if changed, _ := Apply(e, Event{Name: "PostCompact", Trigger: "auto"}); changed {
+		t.Fatal("no compaction running")
+	}
+}
+
+func TestStaleCompaction(t *testing.T) {
+	e := &store.Entry{}
+	e.SetStatus(model.Running)
+	Apply(e, Event{Name: "PreCompact", Trigger: "auto"})
+	if EndStaleCompact(e, false) || EndStaleCompact(e, true) {
+		t.Fatal("a fresh compaction is not stale")
+	}
+	// Claude Code reports the session idle: after a minute that's the end.
+	e.CompactSince = time.Now().Add(-2 * time.Minute)
+	if EndStaleCompact(e, false) {
+		t.Fatal("two minutes mid-turn is not stale yet")
+	}
+	if !EndStaleCompact(e, true) || e.A.Status != model.Idle || e.A.Activity != nil {
+		t.Fatalf("reported idle: %+v %+v", e.A, e.A.Activity)
+	}
+	// Without a report, the timeout ends it and the turn goes on.
+	e.SetStatus(model.Running)
+	Apply(e, Event{Name: "PreCompact", Trigger: "auto"})
+	e.CompactSince = time.Now().Add(-CompactTimeout - time.Second)
+	if !EndStaleCompact(e, false) || e.A.Status != model.Running || e.A.Activity != nil {
+		t.Fatalf("timed out: %+v %+v", e.A, e.A.Activity)
+	}
+	if EndStaleCompact(e, false) {
+		t.Fatal("nothing left to end")
+	}
 }
 
 func TestInterruptedAt(t *testing.T) {
