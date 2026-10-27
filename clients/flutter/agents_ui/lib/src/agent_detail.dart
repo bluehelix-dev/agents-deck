@@ -187,6 +187,10 @@ class _AgentDetailState extends State<AgentDetail> {
     return r;
   }
 
+  /// A session started by hand and watched: its prompts show here, but are
+  /// answered in its own terminal (the daemon has no way in).
+  static bool _watched(Agent a) => a.external && a.tool == 'claude' && !a.inApp;
+
   void _answer(Agent a, AgentPrompt p, String key) =>
       _run(key, () => widget.source.answer(a.id, p.id, key), closeOnOk: true);
 
@@ -1063,7 +1067,10 @@ class _AgentDetailState extends State<AgentDetail> {
               ),
               Expanded(
                 child: Text(
-                  _note ?? 'answer here or at the terminal',
+                  _note ??
+                      (_watched(a)
+                          ? 'answer it in its own terminal'
+                          : 'answer here or at the terminal'),
                   key: _note == null ? null : const Key('agent-note'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1087,7 +1094,7 @@ class _AgentDetailState extends State<AgentDetail> {
     final button = AgentButton(
       key: Key('agent-option-${o.key}'),
       label: '${o.key}  ${sent ? 'sent' : o.label}',
-      onTap: _busy ? null : () => _answer(a, p, o.key),
+      onTap: _busy || _watched(a) ? null : () => _answer(a, p, o.key),
       fill: fill,
       ink: ink,
       outline: flash?.$1 ?? DeckHud.bg,
@@ -1192,32 +1199,43 @@ class _AgentDetailState extends State<AgentDetail> {
                 pressedFill: DeckHud.ink,
                 pressedInk: DeckHud.bg,
               ),
-              Expanded(
-                child: AgentButton(
-                  key: const Key('agent-send'),
-                  label: sent
-                      ? 'sent'
-                      : (selected == null ? 'send' : 'send ${selected.key}'),
-                  onTap: _busy || selected == null
-                      ? null
-                      : () => _run(
-                          'send',
-                          () => widget.source.answer(a.id, p.id, selected.key),
-                          closeOnOk: true,
-                        ),
-                  fill:
-                      sendFlash?.$1 ??
-                      (selected == null ? DeckHud.panel : DeckHud.accent),
-                  ink:
-                      sendFlash?.$2 ??
-                      (selected == null ? DeckHud.dim : DeckHud.bg),
-                  outline:
-                      sendFlash?.$1 ??
-                      (selected == null ? DeckHud.panel : DeckHud.accent),
-                  pressedFill: DeckHud.ink,
-                  pressedInk: DeckHud.bg,
+              if (_watched(a))
+                Expanded(
+                  child: Text(
+                    'answer it in its own terminal',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: DeckHud.mono(size: 15, color: DeckHud.dim),
+                  ),
+                )
+              else
+                Expanded(
+                  child: AgentButton(
+                    key: const Key('agent-send'),
+                    label: sent
+                        ? 'sent'
+                        : (selected == null ? 'send' : 'send ${selected.key}'),
+                    onTap: _busy || selected == null
+                        ? null
+                        : () => _run(
+                            'send',
+                            () =>
+                                widget.source.answer(a.id, p.id, selected.key),
+                            closeOnOk: true,
+                          ),
+                    fill:
+                        sendFlash?.$1 ??
+                        (selected == null ? DeckHud.panel : DeckHud.accent),
+                    ink:
+                        sendFlash?.$2 ??
+                        (selected == null ? DeckHud.dim : DeckHud.bg),
+                    outline:
+                        sendFlash?.$1 ??
+                        (selected == null ? DeckHud.panel : DeckHud.accent),
+                    pressedFill: DeckHud.ink,
+                    pressedInk: DeckHud.bg,
+                  ),
                 ),
-              ),
               if (_canFocus(a)) ...[
                 const SizedBox(width: 14),
                 SizedBox(

@@ -35,6 +35,17 @@ import java.security.MessageDigest
 // MethodChannel is enough.
 class MainActivity : FlutterActivity() {
     private var pending: MethodChannel.Result? = null
+    private var inFront = false
+
+    override fun onResume() {
+        super.onResume()
+        inFront = true
+    }
+
+    override fun onPause() {
+        inFront = false
+        super.onPause()
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -113,11 +124,12 @@ class MainActivity : FlutterActivity() {
         startActivityForResult(intent, SCAN)
     }
 
-    // An agent needs you: a short double buzz and a notification that names
-    // it and what it asks (tapping it brings the deck to the front). The
-    // notification's id is the agent's, so a second prompt replaces the
-    // first and clearAlert finds it. Without the notification permission
-    // only the buzz happens.
+    // An agent needs you: a short double buzz, and, when the deck isn't on
+    // screen, a notification that names it and what it asks (tapping it
+    // brings the deck to the front). With the board in front the orange
+    // tile says it all. The notification's id is the agent's, so a second
+    // prompt replaces the first and clearAlert finds it. Without the
+    // notification permission only the buzz happens.
     private fun alert(id: String, title: String, body: String) {
         val effect = VibrationEffect.createWaveform(longArrayOf(0, 120, 90, 120), -1)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -126,6 +138,7 @@ class MainActivity : FlutterActivity() {
             @Suppress("DEPRECATION")
             (getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)?.vibrate(effect)
         }
+        if (inFront) return
         val manager = NotificationManagerCompat.from(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(

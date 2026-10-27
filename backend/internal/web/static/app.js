@@ -1287,6 +1287,7 @@ function buildPrompt(a) {
   };
 
   const answer = async (key) => {
+    if (watched(a)) { note.className = 'note'; note.textContent = 'answer it in its own terminal'; return; }
     const cur = sending.get(w.id);
     if (cur) return;
     sending.set(w.id, { key, status: 'sending' });
@@ -1331,7 +1332,7 @@ function buildPrompt(a) {
     sendBtn.addEventListener('click', () => selected && answer(selected));
     kids.push(h('h3', { class: 'p-title', id: 'p-title', text: w.title }));
     if (w.detail) kids.push(h('span', { class: 'val', text: w.detail }));
-    kids.push(h('div', { class: 'sec grow' }, optList), h('div', { class: 'actions' }, sendBtn, focusBtn('narrow', 'type in terminal')), note);
+    kids.push(h('div', { class: 'sec grow' }, optList), h('div', { class: 'actions' }, watched(a) ? h('span', { class: 'lbl', text: 'answer it in its own terminal' }) : sendBtn, focusBtn('narrow', 'type in terminal')), note);
   } else {
     panel.className = 'detail p-accent';
     kids.push(h('div', { class: 'sec' },

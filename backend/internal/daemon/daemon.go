@@ -290,10 +290,7 @@ func (d *Daemon) Hook(agentID string, body []byte) error {
 		var changed bool
 		changed, scan = claude.Apply(e, ev)
 		if bySession {
-			e.LiveHooks = true
-			if changed && e.A.Waiting != nil && !strings.HasPrefix(e.A.Waiting.Context, "answer it in its own terminal") {
-				e.A.Waiting.Context = strings.TrimSuffix("answer it in its own terminal · "+e.A.Waiting.Context, " · ")
-			}
+			e.LiveHooks = true // from here on its hooks set its status
 		}
 		if e.A.Unseen && front == e.TmuxName {
 			e.A.Unseen = false // finished while you were watching it

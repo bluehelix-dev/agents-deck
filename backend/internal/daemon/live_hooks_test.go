@@ -28,7 +28,7 @@ func TestWatchedSessionHooks(t *testing.T) {
 	if e.A.Status != model.Waiting || e.A.Waiting == nil || e.A.Waiting.Kind != "permission" || e.A.Waiting.Detail != "npm test" {
 		t.Fatalf("permission not shown: %s %+v", e.A.Status, e.A.Waiting)
 	}
-	if e.A.Waiting.Context != "answer it in its own terminal · bash · /w/app" {
+	if e.A.Waiting.Context != "bash · /w/app" {
 		t.Fatalf("context: %q", e.A.Waiting.Context)
 	}
 	if !e.LiveHooks {

@@ -234,6 +234,56 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a watched session shows its prompts but does not answer them', (
+    tester,
+  ) async {
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final infra = (j['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['id'] == 'h0m3l4',
+    );
+    infra['external'] = true; // a session started by hand, watched
+    final source = FakeAgentsSource.fromState(j);
+    await _pumpApp(tester, source);
+    await _open(tester, 'infra-network');
+    expect(find.text('answer it in its own terminal'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('agent-option-1')));
+    await tester.pump();
+    expect(source.calls.where((c) => c.$1 == 'answer'), isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a watched question shows its choices without send', (
+    tester,
+  ) async {
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final infra = (j['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['id'] == 'h0m3l4',
+    );
+    infra['external'] = true;
+    infra['waiting'] = {
+      'id': 'q1',
+      'kind': 'question',
+      'title': 'which blue?',
+      'detail': '',
+      'context': 'question · 1 of 1',
+      'options': [
+        {'key': '1', 'label': 'sky', 'primary': true},
+        {'key': '2', 'label': 'navy'},
+      ],
+    };
+    final asking = FakeAgentsSource.fromState(j);
+    await _pumpApp(tester, asking);
+    await _open(tester, 'infra-network');
+    expect(find.text('sky'), findsOneWidget);
+    expect(find.byKey(const Key('agent-send')), findsNothing);
+    expect(find.text('answer it in its own terminal'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('idle and error cards: no interrupt, error message shown', (
     tester,
   ) async {

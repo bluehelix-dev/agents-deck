@@ -220,7 +220,6 @@ func (d *Daemon) liveStatus(e *store.Entry, l claude.Live) bool {
 			return false
 		}
 		p := claude.PromptFor(e, ptool, input)
-		p.Context = "answer it in its own terminal · " + p.Context
 		e.SetStatus(model.Waiting)
 		e.A.Waiting = p
 		e.A.Activity = nil

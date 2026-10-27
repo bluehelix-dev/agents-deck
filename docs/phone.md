@@ -72,10 +72,10 @@ phone on your own network that's the desk panel's trade-off, and revoking is the
 ## When an agent needs you
 
 The board shows it (a solid orange tile), and the phone says it: when an agent on the deck turns to
-waiting, for a permission prompt or a question, the phone gives a short double buzz and posts a
-notification with the agent's name and what it asks (the command, or the question). Tapping the
-notification brings the deck to the front; it comes down by itself once the agent is answered or
-stops waiting. What is already waiting when the app connects doesn't buzz: you can see that. The
+waiting, for a permission prompt or a question, the phone gives a short double buzz, and, when the
+app isn't on screen, posts a notification with the agent's name and what it asks (the command, or
+the question); with the board in front, the orange tile is the message. Tapping the notification
+brings the deck to the front; it comes down by itself once the agent is answered or stops waiting. What is already waiting when the app connects doesn't buzz: you can see that. The
 switch **buzz when an agent needs you** in the settings turns it off; Android 13 and newer ask once
 whether the app may post notifications, and without that the buzz alone remains. The app has to be
 running for this: it hears about the deck over its live connection, which Android stops when the
