@@ -625,6 +625,64 @@ void main() {
     );
     await _open(tester, 'checkout-api');
     expect(find.text('workflow · 2 agents'), findsOneWidget);
+    // In the crew list a workflow agent's phase is its kind.
+    expect(find.text('find:auth'), findsOneWidget);
+    expect(find.text('Suche'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the card lists the crew: task, kind and tool of each', (
+    tester,
+  ) async {
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final api = (j['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['id'] == 'k3f9a2',
+    );
+    api['subagents'] = [
+      {
+        'id': 's1',
+        'title': 'find every caller of resetTool',
+        'type': 'Explore',
+        'tool': 'Grep',
+      },
+      {
+        'id': 's2',
+        'title': 'write the migration',
+        'type': 'general-purpose',
+        'tool': 'Edit',
+      },
+      for (var i = 3; i <= 6; i++)
+        {'id': 's$i', 'title': 'task $i', 'type': 'fork', 'tool': 'Bash'},
+    ];
+    await _pumpApp(tester, FakeAgentsSource.fromState(j));
+    await _open(tester, 'checkout-api');
+    final list = find.byKey(const Key('agent-subagents'));
+    expect(list, findsOneWidget);
+    expect(find.text('6 subagents'), findsOneWidget);
+    final first = find.byKey(const Key('agent-subagent-s1'));
+    for (final t in ['find every caller of resetTool', 'Explore', 'Grep']) {
+      expect(
+        find.descendant(of: first, matching: find.text(t)),
+        findsOneWidget,
+      );
+    }
+    expect(
+      tester
+          .widget<CritterSprite>(
+            find.descendant(of: first, matching: find.byType(CritterSprite)),
+          )
+          .hat
+          ?.shape,
+      'propeller',
+    );
+    expect(find.text('general'), findsOneWidget);
+    // On the 720 px panel two lines fit next to the last prompt; the rest
+    // is counted.
+    expect(find.byKey(const Key('agent-subagent-s2')), findsOneWidget);
+    expect(find.byKey(const Key('agent-subagent-s3')), findsNothing);
+    expect(find.text('+4 more'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -15,8 +15,9 @@ import 'hats.dart';
 /// * running — what it is doing shows: thinking (glancing eyes, rising
 ///   thought dots, a hand on the chin), reading (eyes scan, magnifier),
 ///   writing and bash (fast legs, ">_" with a blinking cursor), web
-///   (globe), planning (checklist ticking), delegating (an arrow off to the
-///   right, where its subagents climb the tile); any other tool walks with "…";
+///   (globe), planning (checklist ticking), delegating (conducting with a
+///   baton, eyes on its subagents up the tile's right edge); any other tool
+///   walks with "…";
 /// * just finished — a short hop waving a checkered flag, then hungry: eyes up at a
 ///   bobbing cookie, mouth chomping, until its result has been looked at;
 /// * waiting — eyes up, blinking "?";
@@ -181,8 +182,8 @@ int critterFrame(CritterPose pose, int tick) => switch (pose) {
   CritterPose.web => (tick ~/ 8) % 2,
   // One more box ticked every 500 ms.
   CritterPose.plan => (tick ~/ 10) % 4,
-  // Walks at 2 Hz, the arrow nudging forward in step.
-  CritterPose.delegate => (tick ~/ 5) % 2,
+  // The baton beats every 300 ms: up, then down toward the crew.
+  CritterPose.delegate => (tick ~/ 6) % 2,
   // Chomp and bob the cookie every 300 ms.
   CritterPose.hungry => (tick ~/ 6) % 2,
   // Hop every 200 ms; sparkles twinkle in turn.
@@ -402,7 +403,6 @@ class _CritterPainter extends CustomPainter {
   static const _question = ['###', '..#', '.#.', '...', '.#.'];
   static const _bang = ['#', '#', '#', '.', '#'];
   static const _z = ['###', '.#.', '###'];
-  static const _arrow = ['..#.', '####', '..#.'];
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -424,7 +424,6 @@ class _CritterPainter extends CustomPainter {
 
     final legsB = switch (pose) {
       CritterPose.run || CritterPose.bash => f >= 10,
-      CritterPose.delegate => f == 1,
       _ => false,
     };
     final hop = pose == CritterPose.celebrate && f >= 10;
@@ -438,8 +437,10 @@ class _CritterPainter extends CustomPainter {
       case CritterPose.celebrate: // waving the finish flag
       case CritterPose.error: // both up in alarm
         armL = armR = 0;
-      case CritterPose.run || CritterPose.delegate:
+      case CritterPose.run:
         (armL, armR) = legsB ? (1, 2) : (2, 1);
+      case CritterPose.delegate: // conducting: the baton hand up, then down
+        armR = f == 1 ? 1.5 : 0;
       case CritterPose.think: // a hand on the chin
         armR = 1;
       default:
@@ -497,9 +498,11 @@ class _CritterPainter extends CustomPainter {
       case CritterPose.bash:
       case CritterPose.write:
       case CritterPose.plan:
-      case CritterPose.delegate:
         canvas.drawRect(cell(4, 2 + ey + bob, 1, 2), hole);
         canvas.drawRect(cell(9, 2 + ey + bob, 1, 2), hole);
+      case CritterPose.delegate: // eyes on the crew, to the right
+        canvas.drawRect(cell(5, 2 + ey + bob, 1, 2), hole);
+        canvas.drawRect(cell(10, 2 + ey + bob, 1, 2), hole);
       case CritterPose.think:
         // Glancing up, left then right.
         final dx = f >= 10 ? 1.0 : -1.0;
@@ -625,9 +628,14 @@ class _CritterPainter extends CustomPainter {
       }
     }
     if (pose == CritterPose.delegate) {
-      // Pointing the way for its subagents (the ladder up the tile's right
-      // edge shows them): an arrow off to the right, nudging in step.
-      _bitmap(canvas, _arrow, f == 1 ? 14.7 : 14.2, 2.1, 0.9, 0.9, fill, cell);
+      // The conductor's baton in the raised hand: up, then beating down
+      // toward its subagents (the ladder up the tile's right edge).
+      final bx = bot ? 13.0 : 14.0;
+      const up = [(0.0, -1.0), (1.0, -2.0), (2.0, -3.0)];
+      const down = [(0.0, 1.5), (1.0, 2.0), (2.0, 2.5)];
+      for (final (dx, y) in f == 1 ? down : up) {
+        canvas.drawRect(cell(bx + dx, y + (bot ? -1 : 0), 1, 1), fill);
+      }
     }
 
     // Bubble.

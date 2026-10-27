@@ -170,7 +170,6 @@ const DOTS = '<g class="dots"><rect class="b" x="14.6" y="-2.6" width="0.9" heig
 const pixels = (rows, x0, w, cls, h = 0.9, y0 = -4) => `<g class="${cls}">` + rows.flatMap((row, r) => [...row].map((ch, c) =>
   ch === '#' ? `<rect class="b" x="${x0 + c * w}" y="${y0 + r * h}" width="${w}" height="${h}"/>` : '')).join('') + '</g>';
 
-const ARROW = ['..#.', '####', '..#.'];
 
 // Hats: bitmap rows placed at (x, top); a = the hat's colour, b = its shade,
 // c = highlight, d = near-black; extras are single cells (x, y, key). Every hat
@@ -593,12 +592,17 @@ function spriteSVG(pose, species = 'claude', hat = null, opts = {}) {
       bubble = [0, 1, 2].map((i) => { const y = -3.9 + i * 1.25;
         return `<rect class="b" x="14.4" y="${y}" width="0.9" height="0.9"/><rect class="c tick${i}" x="14.6" y="${y + 0.2}" width="0.5" height="0.5"/><rect class="b" x="15.6" y="${y + 0.25}" width="2.2" height="0.45"/>`; }).join('');
       break;
-    case 'delegate':
-      eyes = eyesOpen(2); feet = legs(LEGS_A, 'la') + legs(LEGS_B, 'lb'); grp = 'bob'; arms = arm(2, 1, 'la') + arm(1, 2, 'lb');
-      // Pointing the way for its subagents (the ladder shows them): an arrow
-      // off to the right, nudging in step.
-      bubble = pixels(ARROW, 14.2, 0.9, 'la', 0.9, 2.1) + pixels(ARROW, 14.7, 0.9, 'lb', 0.9, 2.1);
+    case 'delegate': {
+      // Conducting: eyes on the crew to the right, the baton hand up, then
+      // beating down toward the ladder of subagents.
+      eyes = '<rect class="c" x="5" y="2" width="1" height="2"/><rect class="c" x="10" y="2" width="1" height="2"/>';
+      arms = arm(2, 0, 'la') + arm(2, 1.5, 'lb');
+      const bx = bot ? 13 : 14, by = bot ? -1 : 0;
+      const baton = (cells, cls) => `<g class="${cls}">` + cells.map(([dx, y]) =>
+        `<rect class="b" x="${bx + dx}" y="${y + by}" width="1" height="1"/>`).join('') + '</g>';
+      held = baton([[0, -1], [1, -2], [2, -3]], 'la') + baton([[0, 1.5], [1, 2], [2, 2.5]], 'lb');
       break;
+    }
     case 'hungry':
       // Eyes up at a bobbing cookie; the mouth chomps open and shut.
       eyes = '<rect class="c" x="4.6" y="1" width="1" height="2"/><rect class="c" x="9.6" y="1" width="1" height="2"/>' +
@@ -1049,26 +1053,37 @@ const closeIcon = () => {
 // The minis a tile's ladder shows before it counts.
 const LADDER_MAX = 4;
 
-// The agent's working subagents, as small critters next to its mascot, in
-// its hat.
+// The agent's working subagents as a crew list under its title: a line each,
+// with its critter (posed by its tool, in the session's hat), what it was
+// sent to do, its kind (a workflow agent's phase) and its tool.
 const CREW_MAX = 6;
+function crewKind(x) {
+  if (x.type === 'workflow') {
+    const i = x.title.lastIndexOf(' · ');
+    return i < 0 ? [x.title, 'workflow'] : [x.title.slice(0, i), x.title.slice(i + 3)];
+  }
+  return [x.title, x.type === 'general-purpose' ? 'general' : x.type || ''];
+}
 function crewUpdate(crew, a) {
   const subs = a.subagents || [];
-  const key = subs.map((x) => `${x.id}:${x.tool || ''}:${x.type || ''}`).join(',') + `|${a.hat ? a.hat.shape + a.hat.color : ''}`;
+  const key = subs.map((x) => `${x.id}:${x.tool || ''}:${x.type || ''}:${x.title}`).join(',') + `|${a.hat ? a.hat.shape + a.hat.color : ''}`;
   if (crew.dataset.key === key) return;
   crew.dataset.key = key;
   crew.hidden = subs.length === 0;
   const shown = subs.slice(0, CREW_MAX);
-  const minis = shown.map((x) => {
-    const m = h('span', { class: 'd-mini', title: x.type ? `${x.title} · ${x.type}` : x.title });
+  const lines = shown.map((x) => {
+    const [title, kind] = crewKind(x);
+    const tool = x.tool || 'thinking';
+    const m = h('span', { class: 'd-mini' });
     setSprite(m, x.tool ? TOOL_POSE[x.tool.toLowerCase()] || 'run' : 'think', 'claude', a.hat);
-    return m;
+    return h('li', { class: 'd-crew-line', 'aria-label': [title, kind, tool].filter(Boolean).join(', ') }, m,
+      h('span', { class: 'd-crew-t', text: title, title }), h('span', { class: 'd-crew-k', text: kind }), h('span', { class: 'd-crew-tool', text: tool }));
   });
   const more = subs.length - shown.length;
   const wf = subs.some((x) => x.type === 'workflow');
-  const label = (wf ? `workflow · ${subs.length} agent${subs.length === 1 ? '' : 's'}` : `${subs.length} subagent${subs.length === 1 ? '' : 's'}`) + (more > 0 ? ` · +${more}` : '');
-  crew.replaceChildren(...minis, h('span', { class: 'd-crew-n', text: label }));
-  crew.setAttribute('aria-label', `${label}: ${subs.map((x) => x.title).join(', ')}`);
+  const label = wf ? `workflow · ${subs.length} agent${subs.length === 1 ? '' : 's'}` : `${subs.length} subagent${subs.length === 1 ? '' : 's'}`;
+  crew.replaceChildren(h('span', { class: 'lbl', text: label }), h('ul', { class: 'd-crew-list' }, ...lines),
+    ...(more > 0 ? [h('span', { class: 'd-crew-n', text: `+${more} more` })] : []));
 }
 
 // The hat picker under the detail header: every shape in the current colour,
@@ -1183,13 +1198,13 @@ function handoffButton(a, acc, note) {
 
 function header(a) {
   const spr = h('span', { class: 'd-spr' });
-  const crew = h('span', { class: 'd-crew', role: 'img' });
+  const crew = h('div', { class: 'd-crew' });
   const pill = h('span', { class: 'pill' });
   const ai = h('span', { class: 'd-ai' });
   const chip = h('span', { class: 'chip', title: a.tool, 'aria-label': `tool: ${a.tool}`, role: 'img' });
   const acct = acctLabel(chip);
   const el = h('div', { class: 'd-top' },
-    h('div', { class: 'd-id' }, h('div', { class: 'd-mascots' }, spr, crew), h('h2', { class: 'd-title', id: 'd-title', tabindex: '-1', text: a.title }), ai),
+    h('div', { class: 'd-id' }, h('div', { class: 'd-mascots' }, spr), h('h2', { class: 'd-title', id: 'd-title', tabindex: '-1', text: a.title }), ai),
     h('div', { class: 'd-right' },
       h('button', { type: 'button', class: 'd-close', 'aria-label': 'close panel (esc)', onclick: closeDetail }, closeIcon()),
       h('div', { class: `d-pillrow tool-${a.tool}` }, chip, pill),
@@ -1208,7 +1223,7 @@ function header(a) {
     spr.addEventListener('click', toggle);
     spr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   }
-  return { el: h('div', { class: 'd-head' }, el, hats.el), update: (x) => { acct.update(x); setText(pill, pillText(x)); setText(ai, x.aiTitle || ''); ai.hidden = !x.aiTitle; crewUpdate(crew, x); setSprite(spr, poseOf(x), x.tool, x.hat); hats.update(x); } };
+  return { el: h('div', { class: 'd-head' }, el, crew, hats.el), update: (x) => { acct.update(x); setText(pill, pillText(x)); setText(ai, x.aiTitle || ''); ai.hidden = !x.aiTitle; crewUpdate(crew, x); setSprite(spr, poseOf(x), x.tool, x.hat); hats.update(x); } };
 }
 
 function postAction(a, path, body) {

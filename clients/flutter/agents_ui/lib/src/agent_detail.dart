@@ -557,17 +557,6 @@ class _AgentDetailState extends State<AgentDetail> {
                       cut: cut,
                     ),
                   ),
-                  if (a.subagents.isNotEmpty) ...[
-                    const SizedBox(width: 16),
-                    Flexible(
-                      child: SubagentCrew(
-                        subagents: a.subagents,
-                        hat: a.hat,
-                        body: body,
-                        cut: cut,
-                      ),
-                    ),
-                  ],
                 ],
               ),
               const SizedBox(height: 10),
@@ -753,6 +742,20 @@ class _AgentDetailState extends State<AgentDetail> {
             WorkflowPhases(workflow: wf),
             const SizedBox(height: 26),
           ],
+          if (a.subagents.isNotEmpty) ...[
+            // Shares the room with the last prompt, four parts to its one:
+            // as many lines as fit (two on the 720 px panel), then a count.
+            Flexible(
+              flex: 4,
+              child: SubagentList(
+                subagents: a.subagents,
+                hat: a.hat,
+                body: body,
+                cut: DeckHud.bg,
+              ),
+            ),
+            const SizedBox(height: 26),
+          ],
           _label(nowLabel, DeckHud.dim),
           const SizedBox(height: 8),
           nowValue,
@@ -809,11 +812,17 @@ class _AgentDetailState extends State<AgentDetail> {
           _label('last prompt', DeckHud.dim),
           const SizedBox(height: 8),
           Expanded(
-            child: Text(
-              a.lastPrompt.isEmpty ? '—' : a.lastPrompt,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: DeckHud.rm(17, DeckHud.ink).copyWith(height: 1.45),
+            // Whole lines only (up to four): a short card shows fewer,
+            // never half of one.
+            child: LayoutBuilder(
+              builder: (context, box) => Text(
+                a.lastPrompt.isEmpty ? '—' : a.lastPrompt,
+                maxLines: box.maxHeight.isFinite
+                    ? (box.maxHeight / (17 * 1.45)).floor().clamp(1, 4)
+                    : 4,
+                overflow: TextOverflow.ellipsis,
+                style: DeckHud.rm(17, DeckHud.ink).copyWith(height: 1.45),
+              ),
             ),
           ),
           Row(
@@ -1492,10 +1501,12 @@ class WorkflowPhases extends StatelessWidget {
   }
 }
 
-/// An agent's working subagents: small critters next to its mascot, each
-/// posed by its latest tool, and a count.
-class SubagentCrew extends StatelessWidget {
-  const SubagentCrew({
+/// An agent's working subagents as a crew list: a line each, with its critter
+/// posed by its latest tool and in the session's hat, what it was sent to do,
+/// its kind (a workflow agent's phase), and the tool it is in. Up to four
+/// lines, fewer when the card is short, then "+N more".
+class SubagentList extends StatelessWidget {
+  const SubagentList({
     super.key,
     required this.subagents,
     required this.body,
@@ -1503,7 +1514,10 @@ class SubagentCrew extends StatelessWidget {
     this.hat,
   });
 
-  static const max = 6;
+  static const max = 4;
+
+  /// Heights: the label, one line with its gap, the "+N more" line.
+  static const _labelH = 21.0, _lineH = 36.0, _moreH = 29.0;
 
   final List<AgentSubagent> subagents;
 
@@ -1512,8 +1526,17 @@ class SubagentCrew extends StatelessWidget {
   final Color body;
   final Color cut;
 
-  /// One critter's width with its gap, and the room the label needs.
-  static const _critter = 45.0, _label = 130.0;
+  /// What it was sent to do, and its kind: a workflow agent's title is
+  /// "label · phase", and the phase is its kind.
+  static (String, String) titleAndKind(AgentSubagent s) {
+    if (s.type == 'workflow') {
+      final i = s.title.lastIndexOf(' · ');
+      return i < 0
+          ? (s.title, 'workflow')
+          : (s.title.substring(0, i), s.title.substring(i + 3));
+    }
+    return (s.title, s.type == 'general-purpose' ? 'general' : s.type);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1522,46 +1545,92 @@ class SubagentCrew extends StatelessWidget {
     final what = workflow
         ? 'workflow · $n agent${n == 1 ? '' : 's'}'
         : '$n subagent${n == 1 ? '' : 's'}';
+    final meta = DeckHud.mono(size: 14, color: DeckHud.dim);
     return LayoutBuilder(
       builder: (context, box) {
-        // On a phone the header is narrow: fewer critters, the label stays.
-        var fit = max;
-        if (box.maxWidth.isFinite) {
-          fit = ((box.maxWidth - _label) / _critter).floor().clamp(0, max);
+        // On a phone in portrait the kind column makes way for the task.
+        final kinds = !box.maxWidth.isFinite || box.maxWidth >= 420;
+        var fit = n.clamp(0, max);
+        if (box.maxHeight.isFinite) {
+          // The label, a line per subagent, and the count of the rest.
+          bool fits(int k) =>
+              _labelH + k * _lineH + (k < n ? _moreH : 0) <= box.maxHeight;
+          while (fit > 0 && !fits(fit)) {
+            fit--;
+          }
         }
         final shown = subagents.take(fit).toList();
-        final more = subagents.length - shown.length;
-        return Semantics(
-          label: '$what: ${subagents.map((s) => s.title).join(', ')}',
-          child: Row(
-            key: const Key('agent-subagents'),
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final s in shown)
-                Padding(
-                  padding: const EdgeInsets.only(right: 9),
-                  child: CritterSprite(
-                    pose: critterPoseForTool(s.tool),
-                    width: 36,
-                    hat: hat,
-                    body: body,
-                    cut: cut,
-                  ),
-                ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  '$what${more > 0 ? ' · +$more' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: DeckHud.rm(13, body),
-                ),
-              ),
+        final more = n - shown.length;
+        return Column(
+          key: const Key('agent-subagents'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(what, style: meta),
+            for (final s in shown) ...[
+              const SizedBox(height: 10),
+              _line(s, kinds, meta),
             ],
-          ),
+            if (more > 0 && shown.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('+$more more', style: meta),
+            ],
+          ],
         );
       },
+    );
+  }
+
+  Widget _line(AgentSubagent s, bool kinds, TextStyle meta) {
+    final (title, kind) = titleAndKind(s);
+    final tool = s.tool.isEmpty ? 'thinking' : s.tool;
+    return Semantics(
+      label: [title, kind, tool].where((x) => x.isNotEmpty).join(', '),
+      excludeSemantics: true,
+      child: Row(
+        key: Key('agent-subagent-${s.id}'),
+        children: [
+          CritterSprite(
+            pose: critterPoseForTool(s.tool),
+            width: 36,
+            hat: hat,
+            body: body,
+            cut: cut,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: DeckHud.rm(17, DeckHud.ink),
+            ),
+          ),
+          if (kinds && kind.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 110,
+              child: Text(
+                kind,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: meta,
+              ),
+            ),
+          ],
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 84, // fixed, so the kind column lines up
+            child: Text(
+              tool,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: meta,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
