@@ -503,7 +503,7 @@ func (s *Session) push(full bool) error {
 	if full {
 		s.sent = nil
 		if err := s.send(&linkpb.Frame{Body: &linkpb.Frame_SnapshotBegin{SnapshotBegin: &linkpb.SnapshotBegin{
-			Server:     &linkpb.Server{Name: st.Server.Name, Version: st.Server.Version, TimeMs: st.Server.Time.UnixMilli()},
+			Server:     &linkpb.Server{Name: st.Server.Name, Version: st.Server.Version, TimeMs: st.Server.Time.UnixMilli(), Focus: st.Server.Focus},
 			AgentCount: uint32(len(st.Agents)),
 		}}}); err != nil {
 			return err

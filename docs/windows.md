@@ -42,8 +42,9 @@ delete that `Run` value and end `agentctl.exe` in Task Manager.
 
 - **`agentctl new`, `attach`, `restore`, `reopen`**: agents the deck starts itself live in tmux, which
   Windows lacks. Start Claude Code the way you always do and add the session instead.
-- **Focus** (jump to an agent's terminal) does nothing: it talks to iTerm2. The tile still shows which
-  folder the session is in.
+- **Focus** (jump to an agent's terminal): it talks to iTerm2, so the daemon reports `"focus": false`
+  in its state and the cards leave the button out. The tile still shows which folder the session is
+  in.
 - **Boards on USB**: no serial port discovery on Windows yet (`agentctl link ports`). Flash and pair a
   board on a Mac, or use a board that is already on Wi-Fi.
 - **Codex** sessions need a `sqlite3.exe` on your PATH (the daemon reads Codex's database with it).

@@ -41,6 +41,7 @@ import (
 	"github.com/brushknight/agents-deck/backend/internal/server"
 	"github.com/brushknight/agents-deck/backend/internal/sim"
 	"github.com/brushknight/agents-deck/backend/internal/store"
+	"github.com/brushknight/agents-deck/backend/internal/term"
 	"github.com/brushknight/agents-deck/backend/internal/tmux"
 	"github.com/brushknight/agents-deck/backend/internal/web"
 )
@@ -1158,6 +1159,7 @@ func serve(args []string) error {
 		ctl = d
 	} else {
 		st = store.New(paths.Agents(), strings.TrimSuffix(host, ".local"), version)
+		st.Focus = term.Available()
 		st.Load()
 		d, err := daemon.New(st, cfg.Config, self)
 		if err != nil {

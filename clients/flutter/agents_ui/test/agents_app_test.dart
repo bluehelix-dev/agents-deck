@@ -218,6 +218,22 @@ void main() {
     expect(find.text('doing now'), findsOneWidget);
   });
 
+  testWidgets('a daemon that cannot focus terminals offers no focus button', (
+    tester,
+  ) async {
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    (j['server'] as Map<String, dynamic>)['focus'] = false; // Windows
+    final source = FakeAgentsSource.fromState(j);
+    expect(source.snapshot.value.state!.server.focus, isFalse);
+    await _pumpApp(tester, source);
+    await _open(tester, 'docs-site'); // hungry: would say "review in terminal"
+    expect(find.byKey(const Key('agent-focus')), findsNothing);
+    expect(find.byKey(const Key('agent-remove')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('idle and error cards: no interrupt, error message shown', (
     tester,
   ) async {
@@ -668,9 +684,7 @@ void main() {
     expect(find.byKey(const Key('agents-pager')), findsNothing);
   });
 
-  testWidgets('the tile chip takes the account colour', (
-    tester,
-  ) async {
+  testWidgets('the tile chip takes the account colour', (tester) async {
     await _pumpApp(tester, FakeAgentsSource.demo());
     expect(find.byKey(const Key('agent-tile-account')), findsNothing);
 

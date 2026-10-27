@@ -144,6 +144,7 @@ message Server {
   string name = 1;
   string version = 2;
   int64 time_ms = 3;
+  bool focus = 4;   // whether Focus can bring an agent's terminal to the front on this machine (not on Windows)
 }
 
 message AgentChanged {

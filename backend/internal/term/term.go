@@ -13,6 +13,10 @@ const (
 	reportFocus = "\x1b[?1004h" // DEC focus reporting: terminal sends ESC[I / ESC[O
 )
 
+// Available is whether focus can work on this machine at all; clients hide
+// the control where it can't.
+func Available() bool { return available }
+
 // StealFocus asks the terminal showing tty to come to the front.
 func StealFocus(tty string) error { return write(tty, stealFocus) }
 

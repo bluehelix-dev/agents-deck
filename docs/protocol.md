@@ -57,7 +57,8 @@ The full state is small (≤ a few KB per agent), so there are no deltas.
 ```jsonc
 // State
 {
-  "server": { "name": "workstation", "version": "0.1.0", "time": "2026-10-08T01:02:03Z" },
+  "server": { "name": "workstation", "version": "0.1.0", "time": "2026-10-08T01:02:03Z",
+              "focus": true },      // false where focus can't bring a terminal to the front (Windows): clients hide it
   "agents": [ /* Agent, ordered by slot */ ]
 }
 

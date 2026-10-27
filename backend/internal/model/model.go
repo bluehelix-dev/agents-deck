@@ -23,6 +23,10 @@ type Server struct {
 	Name    string    `json:"name"`
 	Version string    `json:"version"`
 	Time    time.Time `json:"time"`
+	// Focus: whether POST /v1/agents/{id}/focus can bring a terminal to the
+	// front on this machine. False on Windows, where the deck has no way to;
+	// the clients then don't offer it.
+	Focus bool `json:"focus"`
 }
 
 type Agent struct {

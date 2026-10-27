@@ -192,6 +192,14 @@ class _AgentDetailState extends State<AgentDetail> {
 
   void _focus(Agent a) => _run('focus', () => widget.source.focus(a.id));
 
+  /// Whether the deck can bring this agent's terminal to the front: the
+  /// daemon says so (not on Windows), or the agent lives in an app that
+  /// opens it itself.
+  bool _canFocus(Agent a) =>
+      (widget.source.snapshot.value.state?.server.focus ?? true) ||
+      a.codexThread ||
+      a.inApp;
+
   void _interrupt(Agent a) =>
       _run('interrupt', () => widget.source.interrupt(a.id));
 
@@ -660,6 +668,7 @@ class _AgentDetailState extends State<AgentDetail> {
 
   /// Text link variant of "focus terminal" (prompt cards' footers).
   Widget _focusLink(Agent a, {required Color ink, required Color surface}) {
+    if (!_canFocus(a)) return const SizedBox.shrink();
     final flash = _flashColors('focus', onAccent: surface == DeckHud.accent);
     return Pressable(
       key: const Key('agent-focus'),
@@ -844,7 +853,7 @@ class _AgentDetailState extends State<AgentDetail> {
                 pressedFill: DeckHud.ink,
                 pressedInk: DeckHud.bg,
               ),
-              if (!exited)
+              if (!exited && _canFocus(a))
                 Expanded(
                   child: AgentButton(
                     key: const Key('agent-focus'),
@@ -1209,11 +1218,13 @@ class _AgentDetailState extends State<AgentDetail> {
                   pressedInk: DeckHud.bg,
                 ),
               ),
-              const SizedBox(width: 14),
-              SizedBox(
-                width: 260,
-                child: _terminalButton(a, 'type in terminal'),
-              ),
+              if (_canFocus(a)) ...[
+                const SizedBox(width: 14),
+                SizedBox(
+                  width: 260,
+                  child: _terminalButton(a, 'type in terminal'),
+                ),
+              ],
             ],
           ),
         ],
@@ -1285,6 +1296,7 @@ class _AgentDetailState extends State<AgentDetail> {
 
   /// Outlined "focus the terminal" button for the dark prompt cards.
   Widget _terminalButton(Agent a, String label) {
+    if (!_canFocus(a)) return const SizedBox.shrink();
     final flash = _flashColors('focus', onAccent: false);
     return AgentButton(
       key: const Key('agent-focus'),

@@ -11,6 +11,8 @@ import (
 
 var ttyRe = regexp.MustCompile(`^/dev/ttys[0-9]{3,4}$`)
 
+const available = true
+
 func write(tty, seq string) error {
 	if !ttyRe.MatchString(tty) {
 		return errors.New("not a terminal: " + tty)

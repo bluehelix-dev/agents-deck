@@ -455,11 +455,20 @@ class Agent {
 }
 
 class AgentsServer {
-  const AgentsServer({this.name = '', this.version = '', this.time});
+  const AgentsServer({
+    this.name = '',
+    this.version = '',
+    this.time,
+    this.focus = true,
+  });
 
   final String name;
   final String version;
   final DateTime? time;
+
+  /// Whether focus can bring an agent's terminal to the front on the
+  /// daemon's machine (not on Windows). False: the cards leave it out.
+  final bool focus;
 }
 
 /// One full `state` event. The daemon sends the whole fleet every time
@@ -495,6 +504,7 @@ class AgentsState {
         name: _str(s['name']),
         version: _str(s['version']),
         time: _time(s['time']),
+        focus: s['focus'] != false,
       ),
       agents: [
         for (final a in j['agents'] as List)

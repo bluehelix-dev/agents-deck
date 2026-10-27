@@ -79,6 +79,9 @@ const poseOf = (a) => {
 const codexThread = (a) => a.external && a.tool === 'codex' && !a.app;
 const watched = (a) => a.external && a.tool === 'claude' && !a.app;
 const inApp = (a) => !!a.app; // runs in another app (Orca, herdr): answer, interrupt and focus work there
+// Whether the daemon can bring a terminal to the front here (not on Windows):
+// without it the focus controls stay away instead of failing.
+const canFocus = (a) => state?.server?.focus !== false || codexThread(a) || inApp(a);
 
 const needsYou = (a) => a.status === 'waiting' || a.status === 'error';
 
@@ -1219,7 +1222,7 @@ function buildInfo(a) {
   const server = h('span');
   const note = h('div', { class: 'note', role: 'status', 'aria-live': 'polite' });
   const actions = h('div', { class: 'actions' });
-  if (a.status !== 'exited') actions.append(actionButton(a, codexThread(a) ? 'open in codex' : inApp(a) ? `open in ${a.app}` : hungry(a) ? 'review in terminal' : 'focus terminal', 'focus', 'solid', note));
+  if (a.status !== 'exited' && canFocus(a)) actions.append(actionButton(a, codexThread(a) ? 'open in codex' : inApp(a) ? `open in ${a.app}` : hungry(a) ? 'review in terminal' : 'focus terminal', 'focus', 'solid', note));
   else if (a.resumable) actions.append(actionButton(a, 'resume', 'resume', 'solid', note));
   if (a.status === 'running' && (!a.external || inApp(a))) actions.append(actionButton(a, 'interrupt', 'interrupt', 'narrow', note));
   else actions.append(removeButton(a, note));
@@ -1320,7 +1323,7 @@ function buildPrompt(a) {
   }
 
   let sendBtn = null;
-  const focusBtn = (cls, label) => actionButton(a, label, 'focus', cls, note);
+  const focusBtn = (cls, label) => canFocus(a) ? actionButton(a, label, 'focus', cls, note) : null;
   const kids = [hd.el];
   if (isQ) {
     panel.className = 'detail p-question';

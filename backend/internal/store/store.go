@@ -121,6 +121,7 @@ type Store struct {
 	saveReq chan struct{}
 	Name    string
 	Version string
+	Focus   bool // the daemon can bring terminals to the front here (model.Server.Focus)
 
 	// Hat gives each agent its hat by working folder (nil: no hats).
 	Hat func(cwd string) *model.Hat
@@ -402,7 +403,7 @@ func (s *Store) Snapshot() model.State {
 	}
 	sort.Slice(agents, func(i, j int) bool { return agents[i].Slot < agents[j].Slot })
 	return model.State{
-		Server: model.Server{Name: s.Name, Version: s.Version, Time: time.Now().UTC()},
+		Server: model.Server{Name: s.Name, Version: s.Version, Time: time.Now().UTC(), Focus: s.Focus},
 		Agents: agents,
 	}
 }
