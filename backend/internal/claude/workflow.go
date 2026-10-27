@@ -32,7 +32,7 @@ func Workflow(transcript string, window time.Duration) *model.Workflow {
 			journal, newest = j, st.ModTime()
 		}
 	}
-	if journal == "" {
+	if journal == "" || time.Since(newest) > abandoned {
 		return nil
 	}
 	counts, order := readJournal(journal)
@@ -62,6 +62,10 @@ func Workflow(transcript string, window time.Duration) *model.Workflow {
 	}
 	return wf
 }
+
+// abandoned: a run whose journal hasn't moved for this long is over, whatever
+// it last said (a session that died mid-run never writes its results).
+const abandoned = 30 * time.Minute
 
 type phaseCount struct{ running, done int }
 

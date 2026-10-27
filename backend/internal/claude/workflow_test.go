@@ -94,6 +94,18 @@ const DIMENSIONS = [{ title: 'not a phase' }]
 		t.Fatalf("a finished run past the window: %+v", wf)
 	}
 
+	// Agents "running" in a journal that hasn't moved for half an hour: the
+	// run died with the session; gone.
+	write(`{"type":"started","agentId":"z1","label":"stuck","phase":"Suche"}`)
+	stale := time.Now().Add(-40 * time.Minute)
+	if err := os.Chtimes(journal, stale, stale); err != nil {
+		t.Fatal(err)
+	}
+	if wf := Workflow(tr, time.Minute); wf != nil {
+		t.Fatalf("an abandoned run: %+v", wf)
+	}
+	write(`{"type":"result","agentId":"z1","result":{}}`)
+
 	// No script to read: the journal's own order, the run's id as the name.
 	if err := os.Remove(script); err != nil {
 		t.Fatal(err)
