@@ -24,7 +24,7 @@ const CompactTool = "Compact"
 // HooksSettings is the JSON passed to `claude --settings`: every event runs
 // `<agentctl> hook`, which forwards the payload to the daemon and prints nothing.
 func HooksSettings(agentctl string) ([]byte, error) {
-	cmd := fmt.Sprintf("%q hook", agentctl)
+	cmd := hookCommand(agentctl)
 	hooks := map[string]any{}
 	for _, ev := range Events {
 		group := map[string]any{"hooks": []map[string]any{{"type": "command", "command": cmd, "timeout": 5}}}

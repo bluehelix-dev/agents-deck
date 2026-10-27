@@ -19,7 +19,13 @@ func SettingsPath() string {
 	return filepath.Join(home, ".claude", "settings.json")
 }
 
-func hookCommand(agentctl string) string { return fmt.Sprintf("%q hook", agentctl) }
+// hookCommand is the hook's command line. Claude Code runs hooks through
+// bash, on Windows too (Git Bash), and bash eats the backslashes of a Windows
+// path, so the path goes in with forward slashes, which every Windows API
+// takes.
+func hookCommand(agentctl string) string {
+	return fmt.Sprintf("%q hook", filepath.ToSlash(agentctl))
+}
 
 // ours tells a hook group the deck installed from the user's own: every
 // command in it is an `agentctl hook` call.

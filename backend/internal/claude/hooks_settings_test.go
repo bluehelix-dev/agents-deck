@@ -34,8 +34,8 @@ func TestInstallAndRemoveHooks(t *testing.T) {
 		t.Fatalf("the user's PreToolUse hook should come first and stay: %v", pre)
 	}
 	cmd := pre[1].(map[string]any)["hooks"].([]any)[0].(map[string]any)["command"]
-	if cmd != hookCommand(`C:\tools\agentctl.exe`) {
-		t.Fatalf("command %q", cmd)
+	if cmd != `"C:/tools/agentctl.exe" hook` {
+		t.Fatalf("command %q (bash on Windows needs forward slashes)", cmd)
 	}
 
 	// Again: nothing to do. With the binary elsewhere: the command follows it.
