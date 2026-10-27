@@ -5,10 +5,10 @@
 //
 //   flutter test tool/render_icons_test.dart
 //
-// The icon is the critter awake, in its propeller hat, black on the deck's
-// orange. Writes, per density, android/app/src/main/res/mipmap-*/ic_launcher.png
+// The icon is the critter awake, in its propeller hat, orange on the deck's
+// black. Writes, per density, android/app/src/main/res/mipmap-*/ic_launcher.png
 // (the legacy icon, the whole square), ic_launcher_foreground.png (the
-// adaptive icon's layer, transparent around the critter; the orange is the
+// adaptive icon's layer, transparent around the critter; the black is the
 // background layer) and ic_launcher_monochrome.png (the silhouette for themed
 // icons, which take only its alpha).
 import 'dart:io';
@@ -86,23 +86,23 @@ void main() {
   );
 
   testWidgets('render the launcher icons', (tester) async {
-    // Legacy icon (Android 7): a 48 dp square, black critter on orange.
+    // Legacy icon (Android 7): a 48 dp square, orange critter on black.
     await render(
       tester,
       name: 'ic_launcher',
       dp: 48,
       child: ColoredBox(
-        color: DeckHud.accent,
-        child: critter(54, body: DeckHud.bg, cut: DeckHud.accent, lift: 2),
+        color: DeckHud.bg,
+        child: critter(54, body: DeckHud.accent, cut: DeckHud.bg, lift: 2),
       ),
     );
     // Adaptive foreground (Android 8+): 108 dp, the inner 66 dp always shown;
-    // the body spans 62 of them, the hat on top. The ground is @color/deck_accent.
+    // the body spans 62 of them, the hat on top. The ground is @color/deck_bg.
     await render(
       tester,
       name: 'ic_launcher_foreground',
       dp: 108,
-      child: critter(80, body: DeckHud.bg, cut: DeckHud.accent, lift: 4),
+      child: critter(80, body: DeckHud.accent, cut: DeckHud.bg, lift: 4),
     );
     // Monochrome (Android 13 themed icons): the system takes the alpha only.
     await render(

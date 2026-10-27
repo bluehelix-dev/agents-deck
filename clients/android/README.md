@@ -24,7 +24,7 @@ the board says when a newer one is out, and **update to v…** downloads it, che
 system installer ([docs/phone.md](../../docs/phone.md#updating-the-app)). The system's back gesture
 closes an open card or the settings before it leaves the app.
 
-The launcher icon is the deck's own critter in its propeller hat, black on the deck's orange;
+The launcher icon is the deck's own critter in its propeller hat, orange on the deck's black;
 `flutter test tool/render_icons_test.dart` renders its PNGs from the sprite the board draws.
 
 Build: `flutter build apk --release` here (Flutter 3.35+, Android SDK 36), then install
