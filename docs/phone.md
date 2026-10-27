@@ -96,7 +96,9 @@ first time, Android also asks to allow installs from this app.
 There is no version arithmetic: a build nobody released (your own `flutter build apk`) simply counts
 as not the latest, and you can ignore the offer. An update installs only if it is signed with the
 same key as the app it replaces, so every release is built with one keystore (see
-[releasing.md](releasing.md)). The check needs the internet; the deck connection doesn't.
+[releasing.md](releasing.md)); an app installed from a build signed with another key (your own
+`flutter build apk`, or a release from before the key existed) has to be uninstalled once, which
+also forgets its pairing. The check needs the internet; the deck connection doesn't.
 
 ## The design: pairing with a QR code
 

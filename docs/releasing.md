@@ -26,8 +26,22 @@ takes the newest published release (pre-releases included) whose assets hold an
 `agents-deck-*.apk`, and needs the APK's line in `SHA256SUMS` to tell whether that is the build it
 runs. A release without the APK is skipped; one without `SHA256SUMS` can't be checked and is reported
 as such. Android installs the update only over an app signed with the same key, so every release
-APK must come from the same keystore (today the debug keystore of the machine that builds it; a
-release keystore in `clients/android/android/key.properties`, kept out of git, is the proper fix).
+APK must come from the same keystore. The build signs with the release key when
+`clients/android/android/key.properties` (kept out of git) names it:
+
+```
+storeFile=/path/to/android-release.jks
+storePassword=…
+keyPassword=…
+keyAlias=agents-deck
+```
+
+Make the keystore once with `keytool -genkeypair -keystore android-release.jks -alias agents-deck
+-keyalg RSA -keysize 2048 -validity 10000`, keep it and the passwords somewhere safe, and never
+commit either: losing the keystore means every phone has to uninstall the app (and pair again)
+before it can take the next release. Without `key.properties` the build falls back to the debug key,
+fine for trying things, but an APK signed that way and one signed with the release key cannot
+update each other.
 
 `<board>` is the board's folder under `firmware/devices/`, and its image is built from the firmware
 [docs/flashing.md](flashing.md) recommends:

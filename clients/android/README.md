@@ -27,7 +27,9 @@ The launcher icon is the deck's own critter; `flutter test tool/render_icons_tes
 PNGs from the sprite the board draws.
 
 Build: `flutter build apk --release` here (Flutter 3.35+, Android SDK 36), then install
-`build/app/outputs/flutter-apk/app-release.apk` on the phone. No Flutter plugins: the native side is
+`build/app/outputs/flutter-apk/app-release.apk` on the phone. With `android/key.properties` in
+place the APK is signed with the release key ([docs/releasing.md](../../docs/releasing.md)),
+otherwise with the debug key; the two cannot update each other. No Flutter plugins: the native side is
 two Kotlin files over one method channel. `MainActivity.kt` has the app's folder, the system file
 picker, the QR scanner (ZXing's viewfinder activity from `zxing-android-embedded`, the one library;
 it asks for the camera permission when you tap scan), the screen's wake lock, the app's version and
