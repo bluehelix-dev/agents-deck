@@ -178,6 +178,115 @@ static const hat_extra_t f115_extras[] = {{2, 0, 'b'}, {1, -1, 'b'}, {0, -1, 'b'
 static const hat_frame_t hat12_critter[] = {{0, -1, 2, f110_rows, 4, f110_extras}, {0, -1, 2, f111_rows, 5, f111_extras}, {0, -1, 2, f112_rows, 5, f112_extras}};
 static const hat_frame_t hat12_onigiri[] = {{0, 0, 2, f113_rows, 4, f113_extras}, {0, 0, 2, f114_rows, 5, f114_extras}, {0, 0, 2, f115_rows, 5, f115_extras}};
 
+static const char *const f116_rows[] = {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
+static const hat_extra_t f116_extras[] = {{12, -5, 'c'}};
+static const char *const f117_rows[] = {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."};
+static const hat_extra_t f117_extras[] = {{10, -4, 'c'}};
+static const char *const f118_rows[] = {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
+static const hat_extra_t f118_extras[] = {{12, -5, 'c'}};
+static const char *const f119_rows[] = {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
+static const hat_extra_t f119_extras[] = {{12, -5, 'c'}, {13, -6, 'c'}};
+static const char *const f120_rows[] = {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
+static const hat_extra_t f120_extras[] = {{13, -5, 'c'}};
+static const char *const f121_rows[] = {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
+static const hat_extra_t f121_extras[] = {{12, -5, 'c'}, {13, -5, 'c'}};
+static const char *const f122_rows[] = {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."};
+static const hat_extra_t f122_extras[] = {{10, -4, 'c'}};
+static const char *const f123_rows[] = {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."};
+static const hat_extra_t f123_extras[] = {{10, -4, 'c'}, {11, -5, 'c'}};
+static const char *const f124_rows[] = {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."};
+static const hat_extra_t f124_extras[] = {{11, -4, 'c'}};
+static const char *const f125_rows[] = {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."};
+static const hat_extra_t f125_extras[] = {{10, -4, 'c'}, {11, -4, 'c'}};
+static const hat_frame_t hat13_critter[] = {{0, -4, 4, f118_rows, 1, f118_extras}, {0, -4, 4, f119_rows, 2, f119_extras}, {0, -4, 4, f120_rows, 1, f120_extras}, {0, -4, 4, f121_rows, 2, f121_extras}};
+static const hat_frame_t hat13_onigiri[] = {{0, -3, 3, f122_rows, 1, f122_extras}, {0, -3, 3, f123_rows, 2, f123_extras}, {0, -3, 3, f124_rows, 1, f124_extras}, {0, -3, 3, f125_rows, 2, f125_extras}};
+
+static const char *const f126_rows[] = {"..c........c..", "..aa.aaaa.aa..", "...aaaaaaaa...", "..bbbbbbbbbb.."};
+static const char *const f127_rows[] = {"...c.aaaa.c...", "...aaaaaaaa...", "....bbbbbb...."};
+static const char *const f128_rows[] = {"..c........a..", "..aa.aaaa.aa..", "...aaaaaaaa...", "..bbbbbbbbbb.."};
+static const char *const f129_rows[] = {"..a........c..", "..aa.aaaa.aa..", "...aaaaaaaa...", "..bbbbbbbbbb.."};
+static const char *const f130_rows[] = {"...c.aaaa.a...", "...aaaaaaaa...", "....bbbbbb...."};
+static const char *const f131_rows[] = {"...a.aaaa.c...", "...aaaaaaaa...", "....bbbbbb...."};
+static const hat_frame_t hat14_critter[] = {{0, -4, 4, f128_rows, 0, NULL}, {0, -4, 4, f129_rows, 0, NULL}};
+static const hat_frame_t hat14_onigiri[] = {{0, -3, 3, f130_rows, 0, NULL}, {0, -3, 3, f131_rows, 0, NULL}};
+
+static const char *const f132_rows[] = {".....aaaa.....", ".....aaaa.....", "....abbbba....", "aaaaaaaaaaaaaa"};
+static const char *const f133_rows[] = {"......aa......", ".....abba.....", "..aaaaaaaaaa.."};
+static const char *const f134_rows[] = {".....aaaa.....", ".....aaaa.....", "....abbbba....", "aaaaaaaaaaaaaa"};
+static const char *const f135_rows[] = {".....aaaa.....", ".....aaaa.....", "....abbbba....", ".aaaaaaaaaaaa."};
+static const hat_extra_t f135_extras[] = {{0, -2, 'a'}, {13, -2, 'a'}};
+static const char *const f136_rows[] = {"......aa......", ".....abba.....", "..aaaaaaaaaa.."};
+static const char *const f137_rows[] = {"......aa......", ".....abba.....", "...aaaaaaaa..."};
+static const hat_extra_t f137_extras[] = {{2, -2, 'a'}, {11, -2, 'a'}};
+static const hat_frame_t hat15_critter[] = {{0, -4, 4, f134_rows, 0, NULL}, {0, -4, 4, f135_rows, 2, f135_extras}};
+static const hat_frame_t hat15_onigiri[] = {{0, -3, 3, f136_rows, 0, NULL}, {0, -3, 3, f137_rows, 2, f137_extras}};
+
+static const char *const f138_rows[] = {"....aaaaaabb..", "....aaaaaa..b.", "....bbbbbb..b."};
+static const char *const f139_rows[] = {".....aaaabb...", ".....aaaa..b..", ".....bbbb..b.."};
+static const char *const f140_rows[] = {"....aaaaaabb..", "....aaaaaa..b.", "....bbbbbb..b."};
+static const char *const f141_rows[] = {"....aaaaaabb..", "....aaaaaa.b..", "....bbbbbb.b.."};
+static const char *const f142_rows[] = {"....aaaaaabb..", "....aaaaaa..b.", "....bbbbbb..b."};
+static const char *const f143_rows[] = {"....aaaaaabb..", "....aaaaaa...b", "....bbbbbb...b"};
+static const char *const f144_rows[] = {".....aaaabb...", ".....aaaa..b..", ".....bbbb..b.."};
+static const char *const f145_rows[] = {".....aaaabb...", ".....aaaa.b...", ".....bbbb.b..."};
+static const char *const f146_rows[] = {".....aaaabb...", ".....aaaa..b..", ".....bbbb..b.."};
+static const char *const f147_rows[] = {".....aaaabb...", ".....aaaa...b.", ".....bbbb...b."};
+static const hat_frame_t hat16_critter[] = {{0, -3, 3, f140_rows, 0, NULL}, {0, -3, 3, f141_rows, 0, NULL}, {0, -3, 3, f142_rows, 0, NULL}, {0, -3, 3, f143_rows, 0, NULL}};
+static const hat_frame_t hat16_onigiri[] = {{0, -3, 3, f144_rows, 0, NULL}, {0, -3, 3, f145_rows, 0, NULL}, {0, -3, 3, f146_rows, 0, NULL}, {0, -3, 3, f147_rows, 0, NULL}};
+
+static const char *const f148_rows[] = {"......c.......", "......aa......", ".....abba.....", "....aaaaaa....", "...babababa..."};
+static const char *const f149_rows[] = {"......c.......", "......aa......", ".....abba.....", "....bababa...."};
+static const char *const f150_rows[] = {"......c.......", "......aa......", ".....abba.....", "....aaaaaa....", "...babababa..."};
+static const char *const f151_rows[] = {".......c......", "......aa......", ".....abba.....", "....aaaaaa....", "...babababa..."};
+static const char *const f152_rows[] = {"......c.......", "......aa......", ".....abba.....", "....bababa...."};
+static const char *const f153_rows[] = {".......c......", "......aa......", ".....abba.....", "....bababa...."};
+static const hat_frame_t hat17_critter[] = {{0, -5, 5, f150_rows, 0, NULL}, {0, -5, 5, f151_rows, 0, NULL}};
+static const hat_frame_t hat17_onigiri[] = {{0, -4, 4, f152_rows, 0, NULL}, {0, -4, 4, f153_rows, 0, NULL}};
+
+static const char *const f154_rows[] = {".aaaaaaaaaaaa.", "....aaaaaa..c.", "....bbbbbb..c."};
+static const char *const f155_rows[] = {"..aaaaaaaaaa..", ".....aaaa..c..", ".....bbbb..c.."};
+static const char *const f156_rows[] = {".aaaaaaaaaaaa.", "....aaaaaa..c.", "....bbbbbb..c."};
+static const char *const f157_rows[] = {".aaaaaaaaaaaa.", "....aaaaaa...c", "....bbbbbb...c"};
+static const char *const f158_rows[] = {".aaaaaaaaaaaa.", "....aaaaaa..c.", "....bbbbbb..c."};
+static const char *const f159_rows[] = {".aaaaaaaaaaaa.", "....aaaaaa.c..", "....bbbbbb.c.."};
+static const char *const f160_rows[] = {"..aaaaaaaaaa..", ".....aaaa..c..", ".....bbbb..c.."};
+static const char *const f161_rows[] = {"..aaaaaaaaaa..", ".....aaaa...c.", ".....bbbb...c."};
+static const char *const f162_rows[] = {"..aaaaaaaaaa..", ".....aaaa..c..", ".....bbbb..c.."};
+static const char *const f163_rows[] = {"..aaaaaaaaaa..", ".....aaaa.c...", ".....bbbb.c..."};
+static const hat_frame_t hat18_critter[] = {{0, -3, 3, f156_rows, 0, NULL}, {0, -3, 3, f157_rows, 0, NULL}, {0, -3, 3, f158_rows, 0, NULL}, {0, -3, 3, f159_rows, 0, NULL}};
+static const hat_frame_t hat18_onigiri[] = {{0, -3, 3, f160_rows, 0, NULL}, {0, -3, 3, f161_rows, 0, NULL}, {0, -3, 3, f162_rows, 0, NULL}, {0, -3, 3, f163_rows, 0, NULL}};
+
+static const char *const f164_rows[] = {".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."};
+static const char *const f165_rows[] = {".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."};
+static const char *const f166_rows[] = {".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."};
+static const char *const f167_rows[] = {".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."};
+static const char *const f168_rows[] = {".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."};
+static const char *const f169_rows[] = {".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."};
+static const char *const f170_rows[] = {".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."};
+static const char *const f171_rows[] = {".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."};
+static const char *const f172_rows[] = {".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."};
+static const char *const f173_rows[] = {".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."};
+static const hat_frame_t hat19_critter[] = {{0, -4, 4, f166_rows, 0, NULL}, {0, -4, 4, f167_rows, 0, NULL}, {0, -5, 4, f168_rows, 0, NULL}, {0, -4, 4, f169_rows, 0, NULL}};
+static const hat_frame_t hat19_onigiri[] = {{0, -3, 3, f170_rows, 0, NULL}, {0, -3, 3, f171_rows, 0, NULL}, {0, -4, 3, f172_rows, 0, NULL}, {0, -3, 3, f173_rows, 0, NULL}};
+
+static const char *const f174_rows[] = {"....aaaa......", "...aaaaaaa....", "...aaaaaaaaac.", "..cccccccccc.."};
+static const char *const f175_rows[] = {".....aaa......", "....aaaaaac...", "...cccccccc..."};
+static const char *const f176_rows[] = {"....aaaa......", "...aaaaaaa....", "...aaaaaaaaac.", "..cccccccccc.."};
+static const char *const f177_rows[] = {"....aaaa......", "...aaaaaaaaac.", "...aaaaaaaa...", "..cccccccccc.."};
+static const char *const f178_rows[] = {".....aaa......", "....aaaaaac...", "...cccccccc..."};
+static const char *const f179_rows[] = {".....aaaaac...", "....aaaaaa....", "...cccccccc..."};
+static const hat_frame_t hat20_critter[] = {{0, -4, 4, f176_rows, 0, NULL}, {0, -4, 4, f177_rows, 0, NULL}};
+static const hat_frame_t hat20_onigiri[] = {{0, -3, 3, f178_rows, 0, NULL}, {0, -3, 3, f179_rows, 0, NULL}};
+
+static const char *const f180_rows[] = {"....aaaaaa....", "...a......a...", "....aaaaaa....", ".............."};
+static const char *const f181_rows[] = {".....aaaa.....", "....a....a....", ".....aaaa.....", ".............."};
+static const char *const f182_rows[] = {"....aaaaaa....", "...a......a...", "....aaaaaa....", ".............."};
+static const char *const f183_rows[] = {"....aaaaaa....", "...a......a...", "....aaaaaa....", "..............", ".............."};
+static const char *const f184_rows[] = {".....aaaa.....", "....a....a....", ".....aaaa.....", ".............."};
+static const char *const f185_rows[] = {".....aaaa.....", "....a....a....", ".....aaaa.....", "..............", ".............."};
+static const hat_frame_t hat21_critter[] = {{0, -4, 4, f182_rows, 0, NULL}, {0, -5, 5, f183_rows, 0, NULL}};
+static const hat_frame_t hat21_onigiri[] = {{0, -4, 4, f184_rows, 0, NULL}, {0, -5, 5, f185_rows, 0, NULL}};
+
 const hat_art_t hat_art[] = {
 	{"hard hat", 400, {0, -4, 4, f0_rows, 0, NULL}, 2, hat0_critter, {0, -3, 3, f1_rows, 0, NULL}, 2, hat0_onigiri},
 	{"cap", 300, {-3, -3, 3, f6_rows, 0, NULL}, 4, hat1_critter, {-1, -3, 3, f7_rows, 0, NULL}, 4, hat1_onigiri},
@@ -192,5 +301,14 @@ const hat_art_t hat_art[] = {
 	{"top hat", 450, {0, -5, 5, f88_rows, 0, NULL}, 4, hat10_critter, {0, -4, 4, f89_rows, 0, NULL}, 4, hat10_onigiri},
 	{"cowboy", 350, {0, -4, 4, f98_rows, 0, NULL}, 4, hat11_critter, {0, -4, 4, f99_rows, 0, NULL}, 4, hat11_onigiri},
 	{"bandana", 200, {0, -1, 2, f108_rows, 4, f108_extras}, 3, hat12_critter, {0, 0, 2, f109_rows, 4, f109_extras}, 3, hat12_onigiri},
+	{"pirate", 300, {0, -4, 4, f116_rows, 1, f116_extras}, 4, hat13_critter, {0, -3, 3, f117_rows, 1, f117_extras}, 4, hat13_onigiri},
+	{"viking", 350, {0, -4, 4, f126_rows, 0, NULL}, 2, hat14_critter, {0, -3, 3, f127_rows, 0, NULL}, 2, hat14_onigiri},
+	{"sombrero", 400, {0, -4, 4, f132_rows, 0, NULL}, 2, hat15_critter, {0, -3, 3, f133_rows, 0, NULL}, 2, hat15_onigiri},
+	{"fez", 320, {0, -3, 3, f138_rows, 0, NULL}, 4, hat16_critter, {0, -3, 3, f139_rows, 0, NULL}, 4, hat16_onigiri},
+	{"party hat", 350, {0, -5, 5, f148_rows, 0, NULL}, 2, hat17_critter, {0, -4, 4, f149_rows, 0, NULL}, 2, hat17_onigiri},
+	{"mortarboard", 300, {0, -3, 3, f154_rows, 0, NULL}, 4, hat18_critter, {0, -3, 3, f155_rows, 0, NULL}, 4, hat18_onigiri},
+	{"bowler", 450, {0, -4, 4, f164_rows, 0, NULL}, 4, hat19_critter, {0, -3, 3, f165_rows, 0, NULL}, 4, hat19_onigiri},
+	{"nightcap", 400, {0, -4, 4, f174_rows, 0, NULL}, 2, hat20_critter, {0, -3, 3, f175_rows, 0, NULL}, 2, hat20_onigiri},
+	{"halo", 450, {0, -4, 4, f180_rows, 0, NULL}, 2, hat21_critter, {0, -4, 4, f181_rows, 0, NULL}, 2, hat21_onigiri},
 };
-const int hat_art_count = 13;
+const int hat_art_count = 22;

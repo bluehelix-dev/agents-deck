@@ -20,7 +20,8 @@ import (
 
 // Shapes, in hash order (adding one reshuffles automatic hats, so append only).
 var Shapes = []string{"hard hat", "cap", "beanie", "helmet", "wizard", "beret", "chef",
-	"crown", "headphones", "propeller", "top hat", "cowboy", "bandana"}
+	"crown", "headphones", "propeller", "top hat", "cowboy", "bandana",
+	"pirate", "viking", "sombrero", "fez", "party hat", "mortarboard", "bowler", "nightcap", "halo"}
 
 // Colors: never the status orange.
 var Colors = []string{"teal", "blue", "yellow", "green", "purple", "pink", "sky", "ink"}

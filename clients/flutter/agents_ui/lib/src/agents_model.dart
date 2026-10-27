@@ -188,6 +188,15 @@ const hatShapes = [
   'top hat',
   'cowboy',
   'bandana',
+  'pirate',
+  'viking',
+  'sombrero',
+  'fez',
+  'party hat',
+  'mortarboard',
+  'bowler',
+  'nightcap',
+  'halo',
 ];
 
 /// The daemon's automatic hat for a working folder: FNV-1a 32 of the path

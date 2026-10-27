@@ -210,7 +210,7 @@ void main() {
     expect(source.calls.last.$3, {'auto': true});
     expect(
       source.snapshot.value.state!.byId('k3f9a2')!.hat,
-      const AgentHat(shape: 'propeller', color: 'blue'),
+      const AgentHat(shape: 'mortarboard', color: 'blue'),
     );
     await tester.tap(find.byKey(const Key('hat-done')));
     await tester.pump();

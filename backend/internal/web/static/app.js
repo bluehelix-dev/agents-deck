@@ -357,6 +357,139 @@ const HAT_ART = {
     { x: 0, top: 0, rows: ["...aaaaaaaa...", "..acacacacac.."], extras: [[2, 0, "b"], [1, -1, "b"], [0, -1, "b"], [1, 1, "b"], [0, 1, "b"]] },
   ],
   },
+  pirate: {
+  ms: 300,
+  critterStill: { x: 0, top: -4, rows: [".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."], extras: [[12, -5, "c"]] },
+  critter: [
+    { x: 0, top: -4, rows: [".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."], extras: [[12, -5, "c"]] },
+    { x: 0, top: -4, rows: [".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."], extras: [[12, -5, "c"], [13, -6, "c"]] },
+    { x: 0, top: -4, rows: [".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."], extras: [[13, -5, "c"]] },
+    { x: 0, top: -4, rows: [".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."], extras: [[12, -5, "c"], [13, -5, "c"]] },
+  ],
+  onigiriStill: { x: 0, top: -3, rows: ["...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."], extras: [[10, -4, "c"]] },
+  onigiri: [
+    { x: 0, top: -3, rows: ["...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."], extras: [[10, -4, "c"]] },
+    { x: 0, top: -3, rows: ["...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."], extras: [[10, -4, "c"], [11, -5, "c"]] },
+    { x: 0, top: -3, rows: ["...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."], extras: [[11, -4, "c"]] },
+    { x: 0, top: -3, rows: ["...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."], extras: [[10, -4, "c"], [11, -4, "c"]] },
+  ],
+  },
+  viking: {
+  ms: 350,
+  critterStill: { x: 0, top: -4, rows: ["..c........c..", "..aa.aaaa.aa..", "...aaaaaaaa...", "..bbbbbbbbbb.."], extras: [] },
+  critter: [
+    { x: 0, top: -4, rows: ["..c........a..", "..aa.aaaa.aa..", "...aaaaaaaa...", "..bbbbbbbbbb.."], extras: [] },
+    { x: 0, top: -4, rows: ["..a........c..", "..aa.aaaa.aa..", "...aaaaaaaa...", "..bbbbbbbbbb.."], extras: [] },
+  ],
+  onigiriStill: { x: 0, top: -3, rows: ["...c.aaaa.c...", "...aaaaaaaa...", "....bbbbbb...."], extras: [] },
+  onigiri: [
+    { x: 0, top: -3, rows: ["...c.aaaa.a...", "...aaaaaaaa...", "....bbbbbb...."], extras: [] },
+    { x: 0, top: -3, rows: ["...a.aaaa.c...", "...aaaaaaaa...", "....bbbbbb...."], extras: [] },
+  ],
+  },
+  sombrero: {
+  ms: 400,
+  critterStill: { x: 0, top: -4, rows: [".....aaaa.....", ".....aaaa.....", "....abbbba....", "aaaaaaaaaaaaaa"], extras: [] },
+  critter: [
+    { x: 0, top: -4, rows: [".....aaaa.....", ".....aaaa.....", "....abbbba....", "aaaaaaaaaaaaaa"], extras: [] },
+    { x: 0, top: -4, rows: [".....aaaa.....", ".....aaaa.....", "....abbbba....", ".aaaaaaaaaaaa."], extras: [[0, -2, "a"], [13, -2, "a"]] },
+  ],
+  onigiriStill: { x: 0, top: -3, rows: ["......aa......", ".....abba.....", "..aaaaaaaaaa.."], extras: [] },
+  onigiri: [
+    { x: 0, top: -3, rows: ["......aa......", ".....abba.....", "..aaaaaaaaaa.."], extras: [] },
+    { x: 0, top: -3, rows: ["......aa......", ".....abba.....", "...aaaaaaaa..."], extras: [[2, -2, "a"], [11, -2, "a"]] },
+  ],
+  },
+  fez: {
+  ms: 320,
+  critterStill: { x: 0, top: -3, rows: ["....aaaaaabb..", "....aaaaaa..b.", "....bbbbbb..b."], extras: [] },
+  critter: [
+    { x: 0, top: -3, rows: ["....aaaaaabb..", "....aaaaaa..b.", "....bbbbbb..b."], extras: [] },
+    { x: 0, top: -3, rows: ["....aaaaaabb..", "....aaaaaa.b..", "....bbbbbb.b.."], extras: [] },
+    { x: 0, top: -3, rows: ["....aaaaaabb..", "....aaaaaa..b.", "....bbbbbb..b."], extras: [] },
+    { x: 0, top: -3, rows: ["....aaaaaabb..", "....aaaaaa...b", "....bbbbbb...b"], extras: [] },
+  ],
+  onigiriStill: { x: 0, top: -3, rows: [".....aaaabb...", ".....aaaa..b..", ".....bbbb..b.."], extras: [] },
+  onigiri: [
+    { x: 0, top: -3, rows: [".....aaaabb...", ".....aaaa..b..", ".....bbbb..b.."], extras: [] },
+    { x: 0, top: -3, rows: [".....aaaabb...", ".....aaaa.b...", ".....bbbb.b..."], extras: [] },
+    { x: 0, top: -3, rows: [".....aaaabb...", ".....aaaa..b..", ".....bbbb..b.."], extras: [] },
+    { x: 0, top: -3, rows: [".....aaaabb...", ".....aaaa...b.", ".....bbbb...b."], extras: [] },
+  ],
+  },
+  "party hat": {
+  ms: 350,
+  critterStill: { x: 0, top: -5, rows: ["......c.......", "......aa......", ".....abba.....", "....aaaaaa....", "...babababa..."], extras: [] },
+  critter: [
+    { x: 0, top: -5, rows: ["......c.......", "......aa......", ".....abba.....", "....aaaaaa....", "...babababa..."], extras: [] },
+    { x: 0, top: -5, rows: [".......c......", "......aa......", ".....abba.....", "....aaaaaa....", "...babababa..."], extras: [] },
+  ],
+  onigiriStill: { x: 0, top: -4, rows: ["......c.......", "......aa......", ".....abba.....", "....bababa...."], extras: [] },
+  onigiri: [
+    { x: 0, top: -4, rows: ["......c.......", "......aa......", ".....abba.....", "....bababa...."], extras: [] },
+    { x: 0, top: -4, rows: [".......c......", "......aa......", ".....abba.....", "....bababa...."], extras: [] },
+  ],
+  },
+  mortarboard: {
+  ms: 300,
+  critterStill: { x: 0, top: -3, rows: [".aaaaaaaaaaaa.", "....aaaaaa..c.", "....bbbbbb..c."], extras: [] },
+  critter: [
+    { x: 0, top: -3, rows: [".aaaaaaaaaaaa.", "....aaaaaa..c.", "....bbbbbb..c."], extras: [] },
+    { x: 0, top: -3, rows: [".aaaaaaaaaaaa.", "....aaaaaa...c", "....bbbbbb...c"], extras: [] },
+    { x: 0, top: -3, rows: [".aaaaaaaaaaaa.", "....aaaaaa..c.", "....bbbbbb..c."], extras: [] },
+    { x: 0, top: -3, rows: [".aaaaaaaaaaaa.", "....aaaaaa.c..", "....bbbbbb.c.."], extras: [] },
+  ],
+  onigiriStill: { x: 0, top: -3, rows: ["..aaaaaaaaaa..", ".....aaaa..c..", ".....bbbb..c.."], extras: [] },
+  onigiri: [
+    { x: 0, top: -3, rows: ["..aaaaaaaaaa..", ".....aaaa..c..", ".....bbbb..c.."], extras: [] },
+    { x: 0, top: -3, rows: ["..aaaaaaaaaa..", ".....aaaa...c.", ".....bbbb...c."], extras: [] },
+    { x: 0, top: -3, rows: ["..aaaaaaaaaa..", ".....aaaa..c..", ".....bbbb..c.."], extras: [] },
+    { x: 0, top: -3, rows: ["..aaaaaaaaaa..", ".....aaaa.c...", ".....bbbb.c..."], extras: [] },
+  ],
+  },
+  bowler: {
+  ms: 450,
+  critterStill: { x: 0, top: -4, rows: [".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."], extras: [] },
+  critter: [
+    { x: 0, top: -4, rows: [".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."], extras: [] },
+    { x: 0, top: -4, rows: [".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."], extras: [] },
+    { x: 0, top: -5, rows: [".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."], extras: [] },
+    { x: 0, top: -4, rows: [".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."], extras: [] },
+  ],
+  onigiriStill: { x: 0, top: -3, rows: [".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."], extras: [] },
+  onigiri: [
+    { x: 0, top: -3, rows: [".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."], extras: [] },
+    { x: 0, top: -3, rows: [".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."], extras: [] },
+    { x: 0, top: -4, rows: [".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."], extras: [] },
+    { x: 0, top: -3, rows: [".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."], extras: [] },
+  ],
+  },
+  nightcap: {
+  ms: 400,
+  critterStill: { x: 0, top: -4, rows: ["....aaaa......", "...aaaaaaa....", "...aaaaaaaaac.", "..cccccccccc.."], extras: [] },
+  critter: [
+    { x: 0, top: -4, rows: ["....aaaa......", "...aaaaaaa....", "...aaaaaaaaac.", "..cccccccccc.."], extras: [] },
+    { x: 0, top: -4, rows: ["....aaaa......", "...aaaaaaaaac.", "...aaaaaaaa...", "..cccccccccc.."], extras: [] },
+  ],
+  onigiriStill: { x: 0, top: -3, rows: [".....aaa......", "....aaaaaac...", "...cccccccc..."], extras: [] },
+  onigiri: [
+    { x: 0, top: -3, rows: [".....aaa......", "....aaaaaac...", "...cccccccc..."], extras: [] },
+    { x: 0, top: -3, rows: [".....aaaaac...", "....aaaaaa....", "...cccccccc..."], extras: [] },
+  ],
+  },
+  halo: {
+  ms: 450,
+  critterStill: { x: 0, top: -4, rows: ["....aaaaaa....", "...a......a...", "....aaaaaa....", ".............."], extras: [] },
+  critter: [
+    { x: 0, top: -4, rows: ["....aaaaaa....", "...a......a...", "....aaaaaa....", ".............."], extras: [] },
+    { x: 0, top: -5, rows: ["....aaaaaa....", "...a......a...", "....aaaaaa....", "..............", ".............."], extras: [] },
+  ],
+  onigiriStill: { x: 0, top: -4, rows: [".....aaaa.....", "....a....a....", ".....aaaa.....", ".............."], extras: [] },
+  onigiri: [
+    { x: 0, top: -4, rows: [".....aaaa.....", "....a....a....", ".....aaaa.....", ".............."], extras: [] },
+    { x: 0, top: -5, rows: [".....aaaa.....", "....a....a....", ".....aaaa.....", "..............", ".............."], extras: [] },
+  ],
+  },
 };
 const HAT_COLORS = {
   teal: ['#4FB3A6', '#2F7F75'], blue: ['#6F8FD8', '#4A63A3'], yellow: ['#E8B94A', '#B08429'], green: ['#6DBE6A', '#468A44'],

@@ -116,6 +116,15 @@ static const char* const kHats[kHatShapeCount][kHatRowsMax] = {
     {"...aaaaaaaa...", "...aaaaaaaa...", "...aaaaaaaa...", "...bbbbbbbb...", ".aaaaaaaaaaaa."},  // top hat
     {".....aaaa.....", "....aabbaa....", "b...aaaaaa...b", "bbbbbbbbbbbbbb"},                    // cowboy
     {"..aaaaaaaaaa.b", "..acacacacac.b"},                                                          // bandana
+    {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."},  // pirate
+    {"..c........c..", "..aa.aaaa.aa..", "...aaaaaaaa...", "..bbbbbbbbbb.."},  // viking
+    {".....aaaa.....", ".....aaaa.....", "....abbbba....", "aaaaaaaaaaaaaa"},  // sombrero
+    {"....aaaaaabb..", "....aaaaaa..b.", "....bbbbbb..b."},  // fez
+    {"......c.......", "......aa......", ".....abba.....", "....aaaaaa....", "...babababa..."},  // party hat
+    {".aaaaaaaaaaaa.", "....aaaaaa..c.", "....bbbbbb..c."},  // mortarboard
+    {".....aaaa.....", "....aaaaaa....", "....bbbbbb....", "..aaaaaaaaaa.."},  // bowler
+    {"....aaaa......", "...aaaaaaa....", "...aaaaaaaaac.", "..cccccccccc.."},  // nightcap
+    {"....aaaaaa....", "...a......a...", "....aaaaaa....", ".............."},  // halo
 };
 static const char* const kOniHats[kHatShapeCount][kHatRowsMax] = {
     {".....aaaa.....", "....acaaaa....", "...bbbbbbbb..."},
@@ -131,6 +140,15 @@ static const char* const kOniHats[kHatShapeCount][kHatRowsMax] = {
     {".....aaaa.....", ".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."},
     {"......aa......", ".....abba.....", ".b..aaaaaa..b.", ".bbbbbbbbbbbb."},
     {"...aaaaaaaa.b.", "..acacacacac.b"},
+    {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."},  // pirate
+    {"...c.aaaa.c...", "...aaaaaaaa...", "....bbbbbb...."},  // viking
+    {"......aa......", ".....abba.....", "..aaaaaaaaaa.."},  // sombrero
+    {".....aaaabb...", ".....aaaa..b..", ".....bbbb..b.."},  // fez
+    {"......c.......", "......aa......", ".....abba.....", "....bababa...."},  // party hat
+    {"..aaaaaaaaaa..", ".....aaaa..c..", ".....bbbb..c.."},  // mortarboard
+    {".....aaaa.....", ".....bbbb.....", "...aaaaaaaa..."},  // bowler
+    {".....aaa......", "....aaaaaac...", "...cccccccc..."},  // nightcap
+    {".....aaaa.....", "....a....a....", ".....aaaa.....", ".............."},  // halo
 };
 constexpr int kHatCap = 1, kHatHeadphones = 8, kHatBandana = 12;   // indexes into kHatShapes
 

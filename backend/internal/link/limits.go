@@ -35,7 +35,7 @@ var limits = map[string]limit{
 	"AddLive.session_id": {size: 40},
 	"Handoff.agent_id":   {size: 12}, "Handoff.account": {size: 16},
 	"Result.error":   {size: 96},
-	"HatList.shapes": {size: 16, count: 16}, "HatList.colors": {size: 12, count: 12}, "HatList.overrides": {count: 8},
+	"HatList.shapes": {size: 16, count: 24}, "HatList.colors": {size: 12, count: 12}, "HatList.overrides": {count: 8},
 	"HatOverride.folder": {size: 128}, "HatOverride.shape": {size: 16}, "HatOverride.color": {size: 12},
 	"LiveSessions.sessions":  {count: 8},
 	"LiveSession.session_id": {size: 40}, "LiveSession.title": {size: 64}, "LiveSession.cwd": {size: 128}, "LiveSession.folder": {size: 48},

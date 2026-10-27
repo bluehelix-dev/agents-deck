@@ -60,7 +60,7 @@ agentsdeck.link.v1.AddLive.session_id    max_size:40
 agentsdeck.link.v1.Handoff.agent_id      max_size:12
 agentsdeck.link.v1.Handoff.account       max_size:16
 agentsdeck.link.v1.Result.error          max_size:96
-agentsdeck.link.v1.HatList.shapes        max_count:16 max_size:16
+agentsdeck.link.v1.HatList.shapes        max_count:24 max_size:16
 agentsdeck.link.v1.HatList.colors        max_count:12 max_size:12
 agentsdeck.link.v1.HatList.overrides     max_count:8
 agentsdeck.link.v1.HatOverride.folder    max_size:128

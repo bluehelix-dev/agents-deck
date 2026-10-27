@@ -295,7 +295,7 @@ func TestHatEndpoints(t *testing.T) {
 	if got := hatOf(); got.Shape != "top hat" || got.Color != "purple" || got.Auto {
 		t.Fatalf("chosen: %+v", got)
 	}
-	if c := do(h, "POST", "/v1/agents/a1/hat", `{"shape":"sombrero"}`, auth).Code; c != 400 {
+	if c := do(h, "POST", "/v1/agents/a1/hat", `{"shape":"fedora"}`, auth).Code; c != 400 {
 		t.Fatalf("unknown shape: %d", c)
 	}
 	if c := do(h, "POST", "/v1/hats", `{"folder":"/Users/sam/dev/app","auto":true}`, auth).Code; c != 204 {

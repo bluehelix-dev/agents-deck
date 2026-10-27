@@ -64,7 +64,7 @@ type Agent struct {
 // Hat is the pixel hat an agent wears, picked by its working folder: shape
 // and colour from a stable hash of the folder (Auto), or chosen by hand.
 type Hat struct {
-	Shape string `json:"shape"` // hard hat, cap, beanie, helmet, wizard, beret, chef, crown, headphones, propeller, top hat, cowboy, bandana
+	Shape string `json:"shape"` // hard hat, cap, beanie, helmet, wizard, beret, chef, crown, headphones, propeller, top hat, cowboy, bandana, pirate, viking, sombrero, fez, party hat, mortarboard, bowler, nightcap, halo
 	Color string `json:"color"` // teal, blue, yellow, green, purple, pink, sky, ink
 	Auto  bool   `json:"auto"`  // picked by the hash, not by hand
 }

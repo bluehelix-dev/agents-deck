@@ -1,4 +1,4 @@
-/// Pixel art for the 13 hats: a still version and the frames each cycles
+/// Pixel art for the 22 hats: a still version and the frames each cycles
 /// through while its agent works, for the critter and for the onigiri
 /// (narrower, sitting over its tip). Rows are placed at ([HatFrame.x],
 /// [HatFrame.top]) in sprite cells; "a" = the hat's colour, "b" its shade,
@@ -1229,6 +1229,649 @@ const hatArt = <String, HatArt>{
           (1, 1, 'b'),
           (0, 1, 'b'),
         ],
+      ),
+    ],
+  ),
+  'pirate': HatArt(
+    ms: 300,
+    critterStill: HatFrame(
+      x: 0,
+      top: -4,
+      rows: [
+        '.a..........a.',
+        '.aaa..cc..aaa.',
+        '..aaaaccaaaa..',
+        '...bbbbbbbb...',
+      ],
+      extras: [(12, -5, 'c')],
+    ),
+    critter: [
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.a..........a.',
+          '.aaa..cc..aaa.',
+          '..aaaaccaaaa..',
+          '...bbbbbbbb...',
+        ],
+        extras: [(12, -5, 'c')],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.a..........a.',
+          '.aaa..cc..aaa.',
+          '..aaaaccaaaa..',
+          '...bbbbbbbb...',
+        ],
+        extras: [(12, -5, 'c'), (13, -6, 'c')],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.a..........a.',
+          '.aaa..cc..aaa.',
+          '..aaaaccaaaa..',
+          '...bbbbbbbb...',
+        ],
+        extras: [(13, -5, 'c')],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.a..........a.',
+          '.aaa..cc..aaa.',
+          '..aaaaccaaaa..',
+          '...bbbbbbbb...',
+        ],
+        extras: [(12, -5, 'c'), (13, -5, 'c')],
+      ),
+    ],
+    onigiriStill: HatFrame(
+      x: 0,
+      top: -3,
+      rows: ['...a..cc..a...', '...aaaaaaaa...', '....bbbbbb....'],
+      extras: [(10, -4, 'c')],
+    ),
+    onigiri: [
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['...a..cc..a...', '...aaaaaaaa...', '....bbbbbb....'],
+        extras: [(10, -4, 'c')],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['...a..cc..a...', '...aaaaaaaa...', '....bbbbbb....'],
+        extras: [(10, -4, 'c'), (11, -5, 'c')],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['...a..cc..a...', '...aaaaaaaa...', '....bbbbbb....'],
+        extras: [(11, -4, 'c')],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['...a..cc..a...', '...aaaaaaaa...', '....bbbbbb....'],
+        extras: [(10, -4, 'c'), (11, -4, 'c')],
+      ),
+    ],
+  ),
+  'viking': HatArt(
+    ms: 350,
+    critterStill: HatFrame(
+      x: 0,
+      top: -4,
+      rows: [
+        '..c........c..',
+        '..aa.aaaa.aa..',
+        '...aaaaaaaa...',
+        '..bbbbbbbbbb..',
+      ],
+      extras: [],
+    ),
+    critter: [
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '..c........a..',
+          '..aa.aaaa.aa..',
+          '...aaaaaaaa...',
+          '..bbbbbbbbbb..',
+        ],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '..a........c..',
+          '..aa.aaaa.aa..',
+          '...aaaaaaaa...',
+          '..bbbbbbbbbb..',
+        ],
+        extras: [],
+      ),
+    ],
+    onigiriStill: HatFrame(
+      x: 0,
+      top: -3,
+      rows: ['...c.aaaa.c...', '...aaaaaaaa...', '....bbbbbb....'],
+      extras: [],
+    ),
+    onigiri: [
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['...c.aaaa.a...', '...aaaaaaaa...', '....bbbbbb....'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['...a.aaaa.c...', '...aaaaaaaa...', '....bbbbbb....'],
+        extras: [],
+      ),
+    ],
+  ),
+  'sombrero': HatArt(
+    ms: 400,
+    critterStill: HatFrame(
+      x: 0,
+      top: -4,
+      rows: [
+        '.....aaaa.....',
+        '.....aaaa.....',
+        '....abbbba....',
+        'aaaaaaaaaaaaaa',
+      ],
+      extras: [],
+    ),
+    critter: [
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.....aaaa.....',
+          '.....aaaa.....',
+          '....abbbba....',
+          'aaaaaaaaaaaaaa',
+        ],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.....aaaa.....',
+          '.....aaaa.....',
+          '....abbbba....',
+          '.aaaaaaaaaaaa.',
+        ],
+        extras: [(0, -2, 'a'), (13, -2, 'a')],
+      ),
+    ],
+    onigiriStill: HatFrame(
+      x: 0,
+      top: -3,
+      rows: ['......aa......', '.....abba.....', '..aaaaaaaaaa..'],
+      extras: [],
+    ),
+    onigiri: [
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['......aa......', '.....abba.....', '..aaaaaaaaaa..'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['......aa......', '.....abba.....', '...aaaaaaaa...'],
+        extras: [(2, -2, 'a'), (11, -2, 'a')],
+      ),
+    ],
+  ),
+  'fez': HatArt(
+    ms: 320,
+    critterStill: HatFrame(
+      x: 0,
+      top: -3,
+      rows: ['....aaaaaabb..', '....aaaaaa..b.', '....bbbbbb..b.'],
+      extras: [],
+    ),
+    critter: [
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['....aaaaaabb..', '....aaaaaa..b.', '....bbbbbb..b.'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['....aaaaaabb..', '....aaaaaa.b..', '....bbbbbb.b..'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['....aaaaaabb..', '....aaaaaa..b.', '....bbbbbb..b.'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['....aaaaaabb..', '....aaaaaa...b', '....bbbbbb...b'],
+        extras: [],
+      ),
+    ],
+    onigiriStill: HatFrame(
+      x: 0,
+      top: -3,
+      rows: ['.....aaaabb...', '.....aaaa..b..', '.....bbbb..b..'],
+      extras: [],
+    ),
+    onigiri: [
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.....aaaabb...', '.....aaaa..b..', '.....bbbb..b..'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.....aaaabb...', '.....aaaa.b...', '.....bbbb.b...'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.....aaaabb...', '.....aaaa..b..', '.....bbbb..b..'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.....aaaabb...', '.....aaaa...b.', '.....bbbb...b.'],
+        extras: [],
+      ),
+    ],
+  ),
+  'party hat': HatArt(
+    ms: 350,
+    critterStill: HatFrame(
+      x: 0,
+      top: -5,
+      rows: [
+        '......c.......',
+        '......aa......',
+        '.....abba.....',
+        '....aaaaaa....',
+        '...babababa...',
+      ],
+      extras: [],
+    ),
+    critter: [
+      HatFrame(
+        x: 0,
+        top: -5,
+        rows: [
+          '......c.......',
+          '......aa......',
+          '.....abba.....',
+          '....aaaaaa....',
+          '...babababa...',
+        ],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -5,
+        rows: [
+          '.......c......',
+          '......aa......',
+          '.....abba.....',
+          '....aaaaaa....',
+          '...babababa...',
+        ],
+        extras: [],
+      ),
+    ],
+    onigiriStill: HatFrame(
+      x: 0,
+      top: -4,
+      rows: [
+        '......c.......',
+        '......aa......',
+        '.....abba.....',
+        '....bababa....',
+      ],
+      extras: [],
+    ),
+    onigiri: [
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '......c.......',
+          '......aa......',
+          '.....abba.....',
+          '....bababa....',
+        ],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.......c......',
+          '......aa......',
+          '.....abba.....',
+          '....bababa....',
+        ],
+        extras: [],
+      ),
+    ],
+  ),
+  'mortarboard': HatArt(
+    ms: 300,
+    critterStill: HatFrame(
+      x: 0,
+      top: -3,
+      rows: ['.aaaaaaaaaaaa.', '....aaaaaa..c.', '....bbbbbb..c.'],
+      extras: [],
+    ),
+    critter: [
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.aaaaaaaaaaaa.', '....aaaaaa..c.', '....bbbbbb..c.'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.aaaaaaaaaaaa.', '....aaaaaa...c', '....bbbbbb...c'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.aaaaaaaaaaaa.', '....aaaaaa..c.', '....bbbbbb..c.'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.aaaaaaaaaaaa.', '....aaaaaa.c..', '....bbbbbb.c..'],
+        extras: [],
+      ),
+    ],
+    onigiriStill: HatFrame(
+      x: 0,
+      top: -3,
+      rows: ['..aaaaaaaaaa..', '.....aaaa..c..', '.....bbbb..c..'],
+      extras: [],
+    ),
+    onigiri: [
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['..aaaaaaaaaa..', '.....aaaa..c..', '.....bbbb..c..'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['..aaaaaaaaaa..', '.....aaaa...c.', '.....bbbb...c.'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['..aaaaaaaaaa..', '.....aaaa..c..', '.....bbbb..c..'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['..aaaaaaaaaa..', '.....aaaa.c...', '.....bbbb.c...'],
+        extras: [],
+      ),
+    ],
+  ),
+  'bowler': HatArt(
+    ms: 450,
+    critterStill: HatFrame(
+      x: 0,
+      top: -4,
+      rows: [
+        '.....aaaa.....',
+        '....aaaaaa....',
+        '....bbbbbb....',
+        '..aaaaaaaaaa..',
+      ],
+      extras: [],
+    ),
+    critter: [
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.....aaaa.....',
+          '....aaaaaa....',
+          '....bbbbbb....',
+          '..aaaaaaaaaa..',
+        ],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.....aaaa.....',
+          '....aaaaaa....',
+          '....bbbbbb....',
+          '..aaaaaaaaaa..',
+        ],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -5,
+        rows: [
+          '.....aaaa.....',
+          '....aaaaaa....',
+          '....bbbbbb....',
+          '..aaaaaaaaaa..',
+        ],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.....aaaa.....',
+          '....aaaaaa....',
+          '....bbbbbb....',
+          '..aaaaaaaaaa..',
+        ],
+        extras: [],
+      ),
+    ],
+    onigiriStill: HatFrame(
+      x: 0,
+      top: -3,
+      rows: ['.....aaaa.....', '.....bbbb.....', '...aaaaaaaa...'],
+      extras: [],
+    ),
+    onigiri: [
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.....aaaa.....', '.....bbbb.....', '...aaaaaaaa...'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.....aaaa.....', '.....bbbb.....', '...aaaaaaaa...'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: ['.....aaaa.....', '.....bbbb.....', '...aaaaaaaa...'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.....aaaa.....', '.....bbbb.....', '...aaaaaaaa...'],
+        extras: [],
+      ),
+    ],
+  ),
+  'nightcap': HatArt(
+    ms: 400,
+    critterStill: HatFrame(
+      x: 0,
+      top: -4,
+      rows: [
+        '....aaaa......',
+        '...aaaaaaa....',
+        '...aaaaaaaaac.',
+        '..cccccccccc..',
+      ],
+      extras: [],
+    ),
+    critter: [
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '....aaaa......',
+          '...aaaaaaa....',
+          '...aaaaaaaaac.',
+          '..cccccccccc..',
+        ],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '....aaaa......',
+          '...aaaaaaaaac.',
+          '...aaaaaaaa...',
+          '..cccccccccc..',
+        ],
+        extras: [],
+      ),
+    ],
+    onigiriStill: HatFrame(
+      x: 0,
+      top: -3,
+      rows: ['.....aaa......', '....aaaaaac...', '...cccccccc...'],
+      extras: [],
+    ),
+    onigiri: [
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.....aaa......', '....aaaaaac...', '...cccccccc...'],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['.....aaaaac...', '....aaaaaa....', '...cccccccc...'],
+        extras: [],
+      ),
+    ],
+  ),
+  'halo': HatArt(
+    ms: 450,
+    critterStill: HatFrame(
+      x: 0,
+      top: -4,
+      rows: [
+        '....aaaaaa....',
+        '...a......a...',
+        '....aaaaaa....',
+        '..............',
+      ],
+      extras: [],
+    ),
+    critter: [
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '....aaaaaa....',
+          '...a......a...',
+          '....aaaaaa....',
+          '..............',
+        ],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -5,
+        rows: [
+          '....aaaaaa....',
+          '...a......a...',
+          '....aaaaaa....',
+          '..............',
+          '..............',
+        ],
+        extras: [],
+      ),
+    ],
+    onigiriStill: HatFrame(
+      x: 0,
+      top: -4,
+      rows: [
+        '.....aaaa.....',
+        '....a....a....',
+        '.....aaaa.....',
+        '..............',
+      ],
+      extras: [],
+    ),
+    onigiri: [
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.....aaaa.....',
+          '....a....a....',
+          '.....aaaa.....',
+          '..............',
+        ],
+        extras: [],
+      ),
+      HatFrame(
+        x: 0,
+        top: -5,
+        rows: [
+          '.....aaaa.....',
+          '....a....a....',
+          '.....aaaa.....',
+          '..............',
+          '..............',
+        ],
+        extras: [],
       ),
     ],
   ),

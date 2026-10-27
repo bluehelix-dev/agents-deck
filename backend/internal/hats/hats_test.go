@@ -72,7 +72,7 @@ func TestOverridesInConfig(t *testing.T) {
 	if json.Unmarshal(raw, &c); c["hats"] != nil {
 		t.Fatalf("no empty hats key: %s", raw)
 	}
-	if b.Set(dir, "sombrero", "", false) == nil || b.Set(dir, "cap", "orange", false) == nil {
+	if b.Set(dir, "fedora", "", false) == nil || b.Set(dir, "cap", "orange", false) == nil {
 		t.Fatal("unknown shapes and colours are refused")
 	}
 }

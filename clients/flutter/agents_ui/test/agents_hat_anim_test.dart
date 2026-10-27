@@ -32,7 +32,7 @@ void main() {
         expect(critterHatFrame('propeller', pose, t), -1, reason: '$pose');
       }
     }
-    expect(critterHatFrame('sombrero', CritterPose.run, 7), -1);
+    expect(critterHatFrame('fedora', CritterPose.run, 7), -1);
   });
 
   test('the propeller spins fast, the chef toque puffs slowly', () {

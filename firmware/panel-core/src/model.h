@@ -29,9 +29,11 @@ enum class Species : uint8_t { Claude, Codex };   // Codex is drawn as the onigi
 // Pixel hats: one per working folder, chosen by the daemon. The order is the
 // protocol's (docs/protocol.md) and sprites.h draws by the same index.
 static const char* const kHatShapes[] = {"hard hat", "cap", "beanie", "helmet", "wizard", "beret", "chef",
-                                         "crown", "headphones", "propeller", "top hat", "cowboy", "bandana"};
+                                         "crown", "headphones", "propeller", "top hat", "cowboy", "bandana",
+                                         "pirate", "viking", "sombrero", "fez", "party hat", "mortarboard",
+                                         "bowler", "nightcap", "halo"};
 static const char* const kHatColors[] = {"teal", "blue", "yellow", "green", "purple", "pink", "sky", "ink"};
-constexpr int kHatShapeCount = 13, kHatColorCount = 8;
+constexpr int kHatShapeCount = 22, kHatColorCount = 8;
 constexpr uint8_t kHatInk = 7;
 
 // What the board knows of the Deck Link connection, for the screen.

@@ -94,7 +94,8 @@ The full state is small (≤ a few KB per agent), so there are no deltas.
                                   // focus switches to its terminal there, answer and interrupt work; dismiss hides it until it's active
   "hat": { "shape": "propeller", "color": "blue", "auto": true }, // omitted when none: the pixel hat for its working folder;
                                   // shape: hard hat, cap, beanie, helmet, wizard, beret, chef, crown, headphones,
-                                  // propeller, top hat, cowboy, bandana · color: teal, blue, yellow, green, purple,
+                                  // propeller, top hat, cowboy, bandana, pirate, viking, sombrero, fez, party hat,
+                                  // mortarboard, bowler, nightcap, halo · color: teal, blue, yellow, green, purple,
                                   // pink, sky, ink · auto: picked by FNV-1a of the folder (shape = h mod 13,
                                   // colour = (h >> 8) mod 8), false when chosen by hand
   "account": { "name": "work", "color": "yellow" }, // omitted while only one Claude account is set up:

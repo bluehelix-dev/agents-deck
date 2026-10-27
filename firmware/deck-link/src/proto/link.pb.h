@@ -337,7 +337,7 @@ typedef struct _agentsdeck_link_v1_HatOverride {
 
 typedef struct _agentsdeck_link_v1_HatList {
     pb_size_t shapes_count;
-    char shapes[16][16];
+    char shapes[24][16];
     pb_size_t colors_count;
     char colors[12][12];
     pb_size_t overrides_count;
@@ -607,7 +607,7 @@ extern "C" {
 #define agentsdeck_link_v1_Handoff_init_default  {"", ""}
 #define agentsdeck_link_v1_ListAccounts_init_default {0}
 #define agentsdeck_link_v1_Result_init_default   {0, ""}
-#define agentsdeck_link_v1_HatList_init_default  {0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}, 0, {"", "", "", "", "", "", "", "", "", "", "", ""}, 0, {agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default}}
+#define agentsdeck_link_v1_HatList_init_default  {0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}, 0, {"", "", "", "", "", "", "", "", "", "", "", ""}, 0, {agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default, agentsdeck_link_v1_HatOverride_init_default}}
 #define agentsdeck_link_v1_HatOverride_init_default {"", "", ""}
 #define agentsdeck_link_v1_LiveSessions_init_default {0, {agentsdeck_link_v1_LiveSession_init_default, agentsdeck_link_v1_LiveSession_init_default, agentsdeck_link_v1_LiveSession_init_default, agentsdeck_link_v1_LiveSession_init_default, agentsdeck_link_v1_LiveSession_init_default, agentsdeck_link_v1_LiveSession_init_default, agentsdeck_link_v1_LiveSession_init_default, agentsdeck_link_v1_LiveSession_init_default}}
 #define agentsdeck_link_v1_LiveSession_init_default {"", "", "", "", 0, 0, 0}
@@ -656,7 +656,7 @@ extern "C" {
 #define agentsdeck_link_v1_Handoff_init_zero     {"", ""}
 #define agentsdeck_link_v1_ListAccounts_init_zero {0}
 #define agentsdeck_link_v1_Result_init_zero      {0, ""}
-#define agentsdeck_link_v1_HatList_init_zero     {0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}, 0, {"", "", "", "", "", "", "", "", "", "", "", ""}, 0, {agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero}}
+#define agentsdeck_link_v1_HatList_init_zero     {0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}, 0, {"", "", "", "", "", "", "", "", "", "", "", ""}, 0, {agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero, agentsdeck_link_v1_HatOverride_init_zero}}
 #define agentsdeck_link_v1_HatOverride_init_zero {"", "", ""}
 #define agentsdeck_link_v1_LiveSessions_init_zero {0, {agentsdeck_link_v1_LiveSession_init_zero, agentsdeck_link_v1_LiveSession_init_zero, agentsdeck_link_v1_LiveSession_init_zero, agentsdeck_link_v1_LiveSession_init_zero, agentsdeck_link_v1_LiveSession_init_zero, agentsdeck_link_v1_LiveSession_init_zero, agentsdeck_link_v1_LiveSession_init_zero, agentsdeck_link_v1_LiveSession_init_zero}}
 #define agentsdeck_link_v1_LiveSession_init_zero {"", "", "", "", 0, 0, 0}
@@ -1411,7 +1411,7 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Frame_size            3370
 #define agentsdeck_link_v1_GetState_size         0
 #define agentsdeck_link_v1_Handoff_size          30
-#define agentsdeck_link_v1_HatList_size          1732
+#define agentsdeck_link_v1_HatList_size          1868
 #define agentsdeck_link_v1_HatOverride_size      160
 #define agentsdeck_link_v1_Hat_size              32
 #define agentsdeck_link_v1_Hello_size            135
