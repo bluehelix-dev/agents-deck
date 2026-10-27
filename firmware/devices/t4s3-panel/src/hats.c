@@ -179,27 +179,17 @@ static const hat_frame_t hat12_critter[] = {{0, -1, 2, f110_rows, 4, f110_extras
 static const hat_frame_t hat12_onigiri[] = {{0, 0, 2, f113_rows, 4, f113_extras}, {0, 0, 2, f114_rows, 5, f114_extras}, {0, 0, 2, f115_rows, 5, f115_extras}};
 
 static const char *const f116_rows[] = {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
-static const hat_extra_t f116_extras[] = {{12, -5, 'c'}};
 static const char *const f117_rows[] = {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."};
-static const hat_extra_t f117_extras[] = {{10, -4, 'c'}};
 static const char *const f118_rows[] = {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
-static const hat_extra_t f118_extras[] = {{12, -5, 'c'}};
 static const char *const f119_rows[] = {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
-static const hat_extra_t f119_extras[] = {{12, -5, 'c'}, {13, -6, 'c'}};
-static const char *const f120_rows[] = {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
-static const hat_extra_t f120_extras[] = {{13, -5, 'c'}};
+static const char *const f120_rows[] = {".a..........a.", ".aaa..ca..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
 static const char *const f121_rows[] = {".a..........a.", ".aaa..cc..aaa.", "..aaaaccaaaa..", "...bbbbbbbb..."};
-static const hat_extra_t f121_extras[] = {{12, -5, 'c'}, {13, -5, 'c'}};
 static const char *const f122_rows[] = {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."};
-static const hat_extra_t f122_extras[] = {{10, -4, 'c'}};
 static const char *const f123_rows[] = {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."};
-static const hat_extra_t f123_extras[] = {{10, -4, 'c'}, {11, -5, 'c'}};
-static const char *const f124_rows[] = {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."};
-static const hat_extra_t f124_extras[] = {{11, -4, 'c'}};
+static const char *const f124_rows[] = {"...a..ca..a...", "...aaaaaaaa...", "....bbbbbb...."};
 static const char *const f125_rows[] = {"...a..cc..a...", "...aaaaaaaa...", "....bbbbbb...."};
-static const hat_extra_t f125_extras[] = {{10, -4, 'c'}, {11, -4, 'c'}};
-static const hat_frame_t hat13_critter[] = {{0, -4, 4, f118_rows, 1, f118_extras}, {0, -4, 4, f119_rows, 2, f119_extras}, {0, -4, 4, f120_rows, 1, f120_extras}, {0, -4, 4, f121_rows, 2, f121_extras}};
-static const hat_frame_t hat13_onigiri[] = {{0, -3, 3, f122_rows, 1, f122_extras}, {0, -3, 3, f123_rows, 2, f123_extras}, {0, -3, 3, f124_rows, 1, f124_extras}, {0, -3, 3, f125_rows, 2, f125_extras}};
+static const hat_frame_t hat13_critter[] = {{0, -4, 4, f118_rows, 0, NULL}, {0, -4, 4, f119_rows, 0, NULL}, {0, -4, 4, f120_rows, 0, NULL}, {0, -4, 4, f121_rows, 0, NULL}};
+static const hat_frame_t hat13_onigiri[] = {{0, -3, 3, f122_rows, 0, NULL}, {0, -3, 3, f123_rows, 0, NULL}, {0, -3, 3, f124_rows, 0, NULL}, {0, -3, 3, f125_rows, 0, NULL}};
 
 static const char *const f126_rows[] = {"..c........c..", "..aa.aaaa.aa..", "...aaaaaaaa...", "..bbbbbbbbbb.."};
 static const char *const f127_rows[] = {"...c.aaaa.c...", "...aaaaaaaa...", "....bbbbbb...."};
@@ -301,7 +291,7 @@ const hat_art_t hat_art[] = {
 	{"top hat", 450, {0, -5, 5, f88_rows, 0, NULL}, 4, hat10_critter, {0, -4, 4, f89_rows, 0, NULL}, 4, hat10_onigiri},
 	{"cowboy", 350, {0, -4, 4, f98_rows, 0, NULL}, 4, hat11_critter, {0, -4, 4, f99_rows, 0, NULL}, 4, hat11_onigiri},
 	{"bandana", 200, {0, -1, 2, f108_rows, 4, f108_extras}, 3, hat12_critter, {0, 0, 2, f109_rows, 4, f109_extras}, 3, hat12_onigiri},
-	{"pirate", 300, {0, -4, 4, f116_rows, 1, f116_extras}, 4, hat13_critter, {0, -3, 3, f117_rows, 1, f117_extras}, 4, hat13_onigiri},
+	{"pirate", 300, {0, -4, 4, f116_rows, 0, NULL}, 4, hat13_critter, {0, -3, 3, f117_rows, 0, NULL}, 4, hat13_onigiri},
 	{"viking", 350, {0, -4, 4, f126_rows, 0, NULL}, 2, hat14_critter, {0, -3, 3, f127_rows, 0, NULL}, 2, hat14_onigiri},
 	{"sombrero", 400, {0, -4, 4, f132_rows, 0, NULL}, 2, hat15_critter, {0, -3, 3, f133_rows, 0, NULL}, 2, hat15_onigiri},
 	{"fez", 320, {0, -3, 3, f138_rows, 0, NULL}, 4, hat16_critter, {0, -3, 3, f139_rows, 0, NULL}, 4, hat16_onigiri},

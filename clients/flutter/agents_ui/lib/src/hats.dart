@@ -1233,6 +1233,7 @@ const hatArt = <String, HatArt>{
     ],
   ),
   'pirate': HatArt(
+    // The skull winks: three frames open, one with its right eye shut.
     ms: 300,
     critterStill: HatFrame(
       x: 0,
@@ -1243,7 +1244,6 @@ const hatArt = <String, HatArt>{
         '..aaaaccaaaa..',
         '...bbbbbbbb...',
       ],
-      extras: [(12, -5, 'c')],
     ),
     critter: [
       HatFrame(
@@ -1255,7 +1255,6 @@ const hatArt = <String, HatArt>{
           '..aaaaccaaaa..',
           '...bbbbbbbb...',
         ],
-        extras: [(12, -5, 'c')],
       ),
       HatFrame(
         x: 0,
@@ -1266,7 +1265,16 @@ const hatArt = <String, HatArt>{
           '..aaaaccaaaa..',
           '...bbbbbbbb...',
         ],
-        extras: [(12, -5, 'c'), (13, -6, 'c')],
+      ),
+      HatFrame(
+        x: 0,
+        top: -4,
+        rows: [
+          '.a..........a.',
+          '.aaa..ca..aaa.',
+          '..aaaaccaaaa..',
+          '...bbbbbbbb...',
+        ],
       ),
       HatFrame(
         x: 0,
@@ -1277,50 +1285,33 @@ const hatArt = <String, HatArt>{
           '..aaaaccaaaa..',
           '...bbbbbbbb...',
         ],
-        extras: [(13, -5, 'c')],
-      ),
-      HatFrame(
-        x: 0,
-        top: -4,
-        rows: [
-          '.a..........a.',
-          '.aaa..cc..aaa.',
-          '..aaaaccaaaa..',
-          '...bbbbbbbb...',
-        ],
-        extras: [(12, -5, 'c'), (13, -5, 'c')],
       ),
     ],
     onigiriStill: HatFrame(
       x: 0,
       top: -3,
       rows: ['...a..cc..a...', '...aaaaaaaa...', '....bbbbbb....'],
-      extras: [(10, -4, 'c')],
     ),
     onigiri: [
       HatFrame(
         x: 0,
         top: -3,
         rows: ['...a..cc..a...', '...aaaaaaaa...', '....bbbbbb....'],
-        extras: [(10, -4, 'c')],
       ),
       HatFrame(
         x: 0,
         top: -3,
         rows: ['...a..cc..a...', '...aaaaaaaa...', '....bbbbbb....'],
-        extras: [(10, -4, 'c'), (11, -5, 'c')],
+      ),
+      HatFrame(
+        x: 0,
+        top: -3,
+        rows: ['...a..ca..a...', '...aaaaaaaa...', '....bbbbbb....'],
       ),
       HatFrame(
         x: 0,
         top: -3,
         rows: ['...a..cc..a...', '...aaaaaaaa...', '....bbbbbb....'],
-        extras: [(11, -4, 'c')],
-      ),
-      HatFrame(
-        x: 0,
-        top: -3,
-        rows: ['...a..cc..a...', '...aaaaaaaa...', '....bbbbbb....'],
-        extras: [(10, -4, 'c'), (11, -4, 'c')],
       ),
     ],
   ),
