@@ -614,6 +614,13 @@ void main() {
     expect(a.workflow?.line, 'Suche 3/5 · 2 of 3');
     await _pumpApp(tester, FakeAgentsSource.fromState(j));
     expect(find.byKey(const Key('agent-tile-workflow')), findsOneWidget);
+    // The segments have height: a bar, not a line of nothing.
+    final seg = find.descendant(
+      of: find.byKey(const Key('agent-tile-workflow')),
+      matching: find.byType(ColoredBox),
+    );
+    expect(seg, findsNWidgets(3));
+    expect(tester.getSize(seg.first).height, greaterThan(0));
     expect(find.text('Suche 3/5 · 2 of 3'), findsOneWidget);
     await _open(tester, 'checkout-api');
     expect(find.byKey(const Key('agent-workflow')), findsOneWidget);

@@ -373,6 +373,8 @@ class WorkflowBar extends StatelessWidget {
         width: width,
         height: 5,
         child: Row(
+          // Stretch: a ColoredBox without a child has no height of its own.
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final (k, p) in workflow.phases.indexed) ...[
               if (k > 0) const SizedBox(width: 3),
