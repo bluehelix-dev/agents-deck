@@ -599,7 +599,7 @@ function spriteSVG(pose, species = 'claude', hat = null, opts = {}) {
       arms = arm(2, 0, 'la') + arm(2, 1.5, 'lb');
       const bx = bot ? 13 : 14, by = bot ? -1 : 0;
       const baton = (cells, cls) => `<g class="${cls}">` + cells.map(([dx, y]) =>
-        `<rect class="b" x="${bx + dx}" y="${y + by}" width="1" height="1"/>`).join('') + '</g>';
+        `<rect class="fl" x="${bx + dx}" y="${y + by}" width="1" height="1"/>`).join('') + '</g>';
       held = baton([[0, -1], [1, -2], [2, -3]], 'la') + baton([[0, 1.5], [1, 2], [2, 2.5]], 'lb');
       break;
     }

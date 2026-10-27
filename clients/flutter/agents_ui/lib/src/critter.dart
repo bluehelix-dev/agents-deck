@@ -628,13 +628,17 @@ class _CritterPainter extends CustomPainter {
       }
     }
     if (pose == CritterPose.delegate) {
-      // The conductor's baton in the raised hand: up, then beating down
-      // toward its subagents (the ladder up the tile's right edge).
+      // The conductor's baton in the raised hand, in the flag's light ink:
+      // up, then beating down toward its subagents (the ladder up the
+      // tile's right edge).
+      final baton = Paint()
+        ..color = _flagInk
+        ..isAntiAlias = false;
       final bx = bot ? 13.0 : 14.0;
       const up = [(0.0, -1.0), (1.0, -2.0), (2.0, -3.0)];
       const down = [(0.0, 1.5), (1.0, 2.0), (2.0, 2.5)];
       for (final (dx, y) in f == 1 ? down : up) {
-        canvas.drawRect(cell(bx + dx, y + (bot ? -1 : 0), 1, 1), fill);
+        canvas.drawRect(cell(bx + dx, y + (bot ? -1 : 0), 1, 1), baton);
       }
     }
 
