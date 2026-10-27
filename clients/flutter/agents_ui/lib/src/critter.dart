@@ -15,8 +15,8 @@ import 'hats.dart';
 /// * running — what it is doing shows: thinking (glancing eyes, rising
 ///   thought dots, a hand on the chin), reading (eyes scan, magnifier),
 ///   writing and bash (fast legs, ">_" with a blinking cursor), web
-///   (globe), planning (checklist ticking), delegating (a mini critter in
-///   tow); any other tool walks with "…";
+///   (globe), planning (checklist ticking), delegating (an arrow off to the
+///   right, where its subagents climb the tile); any other tool walks with "…";
 /// * just finished — a short hop waving a checkered flag, then hungry: eyes up at a
 ///   bobbing cookie, mouth chomping, until its result has been looked at;
 /// * waiting — eyes up, blinking "?";
@@ -181,7 +181,7 @@ int critterFrame(CritterPose pose, int tick) => switch (pose) {
   CritterPose.web => (tick ~/ 8) % 2,
   // One more box ticked every 500 ms.
   CritterPose.plan => (tick ~/ 10) % 4,
-  // Both critters walk at 2 Hz.
+  // Walks at 2 Hz, the arrow nudging forward in step.
   CritterPose.delegate => (tick ~/ 5) % 2,
   // Chomp and bob the cookie every 300 ms.
   CritterPose.hungry => (tick ~/ 6) % 2,
@@ -402,6 +402,7 @@ class _CritterPainter extends CustomPainter {
   static const _question = ['###', '..#', '.#.', '...', '.#.'];
   static const _bang = ['#', '#', '#', '.', '#'];
   static const _z = ['###', '.#.', '###'];
+  static const _arrow = ['..#.', '####', '..#.'];
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -624,8 +625,9 @@ class _CritterPainter extends CustomPainter {
       }
     }
     if (pose == CritterPose.delegate) {
-      // A mini critter in tow, walking in step.
-      _mini(canvas, 14.4, 3.2, 0.26, f == 1, fill, hole, cell);
+      // Pointing the way for its subagents (the ladder up the tile's right
+      // edge shows them): an arrow off to the right, nudging in step.
+      _bitmap(canvas, _arrow, f == 1 ? 14.7 : 14.2, 2.1, 0.9, 0.9, fill, cell);
     }
 
     // Bubble.
@@ -825,33 +827,6 @@ class _CritterPainter extends CustomPainter {
   static const _prompt = ['#..', '.#.', '#..'];
   static const _globeA = ['.###.', '#.#.#', '#####', '#.#.#', '.###.'];
   static const _globeB = ['.###.', '##.##', '#####', '##.##', '.###.'];
-
-  /// A tiny critter at (x, y) scaled by s, legs swapped on [step].
-  static void _mini(
-    Canvas canvas,
-    double x,
-    double y,
-    double s,
-    bool step,
-    Paint fill,
-    Paint hole,
-    Rect Function(double, double, double, double) cell,
-  ) {
-    final bob = step ? -0.3 : 0.0;
-    for (final (row, (x0, x1)) in _rows.indexed) {
-      canvas.drawRect(
-        cell(x + x0 * s, y + bob + row * s, (x1 - x0) * s, s),
-        fill,
-      );
-    }
-    canvas.drawRect(cell(x, y + bob + 2 * s, s, 2 * s), fill); // arms
-    canvas.drawRect(cell(x + 13 * s, y + bob + 2 * s, s, 2 * s), fill);
-    canvas.drawRect(cell(x + 4 * s, y + bob + 1.5 * s, s, 2 * s), hole);
-    canvas.drawRect(cell(x + 9 * s, y + bob + 1.5 * s, s, 2 * s), hole);
-    for (final lx in step ? _legsB : _legsA) {
-      canvas.drawRect(cell(x + lx * s, y + 6 * s, s, 1.6 * s), fill);
-    }
-  }
 
   static void _bitmap(
     Canvas canvas,

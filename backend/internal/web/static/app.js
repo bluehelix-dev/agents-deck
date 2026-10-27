@@ -170,9 +170,7 @@ const DOTS = '<g class="dots"><rect class="b" x="14.6" y="-2.6" width="0.9" heig
 const pixels = (rows, x0, w, cls, h = 0.9, y0 = -4) => `<g class="${cls}">` + rows.flatMap((row, r) => [...row].map((ch, c) =>
   ch === '#' ? `<rect class="b" x="${x0 + c * w}" y="${y0 + r * h}" width="${w}" height="${h}"/>` : '')).join('') + '</g>';
 
-const MINI = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><g class="bob"><path class="b" d="${BODY}"/>` +
-  '<rect class="b" x="0" y="2" width="1" height="2"/><rect class="b" x="13" y="2" width="1" height="2"/>' +
-  `<rect class="c" x="4" y="1.5" width="1" height="2"/><rect class="c" x="9" y="1.5" width="1" height="2"/></g>${critterLegs(LEGS_A, 'la')}${critterLegs(LEGS_B, 'lb')}</g>`;
+const ARROW = ['..#.', '####', '..#.'];
 
 // Hats: bitmap rows placed at (x, top); a = the hat's colour, b = its shade,
 // c = highlight, d = near-black; extras are single cells (x, y, key). Every hat
@@ -596,7 +594,9 @@ function spriteSVG(pose, species = 'claude', hat = null, opts = {}) {
       break;
     case 'delegate':
       eyes = eyesOpen(2); feet = legs(LEGS_A, 'la') + legs(LEGS_B, 'lb'); grp = 'bob'; arms = arm(2, 1, 'la') + arm(1, 2, 'lb');
-      bubble = MINI(14.4, 3.2, 0.26);
+      // Pointing the way for its subagents (the ladder shows them): an arrow
+      // off to the right, nudging in step.
+      bubble = pixels(ARROW, 14.2, 0.9, 'la', 0.9, 2.1) + pixels(ARROW, 14.7, 0.9, 'lb', 0.9, 2.1);
       break;
     case 'hungry':
       // Eyes up at a bobbing cookie; the mouth chomps open and shut.
