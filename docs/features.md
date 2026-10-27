@@ -43,9 +43,10 @@ Tap a tile for its card:
 Claude Code sessions running in any terminal, or in the Claude desktop app, are found by themselves:
 `agentctl live` lists them, and `agentctl add <session>` (or a tap on a free tile) puts one on the
 deck, where its status, activity, context and cost come from its transcript. When the session
-stops at a question (its card shows the question and the choices) or at a permission prompt (the
-command), the tile turns orange like any other agent's; you answer in the session's own terminal,
-and the deck notices. It stays on the deck whenever it runs; **remove** takes it off. With `"liveAutoAdd": true` in `config.json`, every session
+stops at a question, its card shows the question and the choices and the tile turns orange like any
+other agent's; you answer in the session's own terminal, and the deck notices. (A permission prompt
+looks like a running tool from the outside, so it doesn't show; the deck's own agents report those
+through their hooks.) It stays on the deck whenever it runs; **remove** takes it off. With `"liveAutoAdd": true` in `config.json`, every session
 found with a terminal goes on the deck as soon as it is seen, and one you remove stays off until you
 add it again; background sessions (`claude --bg`) stay yours to add.
 

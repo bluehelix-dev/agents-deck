@@ -15,8 +15,8 @@ import (
 
 // A watched session that stops at a question shows the question and its
 // choices on the deck, waiting; once it is answered in its own terminal the
-// deck moves on. A tool call it stops at while Claude Code reports it idle
-// is a permission prompt; while busy, a tool that is simply running.
+// deck moves on. A tool call it stops at is a tool running (or a permission
+// prompt: the two look alike, so neither is shown as waiting).
 func TestWatchedSessionQuestionAndPermission(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("AGENTSTERM_HOME", filepath.Join(root, "home"))
@@ -94,12 +94,13 @@ func TestWatchedSessionQuestionAndPermission(t *testing.T) {
 		t.Fatalf("a running tool while busy: %s %+v", e.A.Status, e.A.Waiting)
 	}
 
-	// Still at that call, but Claude Code says idle: it waits for permission.
+	// Still at that call with Claude Code saying idle (it does so while a
+	// tool runs, too): not a prompt the deck can be sure of.
 	listing("idle")
 	d.live.reportedAt = d.live.reportedAt.Add(-11e9)
 	d.syncLive()
-	if e, _ := d.Store.Get(liveAgentID(id)); e.A.Status != model.Waiting || e.A.Waiting == nil || e.A.Waiting.Kind != "permission" || e.A.Waiting.Detail != "npm test" {
-		t.Fatalf("permission not shown: %s %+v", e.A.Status, e.A.Waiting)
+	if e, _ := d.Store.Get(liveAgentID(id)); e.A.Status == model.Waiting {
+		t.Fatalf("a running tool shown as waiting: %+v", e.A.Waiting)
 	}
 
 	// Allowed and finished: idle, nothing pending.

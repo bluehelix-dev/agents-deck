@@ -192,9 +192,10 @@ func (d *Daemon) syncLive() {
 // liveStatus reads a watched session's state off the end of its transcript:
 // working until Claude's final reply of the turn, then idle (hungry once a
 // turn finishes while we watch). A turn that stopped at a question
-// (AskUserQuestion), or at a tool call while Claude Code reports the session
-// idle (a permission prompt), is waiting: the card shows the question and its
-// choices, or the command, to be answered in the session's own terminal.
+// (AskUserQuestion) is waiting: the card shows the question and its choices,
+// to be answered in the session's own terminal. A permission prompt can't be
+// told from a tool that is simply running (Claude Code reports the session
+// idle during both), so those stay as they are until a hook says otherwise.
 func (d *Daemon) liveStatus(e *store.Entry, l claude.Live) bool {
 	running, tool := claude.TranscriptTurn(e.Transcript, 10*time.Minute)
 	changed := false
@@ -211,7 +212,7 @@ func (d *Daemon) liveStatus(e *store.Entry, l claude.Live) bool {
 			return false
 		}
 	}
-	if id, ptool, input, ok := claude.PendingToolCall(e.Transcript); ok && (ptool == "AskUserQuestion" || (l.Reported && !l.Busy)) {
+	if id, ptool, input, ok := claude.PendingToolCall(e.Transcript); ok && ptool == "AskUserQuestion" {
 		if e.A.Status == model.Waiting && e.LiveToolUse == id {
 			return false
 		}
