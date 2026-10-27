@@ -40,21 +40,38 @@ void main() {
     expect(board.height, greaterThan(700));
   });
 
-  testWidgets('on its side: the panel\'s 4×4', (tester) async {
+  testWidgets('on its side: 6×3 fills the width', (tester) async {
     await pumpPhone(tester, const Size(2340, 1080));
     final grid = tester.widget<DeckGrid>(find.byType(DeckGrid));
-    expect((grid.columns, grid.rows), (4, 4));
+    expect((grid.columns, grid.rows), (6, 3));
+    // A phone on its side is wider than 2:1, so the height is what fills.
     final board = tester.getRect(find.byType(AgentsApp));
     expect(board.height, 360);
-    expect(board.width, 360);
+    expect(board.width, greaterThan(700));
   });
 
-  test('columnsFor: 3 for a tall screen, 4 for a wide or square one', () {
+  testWidgets('a 4:3 tablet gets the panel\'s 4×4', (tester) async {
+    await pumpPhone(tester, const Size(2048, 1536));
+    final grid = tester.widget<DeckGrid>(find.byType(DeckGrid));
+    expect((grid.columns, grid.rows), (4, 4));
+  });
+
+  test('columnsFor picks the shape closest to the screen', () {
+    // Phones.
     expect(PhoneDeck.columnsFor(const Size(360, 780)), 3);
-    expect(PhoneDeck.columnsFor(const Size(780, 360)), 4);
-    expect(PhoneDeck.columnsFor(const Size(800, 1000)), 4); // a tablet
+    expect(PhoneDeck.columnsFor(const Size(780, 360)), 6);
+    // 16:10 tablets, both ways.
+    expect(PhoneDeck.columnsFor(const Size(800, 1280)), 3);
+    expect(PhoneDeck.columnsFor(const Size(1280, 800)), 6);
+    // 4:3 tablets stay square, as does a square window.
+    expect(PhoneDeck.columnsFor(const Size(768, 1024)), 4);
+    expect(PhoneDeck.columnsFor(const Size(1024, 768)), 4);
+    expect(PhoneDeck.columnsFor(const Size(720, 720)), 4);
+    expect(PhoneDeck.columnsFor(Size.zero), 4);
+    // The boards, in panel units.
     expect(PhoneDeck.boardSize(3), const Size(542, 1076));
     expect(PhoneDeck.boardSize(4), const Size(720, 720));
+    expect(PhoneDeck.boardSize(6), const Size(1076, 542));
   });
 
   testWidgets('no bundle: the pairing card imports one', (tester) async {

@@ -1,7 +1,9 @@
 # agents deck for Android
 
 The deck on a phone or tablet: the same board as the desk panel and the menu bar app
-(`clients/flutter/agents_ui`), scaled to the screen's width. It connects to `agentctl` on your
+(`clients/flutter/agents_ui`). A page of 16 slots is laid out 3×6, 4×4 or 6×3, whichever is closest to
+the screen's shape, and scaled to it: a phone upright gets the tall board, a tablet on its side the
+wide one, a 4:3 tablet the panel's square. It connects to `agentctl` on your
 computer over TLS with its own certificate, exactly like the desk panel.
 
 Pair it once: on the computer, `agentctl pair phone --bundle phone.json --host <the computer's LAN

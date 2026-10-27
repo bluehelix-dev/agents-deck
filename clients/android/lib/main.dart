@@ -56,8 +56,9 @@ String? checkBundle(String raw) {
 }
 
 /// The deck as the desk panel draws it, laid out in the panel's units and
-/// scaled to the screen. Held upright, the 16 slots go 3×6 so the board
-/// fills the phone; on its side (or on a tablet) it is the panel's 4×4.
+/// scaled to the screen. The 16 slots of a page go 3×6, 4×4 or 6×3,
+/// whichever shape is closest to the screen's, so the board fills a phone
+/// or a tablet held either way.
 class PhoneDeck extends StatelessWidget {
   const PhoneDeck({
     super.key,
@@ -77,10 +78,25 @@ class PhoneDeck extends StatelessWidget {
   /// The panel's units: 170 px tiles, 8 px between them, 8 px around.
   static const tile = 170.0, gap = 8.0, pad = 8.0;
 
-  /// Tiles per row for a screen of this shape: 3 when it is clearly taller
-  /// than wide (a phone held upright), else the panel's 4.
-  static int columnsFor(Size screen) =>
-      screen.height > screen.width * 1.4 ? 3 : 4;
+  /// The shapes a page of 16 slots can take: tall (3×6), the panel's square
+  /// (4×4) and wide (6×3), as tiles per row.
+  static const shapes = [3, 4, 6];
+
+  /// Tiles per row for a screen of this shape: the shape whose aspect ratio
+  /// is closest to the screen's, so the least of it stays empty. A phone
+  /// upright gets 3, a tablet on its side 6, anything near square 4.
+  static int columnsFor(Size screen) {
+    if (screen.isEmpty) return 4;
+    final want = screen.width / screen.height;
+    double miss(int columns) {
+      final b = boardSize(columns);
+      final have = b.width / b.height;
+      return (have / want).clamp(0, double.infinity) +
+          (want / have).clamp(0, double.infinity); // symmetric: 2 at a match
+    }
+
+    return shapes.reduce((a, b) => miss(b) < miss(a) ? b : a);
+  }
 
   /// The board's size in panel units for [columns] tiles per row.
   static Size boardSize(int columns) {
