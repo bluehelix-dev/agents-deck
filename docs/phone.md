@@ -12,9 +12,9 @@ Android app exists (`clients/android`, [its README](../clients/android/README.md
    can't resolve a Windows machine name or a `.local` name); if the computer has several, or the
    phone reaches it some other way (a VPN), say which: `--host <address>`. The listener's
    certificate covers the computer's addresses, so an IP verifies fine.
-2. In the app, tap **scan QR code**. The phone's camera app opens; photograph the code, filling
-   the frame with it, and accept the photo. The app reads the code from the photo and deletes
-   the photo.
+2. In the app, tap **scan QR code**. A viewfinder opens in the app (it asks for the camera the
+   first time); hold the phone so the code is in view, and the app reads it and closes the
+   viewfinder by itself.
 3. The app makes its own EC P-256 key, connects to the address, and trusts the server only if its
    certificate chains to a CA with exactly the scanned fingerprint (a look-alike server on the
    Wi-Fi is refused). It sends `POST /v1/pair {"code", "csr"}`; the deck checks the code, signs
@@ -31,7 +31,7 @@ without `--qr`, the fingerprint without its colons to keep the code small:
 {"url": "https://192.0.2.10:7341", "ca": "sha256:0123…CDEF", "code": "…"}
 ```
 
-Scanning needs Android 10 or newer (the pairing request uses the system's TLS 1.3) and a camera app.
+Scanning needs Android 10 or newer (the pairing request uses the system's TLS 1.3) and a camera.
 Without a camera, copy what `agentctl pair phone` prints and tap **paste the code**: the same
 pairing, from the clipboard. Without either, the bundle below still works.
 

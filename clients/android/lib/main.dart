@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// The native side (MainActivity.kt): the app's private folder, the system
-/// file picker that reads a pairing bundle, the camera app that photographs
+/// file picker that reads a pairing bundle, the QR scanner that reads
 /// a QR code, the pairing itself (Pairing.kt), and the screen's wake lock.
 const _files = MethodChannel('agents_deck/files');
 
@@ -42,9 +42,9 @@ abstract class PhoneHost {
   /// The system document picker: the file's text, or null when cancelled.
   Future<String?> pickBundle();
 
-  /// The system camera app: the text of the QR code in the photo it took,
-  /// or null when it was closed without one. Throws a [PlatformException]
-  /// when the photo holds no readable code.
+  /// The QR scanner (a viewfinder in this app): the text of the code it
+  /// read, or null when it was closed without one. Throws a
+  /// [PlatformException] when it can't open at all.
   Future<String?> scanQr();
 
   /// Pairs with the deck a pairing code names (the QR code's payload, or
@@ -131,9 +131,9 @@ class Phone {
     await host.keepScreenOn(on);
   }
 
-  /// Photographs the QR code `agentctl pair <name> --qr` shows and pairs
-  /// with the deck it names. Returns what went wrong, or null (also when
-  /// the camera was closed without a photo).
+  /// Scans the QR code `agentctl pair <name> --qr` shows and pairs with
+  /// the deck it names. Returns what went wrong, or null (also when the
+  /// scanner was closed without a code).
   Future<String?> pairByQr() async {
     String? payload;
     try {
@@ -627,7 +627,9 @@ class _PairingCardState extends State<PairingCard>
           code('agentctl pair phone --qr'),
         ]),
         step('2', [
-          const TextSpan(text: 'photograph the code within two minutes:'),
+          const TextSpan(
+            text: 'point the camera at the code within two minutes:',
+          ),
         ]),
         Padding(
           padding: const EdgeInsets.only(left: 34),

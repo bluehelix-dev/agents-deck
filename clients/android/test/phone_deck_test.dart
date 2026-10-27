@@ -12,8 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 class FakeHost implements PhoneHost {
   String? nextPick;
 
-  /// What the camera "photographs": a payload, null (closed), or a
-  /// [PlatformException] to throw (no code in the photo).
+  /// What the scanner reads: a payload, null (closed), or a
+  /// [PlatformException] to throw (the scanner couldn't open).
   Object? nextScan;
   String? clipboard;
 
@@ -264,16 +264,16 @@ void main() {
       await tester.pump();
     });
 
-    testWidgets('scan QR code: the photo, the pairing, the bundle', (
+    testWidgets('scan QR code: the scan, the pairing, the bundle', (
       tester,
     ) async {
       final source = unpairedClient();
       await pumpPhone(tester, const Size(1080, 2340), source: source);
-      // The camera closed without a photo: nothing to say.
+      // The scanner closed without a code: nothing to say.
       await tester.tap(find.byKey(const Key('scan-qr')));
       await tester.pump();
       expect(find.byKey(const Key('pairing-problem')), findsNothing);
-      // No code in the photo: the native side's reason.
+      // The scanner couldn't open: the native side's reason.
       host.nextScan = PlatformException(code: 'qr', message: 'no QR code');
       await tester.tap(find.byKey(const Key('scan-qr')));
       await tester.pump();
@@ -365,7 +365,7 @@ void main() {
   });
 }
 
-/// A host whose camera stays open until [scan] completes.
+/// A host whose scanner stays open until [scan] completes.
 class _SlowHost extends FakeHost {
   _SlowHost(this.scan);
 

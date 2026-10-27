@@ -49,8 +49,8 @@ flutter {
 }
 
 dependencies {
-    // Reads the QR code in a photo (Pairing: QrPhoto.kt). Pure Java, no camera code.
+    // The QR scanner (MainActivity.scanQr): ZXing's viewfinder activity, with
+    // ZXing's decoder (pure Java) under it. It asks for the camera permission.
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("com.google.zxing:core:3.5.3")
-    // FileProvider: hands the camera app a file of ours to write the photo to.
-    implementation("androidx.core:core:1.13.1")
 }

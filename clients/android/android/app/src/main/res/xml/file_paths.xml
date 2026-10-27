@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Where the camera app writes the photo of a QR code: our cache, read once and deleted. -->
-<paths>
-    <cache-path name="camera" path="camera/" />
-</paths>

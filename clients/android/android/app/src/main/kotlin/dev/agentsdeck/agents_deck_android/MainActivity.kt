@@ -1,25 +1,22 @@
 package dev.agentsdeck.agents_deck_android
 
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
-import android.provider.MediaStore
 import android.view.WindowManager
-import androidx.core.content.FileProvider
+import com.journeyapps.barcodescanner.ScanIntentResult
+import com.journeyapps.barcodescanner.ScanOptions
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import java.io.File
 
 // The native side of `agents_deck/files`: where the pairing bundle lives
 // (the app's private folder, which no other app can read), the system file
-// picker that reads one in, the camera app that photographs a QR code, the
-// pairing itself (Pairing.kt), and the screen's wake lock. No plugins: a
-// MethodChannel is enough.
+// picker that reads one in, the QR scanner (a live viewfinder in this app,
+// ZXing's), the pairing itself (Pairing.kt), and the screen's wake lock. No
+// plugins: a MethodChannel is enough.
 class MainActivity : FlutterActivity() {
     private var pending: MethodChannel.Result? = null
-    private var photo: File? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -55,31 +52,27 @@ class MainActivity : FlutterActivity() {
         startActivityForResult(intent, PICK)
     }
 
-    // Opens the camera app on a file of ours; the photo is read for a QR
-    // code in onActivityResult and deleted.
+    // Opens the scanner: a viewfinder in this app that reads the QR code as
+    // soon as it is in view and closes. It asks for the camera permission
+    // itself the first time. The code's text arrives in onActivityResult.
     @Suppress("DEPRECATION")
     private fun scanQr(result: MethodChannel.Result) {
         if (pending != null) {
-            result.error("busy", "the camera is already open", null)
+            result.error("busy", "the scanner is already open", null)
             return
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             result.error("pair", "pairing with a code needs Android 10 or newer: import a bundle instead", null)
             return
         }
-        val file = File(File(cacheDir, "camera").apply { mkdirs() }, "pairing.jpg")
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-            putExtra(MediaStore.EXTRA_OUTPUT, FileProvider.getUriForFile(this@MainActivity, "$packageName.files", file))
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        }
-        try {
-            startActivityForResult(intent, SCAN)
-        } catch (e: ActivityNotFoundException) {
-            result.error("camera", "no camera app on this phone: import a bundle instead", null)
-            return
-        }
+        val intent = ScanOptions().apply {
+            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            setPrompt("") // the pairing screen said what to do
+            setBeepEnabled(false)
+            setOrientationLocked(false)
+        }.createScanIntent(this)
         pending = result
-        photo = file
+        startActivityForResult(intent, SCAN)
     }
 
     // Pairs with the deck a QR code (or a pasted pairing code) names, off
@@ -124,29 +117,9 @@ class MainActivity : FlutterActivity() {
             }
             SCAN -> {
                 pending = null
-                val file = photo ?: return
-                photo = null
-                if (resultCode != Activity.RESULT_OK || !file.exists()) {
-                    file.delete()
-                    result.success(null) // cancelled
-                    return
-                }
-                Thread {
-                    val text = try {
-                        QrPhoto.decode(file)
-                    } catch (e: Exception) {
-                        null
-                    } finally {
-                        file.delete()
-                    }
-                    runOnUiThread {
-                        if (text == null) {
-                            result.error("qr", "no QR code in that photo: fill the frame with it and keep it in focus", null)
-                        } else {
-                            result.success(text)
-                        }
-                    }
-                }.start()
+                // contents is null when the scanner was closed without a code
+                // (the back gesture, or the camera permission refused).
+                result.success(ScanIntentResult.parseActivityResult(resultCode, data).contents)
             }
         }
     }

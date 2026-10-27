@@ -7,7 +7,7 @@ wide one, a 4:3 tablet the panel's square. It connects to `agentctl` on your
 computer over TLS with its own certificate, exactly like the desk panel.
 
 Pair it once: on the computer, `agentctl pair phone --qr`, then **scan QR code** on the app's first
-screen: the camera app opens, you photograph the code, and the phone makes its own key and trades
+screen: a viewfinder opens, reads the code, and the phone makes its own key and trades
 the code for its certificate ([docs/phone.md](../../docs/phone.md) has the details and what it
 protects). Without a camera, **paste the code** takes what `agentctl pair phone` prints from the
 clipboard, and **import phone.json** takes a bundle from `agentctl pair phone --bundle phone.json
@@ -23,9 +23,7 @@ PNGs from the sprite the board draws.
 
 Build: `flutter build apk --release` here (Flutter 3.35+, Android SDK 36), then install
 `build/app/outputs/flutter-apk/app-release.apk` on the phone. No Flutter plugins: the native side is
-three Kotlin files over one method channel. `MainActivity.kt` has the app's folder, the system file
-picker, the camera app (a photo, not a live viewfinder: no camera code and no camera permission) and
-the screen's wake lock;
-`QrPhoto.kt` reads the QR code in the photo with ZXing (`com.google.zxing:core`, pure Java, the one
-library); `Pairing.kt` makes the key and the certificate request and does the pinned TLS request
-with the system's TLS stack.
+two Kotlin files over one method channel. `MainActivity.kt` has the app's folder, the system file
+picker, the QR scanner (ZXing's viewfinder activity from `zxing-android-embedded`, the one library;
+it asks for the camera permission when you tap scan) and the screen's wake lock; `Pairing.kt` makes
+the key and the certificate request and does the pinned TLS request with the system's TLS stack.
