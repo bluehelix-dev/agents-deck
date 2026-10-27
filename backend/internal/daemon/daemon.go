@@ -271,8 +271,16 @@ func (d *Daemon) Hook(agentID string, body []byte) error {
 	if err := json.Unmarshal(body, &ev); err != nil {
 		return err
 	}
-	if agentID == "" {
+	bySession := agentID == ""
+	if bySession {
+		// A session started by hand, with the hooks from `agentctl hooks
+		// install`: matched by session id, and only while it is watched. The
+		// deck's own agents report with their id; their copy of the same
+		// event through the user settings is dropped.
 		agentID = d.Store.FindBySession(ev.SessionID)
+		if e, ok := d.Store.Get(agentID); !ok || !e.External || e.A.Tool != "claude" {
+			return nil
+		}
 	}
 	scan := false
 	d.mu.Lock()
@@ -281,6 +289,12 @@ func (d *Daemon) Hook(agentID string, body []byte) error {
 	if !d.Store.Update(agentID, func(e *store.Entry) bool {
 		var changed bool
 		changed, scan = claude.Apply(e, ev)
+		if bySession {
+			e.LiveHooks = true
+			if changed && e.A.Waiting != nil && !strings.HasPrefix(e.A.Waiting.Context, "answer it in its own terminal") {
+				e.A.Waiting.Context = strings.TrimSuffix("answer it in its own terminal · "+e.A.Waiting.Context, " · ")
+			}
+		}
 		if e.A.Unseen && front == e.TmuxName {
 			e.A.Unseen = false // finished while you were watching it
 		}

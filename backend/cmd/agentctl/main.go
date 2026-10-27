@@ -55,6 +55,8 @@ const usage = `agentctl — agents-terminal
                                  start an agent (dir defaults to .) and attach (-d: don't)
   agentctl restore               bring back agents lost with the tmux server (crash, reboot)
   agentctl hats                  the hats agents wear (one per working folder)
+  agentctl hooks [install|remove|status]
+                                 Claude Code's user settings: sessions you start yourself report to the deck
   agentctl accounts              the Claude accounts agents run in (account add|default|rm)
   agentctl handoff <id|title> <account>
                                  continue a Claude session in another account (out of usage)
@@ -109,6 +111,8 @@ func main() {
 	cmd, args := os.Args[1], os.Args[2:]
 	var err error
 	switch cmd {
+	case "hooks":
+		err = hooks(args)
 	case "hook":
 		hook() // never fails, never prints
 		return
@@ -185,18 +189,71 @@ func main() {
 // ---- hook -------------------------------------------------------------------
 
 // hook forwards a Claude Code hook payload to the daemon. It must stay fast,
-// print nothing (stdout from some hooks is fed back to Claude) and always exit 0.
+// print nothing (stdout from some hooks is fed back to Claude) and always exit
+// 0. Agents the deck started carry their id in the environment; a session
+// started by hand (the hook from `agentctl hooks install`) sends its payload
+// without one and the daemon matches it by session id. No daemon: nothing.
 func hook() {
-	id := os.Getenv("AGENTSTERM_ID")
-	if id == "" {
-		return
-	}
 	body, _ := io.ReadAll(io.LimitReader(os.Stdin, 1<<20))
+	url := "http://agentd/hook"
+	if id := os.Getenv("AGENTSTERM_ID"); id != "" {
+		url += "?agent=" + id
+	}
 	c := unixClient(2 * time.Second)
-	resp, err := c.Post("http://agentd/hook?agent="+id, "application/json", bytes.NewReader(body))
+	resp, err := c.Post(url, "application/json", bytes.NewReader(body))
 	if err == nil {
 		resp.Body.Close()
 	}
+}
+
+// hooks installs, removes or shows the deck's hooks in Claude Code's user
+// settings, so sessions you start yourself report what they are doing and
+// what they wait for (a question, a permission prompt) to the deck.
+func hooks(args []string) error {
+	path := claude.SettingsPath()
+	sub := ""
+	if len(args) > 0 {
+		sub = args[0]
+	}
+	switch sub {
+	case "install":
+		self, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		if self, err = filepath.EvalSymlinks(self); err != nil {
+			return err
+		}
+		changed, err := claude.InstallHooks(path, self)
+		if err != nil {
+			return err
+		}
+		if changed {
+			fmt.Printf("hooks installed in %s: every Claude Code session on this machine reports to the deck from its next start\n", path)
+		} else {
+			fmt.Printf("hooks already in %s\n", path)
+		}
+	case "remove":
+		changed, err := claude.RemoveHooks(path)
+		if err != nil {
+			return err
+		}
+		if changed {
+			fmt.Printf("hooks removed from %s (sessions already running keep reporting until they end)\n", path)
+		} else {
+			fmt.Printf("no deck hooks in %s\n", path)
+		}
+	case "status", "":
+		evs := claude.HooksInstalled(path)
+		if len(evs) == 0 {
+			fmt.Printf("not installed (%s): `agentctl hooks install` makes sessions you start yourself report to the deck\n", path)
+		} else {
+			fmt.Printf("installed in %s: %s\n", path, strings.Join(evs, ", "))
+		}
+	default:
+		return fmt.Errorf("usage: agentctl hooks [install | remove | status]")
+	}
+	return nil
 }
 
 // ---- client helpers ------------------------------------------------------------

@@ -197,6 +197,9 @@ func (d *Daemon) syncLive() {
 // told from a tool that is simply running (Claude Code reports the session
 // idle during both), so those stay as they are until a hook says otherwise.
 func (d *Daemon) liveStatus(e *store.Entry, l claude.Live) bool {
+	if e.LiveHooks {
+		return false // its hooks say what it does and waits for (daemon.go Hook)
+	}
 	running, tool := claude.TranscriptTurn(e.Transcript, 10*time.Minute)
 	changed := false
 	if l.Reported { // Claude Code's own report beats reading the transcript

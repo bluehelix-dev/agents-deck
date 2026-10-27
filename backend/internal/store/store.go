@@ -30,6 +30,7 @@ type Entry struct {
 	LiveTTY       string      `json:"-"`                  // a watched hand-started session: its terminal
 	LiveAttach    string      `json:"-"`                  // a watched background session: its `claude attach` id
 	LiveToolUse   string      `json:"-"`                  // a watched session: the tool call its prompt was built for
+	LiveHooks     bool        `json:"-"`                  // a watched session that reports through hooks: they set its status
 	OrcaTerminal  string      `json:"-"`                  // an agent in Orca: its terminal handle
 	OrcaPane      string      `json:"-"`                  // …and Orca's pane key (stable id)
 	OrcaTurn      int64       `json:"-"`                  // …stateStartedAt of the state its prompt was built for
