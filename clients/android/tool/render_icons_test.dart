@@ -5,10 +5,12 @@
 //
 //   flutter test tool/render_icons_test.dart
 //
-// Writes, per density, android/app/src/main/res/mipmap-*/ic_launcher.png
-// (the legacy icon: critter on the board's black), ic_launcher_foreground.png
-// (the adaptive icon's layer, transparent around the critter) and
-// ic_launcher_monochrome.png (white, for themed icons).
+// The icon is the critter awake, in its propeller hat, black on the deck's
+// orange. Writes, per density, android/app/src/main/res/mipmap-*/ic_launcher.png
+// (the legacy icon, the whole square), ic_launcher_foreground.png (the
+// adaptive icon's layer, transparent around the critter; the orange is the
+// background layer) and ic_launcher_monochrome.png (the silhouette for themed
+// icons, which take only its alpha).
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -59,45 +61,59 @@ void main() {
     tester.view.reset();
   }
 
-  Widget critter(double width, {required Color body, required Color cut}) =>
-      Center(
-        child: CritterSprite(
-          pose: CritterPose.idle,
-          width: width,
-          body: body,
-          cut: cut,
-          showBubble: false,
-          centerBody: true,
-        ),
-      );
+  const hat = AgentHat(shape: 'propeller', color: 'blue');
+
+  /// The critter awake (eyes open, no bubble) in its hat, the hat's rows
+  /// lifting it a little so body and hat together sit centred.
+  Widget critter(
+    double width, {
+    required Color body,
+    required Color cut,
+    double lift = 0,
+  }) => Center(
+    child: Transform.translate(
+      offset: Offset(0, lift),
+      child: CritterSprite(
+        pose: CritterPose.run,
+        width: width,
+        body: body,
+        cut: cut,
+        hat: hat,
+        showBubble: false,
+        centerBody: true,
+      ),
+    ),
+  );
 
   testWidgets('render the launcher icons', (tester) async {
-    // Legacy icon (Android 7): a 48 dp square, the critter's body at about 62 %.
+    // Legacy icon (Android 7): a 48 dp square, black critter on orange.
     await render(
       tester,
       name: 'ic_launcher',
       dp: 48,
       child: ColoredBox(
-        color: DeckHud.bg,
-        child: critter(60, body: DeckHud.accent, cut: DeckHud.bg),
+        color: DeckHud.accent,
+        child: critter(54, body: DeckHud.bg, cut: DeckHud.accent, lift: 2),
       ),
     );
-    // Adaptive foreground (Android 8+): 108 dp, the inner 66 dp always shown (the body spans 55).
+    // Adaptive foreground (Android 8+): 108 dp, the inner 66 dp always shown;
+    // the body spans 62 of them, the hat on top. The ground is @color/deck_accent.
     await render(
       tester,
       name: 'ic_launcher_foreground',
       dp: 108,
-      child: critter(110, body: DeckHud.accent, cut: DeckHud.bg),
+      child: critter(80, body: DeckHud.bg, cut: DeckHud.accent, lift: 4),
     );
-    // Monochrome (Android 13 themed icons): the silhouette in white.
+    // Monochrome (Android 13 themed icons): the system takes the alpha only.
     await render(
       tester,
       name: 'ic_launcher_monochrome',
       dp: 108,
       child: critter(
-        110,
+        80,
         body: const Color(0xFFFFFFFF),
         cut: const Color(0x00000000),
+        lift: 4,
       ),
     );
   });
