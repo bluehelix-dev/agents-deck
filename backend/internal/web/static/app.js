@@ -1291,7 +1291,7 @@ function buildInfo(a) {
   else actions.append(removeButton(a, note));
   if (a.tool === 'claude' && a.account) for (const acc of accounts) if (acc.name !== a.account.name) actions.append(handoffButton(a, acc, note));
 
-  panel.className = 'detail' + (a.status === 'error' ? ' p-error' : ['idle', 'starting', 'exited'].includes(a.status) ? ' p-dim' : '');
+  panel.className = 'detail' + (a.status === 'error' ? ' p-error' : a.status === 'running' ? ' p-running' : ['idle', 'starting', 'exited'].includes(a.status) ? ' p-dim' : '');
   panel.replaceChildren(hd.el,
     h('div', { class: 'sec' }, doingLbl, doing),
     h('div', { class: 'sec' }, h('div', { class: 'ctx-head' }, h('span', { class: 'h' }, 'context', ctxNums), ctxPctEl), bar),

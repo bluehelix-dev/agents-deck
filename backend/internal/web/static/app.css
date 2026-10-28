@@ -393,7 +393,7 @@ body.offline .main { opacity: 0.4; }
 }
 .detail.p-accent :focus-visible { outline-color: var(--bg); }
 .detail.p-question { box-shadow: inset 0 0 0 3px var(--accent); border-left-color: var(--accent); --body: var(--accent); }
-.detail.p-error { --body: var(--accent); }
+.detail.p-error, .detail.p-running { --body: var(--accent); }
 .detail.p-dim { --body: var(--dim); }
 
 .d-head { display: flex; flex-direction: column; gap: 16px; }
