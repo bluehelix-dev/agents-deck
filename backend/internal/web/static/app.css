@@ -297,44 +297,45 @@ body.offline .main { opacity: 0.4; }
 @keyframes bobc { 0%, 49% { transform: translateY(0) } 50%, 100% { transform: translateY(0.6px) } }
 .bobc { animation: bobc .6s infinite; }
 .s1 { animation-delay: .2s; } .s2 { animation-delay: .4s; }
-/* hat frames while working: frame i of n shows during slot i of each n x ms cycle */
+/* hat frames while working: frame i of n shows during slot i of each n x ms cycle. step-end:
+   a frame is on or off, never half (a linear fade let both frames go see-through for a moment) */
 @keyframes hf2 { 0%, 49.99% { opacity: 1 } 50.00%, 100% { opacity: 0 } }
 @keyframes hf3 { 0%, 33.32% { opacity: 1 } 33.33%, 100% { opacity: 0 } }
 @keyframes hf4 { 0%, 24.99% { opacity: 1 } 25.00%, 100% { opacity: 0 } }
 .hfo { opacity: 0; } /* frames after the first stay hidden when motion is reduced */
-.hf-2-350-0 { animation: hf2 700ms linear infinite; animation-delay: -0ms; }
-.hf-2-350-1 { animation: hf2 700ms linear infinite; animation-delay: -350ms; }
-.hf-2-400-0 { animation: hf2 800ms linear infinite; animation-delay: -0ms; }
-.hf-2-400-1 { animation: hf2 800ms linear infinite; animation-delay: -400ms; }
-.hf-2-450-0 { animation: hf2 900ms linear infinite; animation-delay: -0ms; }
-.hf-2-450-1 { animation: hf2 900ms linear infinite; animation-delay: -450ms; }
-.hf-3-200-0 { animation: hf3 600ms linear infinite; animation-delay: -0ms; }
-.hf-3-200-1 { animation: hf3 600ms linear infinite; animation-delay: -400ms; }
-.hf-3-200-2 { animation: hf3 600ms linear infinite; animation-delay: -200ms; }
-.hf-4-120-0 { animation: hf4 480ms linear infinite; animation-delay: -0ms; }
-.hf-4-120-1 { animation: hf4 480ms linear infinite; animation-delay: -360ms; }
-.hf-4-120-2 { animation: hf4 480ms linear infinite; animation-delay: -240ms; }
-.hf-4-120-3 { animation: hf4 480ms linear infinite; animation-delay: -120ms; }
-.hf-4-280-0 { animation: hf4 1120ms linear infinite; animation-delay: -0ms; }
-.hf-4-280-1 { animation: hf4 1120ms linear infinite; animation-delay: -840ms; }
-.hf-4-280-2 { animation: hf4 1120ms linear infinite; animation-delay: -560ms; }
-.hf-4-280-3 { animation: hf4 1120ms linear infinite; animation-delay: -280ms; }
-.hf-4-300-0 { animation: hf4 1200ms linear infinite; animation-delay: -0ms; }
-.hf-4-300-1 { animation: hf4 1200ms linear infinite; animation-delay: -900ms; }
-.hf-4-300-2 { animation: hf4 1200ms linear infinite; animation-delay: -600ms; }
-.hf-4-300-3 { animation: hf4 1200ms linear infinite; animation-delay: -300ms; }
-.hf-4-320-0 { animation: hf4 1280ms linear infinite; animation-delay: -0ms; }
-.hf-4-320-1 { animation: hf4 1280ms linear infinite; animation-delay: -960ms; }
-.hf-4-320-2 { animation: hf4 1280ms linear infinite; animation-delay: -640ms; }
-.hf-4-320-3 { animation: hf4 1280ms linear infinite; animation-delay: -320ms; }
-.hf-4-350-0 { animation: hf4 1400ms linear infinite; animation-delay: -0ms; }
-.hf-4-350-1 { animation: hf4 1400ms linear infinite; animation-delay: -1050ms; }
-.hf-4-350-2 { animation: hf4 1400ms linear infinite; animation-delay: -700ms; }
-.hf-4-350-3 { animation: hf4 1400ms linear infinite; animation-delay: -350ms; }
-.hf-4-450-0 { animation: hf4 1800ms linear infinite; animation-delay: -0ms; }
-.hf-4-450-1 { animation: hf4 1800ms linear infinite; animation-delay: -1350ms; }
-.hf-4-450-2 { animation: hf4 1800ms linear infinite; animation-delay: -900ms; }
-.hf-4-450-3 { animation: hf4 1800ms linear infinite; animation-delay: -450ms; }
+.hf-2-350-0 { animation: hf2 700ms step-end infinite; animation-delay: -0ms; }
+.hf-2-350-1 { animation: hf2 700ms step-end infinite; animation-delay: -350ms; }
+.hf-2-400-0 { animation: hf2 800ms step-end infinite; animation-delay: -0ms; }
+.hf-2-400-1 { animation: hf2 800ms step-end infinite; animation-delay: -400ms; }
+.hf-2-450-0 { animation: hf2 900ms step-end infinite; animation-delay: -0ms; }
+.hf-2-450-1 { animation: hf2 900ms step-end infinite; animation-delay: -450ms; }
+.hf-3-200-0 { animation: hf3 600ms step-end infinite; animation-delay: -0ms; }
+.hf-3-200-1 { animation: hf3 600ms step-end infinite; animation-delay: -400ms; }
+.hf-3-200-2 { animation: hf3 600ms step-end infinite; animation-delay: -200ms; }
+.hf-4-120-0 { animation: hf4 480ms step-end infinite; animation-delay: -0ms; }
+.hf-4-120-1 { animation: hf4 480ms step-end infinite; animation-delay: -360ms; }
+.hf-4-120-2 { animation: hf4 480ms step-end infinite; animation-delay: -240ms; }
+.hf-4-120-3 { animation: hf4 480ms step-end infinite; animation-delay: -120ms; }
+.hf-4-280-0 { animation: hf4 1120ms step-end infinite; animation-delay: -0ms; }
+.hf-4-280-1 { animation: hf4 1120ms step-end infinite; animation-delay: -840ms; }
+.hf-4-280-2 { animation: hf4 1120ms step-end infinite; animation-delay: -560ms; }
+.hf-4-280-3 { animation: hf4 1120ms step-end infinite; animation-delay: -280ms; }
+.hf-4-300-0 { animation: hf4 1200ms step-end infinite; animation-delay: -0ms; }
+.hf-4-300-1 { animation: hf4 1200ms step-end infinite; animation-delay: -900ms; }
+.hf-4-300-2 { animation: hf4 1200ms step-end infinite; animation-delay: -600ms; }
+.hf-4-300-3 { animation: hf4 1200ms step-end infinite; animation-delay: -300ms; }
+.hf-4-320-0 { animation: hf4 1280ms step-end infinite; animation-delay: -0ms; }
+.hf-4-320-1 { animation: hf4 1280ms step-end infinite; animation-delay: -960ms; }
+.hf-4-320-2 { animation: hf4 1280ms step-end infinite; animation-delay: -640ms; }
+.hf-4-320-3 { animation: hf4 1280ms step-end infinite; animation-delay: -320ms; }
+.hf-4-350-0 { animation: hf4 1400ms step-end infinite; animation-delay: -0ms; }
+.hf-4-350-1 { animation: hf4 1400ms step-end infinite; animation-delay: -1050ms; }
+.hf-4-350-2 { animation: hf4 1400ms step-end infinite; animation-delay: -700ms; }
+.hf-4-350-3 { animation: hf4 1400ms step-end infinite; animation-delay: -350ms; }
+.hf-4-450-0 { animation: hf4 1800ms step-end infinite; animation-delay: -0ms; }
+.hf-4-450-1 { animation: hf4 1800ms step-end infinite; animation-delay: -1350ms; }
+.hf-4-450-2 { animation: hf4 1800ms step-end infinite; animation-delay: -900ms; }
+.hf-4-450-3 { animation: hf4 1800ms step-end infinite; animation-delay: -450ms; }
 /* compact: four frames, squashed around the feet (x 7, y 7) */
 @keyframes squash { 0%, 24% { transform: none } 25%, 49%, 75%, 100% { transform: scale(1.1, .8) } 50%, 74% { transform: scale(1.2, .62) } }
 @keyframes press1 { 0%, 24% { transform: none } 25%, 49%, 75%, 100% { transform: translateY(0.4px) } 50%, 74% { transform: translateY(1.1px) } }
