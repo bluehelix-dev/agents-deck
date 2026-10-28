@@ -269,7 +269,11 @@ void main() {
       await tester.pump();
       expect(phone.alerts.value, isFalse);
       final saved = jsonDecode(File(phone.settingsPath).readAsStringSync());
-      expect(saved, {'keepScreenOn': true, 'alerts': false});
+      expect(saved, {
+        'keepScreenOn': true,
+        'alerts': false,
+        'toolSquare': false,
+      });
       // Off stays off across a start; turning it on asks for the permission.
       final again = Phone(dir: dir.path, host: host, releases: releases);
       await again.start();
@@ -277,6 +281,31 @@ void main() {
       expect(host.alertsEnabled, 1);
       await again.setAlerts(true);
       expect(host.alertsEnabled, 2);
+    });
+
+    testWidgets('tool colour on tiles: off by default, persists', (
+      tester,
+    ) async {
+      await phone.start();
+      expect(phone.toolSquare.value, isFalse);
+      File(phone.bundlePath).writeAsStringSync(bundle());
+      await pumpPhone(
+        tester,
+        const Size(1080, 2340),
+        source: FakeAgentsSource.demo(),
+      );
+      expect(find.byKey(const Key('agent-tile-tool')), findsNothing);
+      await tester.longPressAt(boardBackground(tester));
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('tool-square')));
+      await tester.tap(find.byKey(const Key('tool-square')));
+      await tester.pump();
+      expect(phone.toolSquare.value, isTrue);
+      final saved = jsonDecode(File(phone.settingsPath).readAsStringSync());
+      expect(saved['toolSquare'], isTrue);
+      final again = Phone(dir: dir.path, host: host, releases: releases);
+      await again.start();
+      expect(again.toolSquare.value, isTrue);
     });
 
     testWidgets('the deck buzzes the phone when an agent turns to waiting', (
@@ -295,6 +324,8 @@ void main() {
       File(phone.bundlePath).writeAsStringSync(bundle());
       await pumpPhone(tester, const Size(1080, 2340));
       await tester.longPressAt(boardBackground(tester));
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('forget-pairing')));
       await tester.pump();
       await tester.tap(find.byKey(const Key('forget-pairing')));
       await tester.pump();

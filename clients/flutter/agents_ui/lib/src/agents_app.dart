@@ -34,6 +34,7 @@ class AgentsApp extends StatefulWidget {
     this.visible,
     this.backButton = false,
     this.columns = 4,
+    this.toolSquare = false,
   }) : assert(
          (openCard == null) == (cardHost == null),
          'openCard and cardHost come together',
@@ -64,6 +65,11 @@ class AgentsApp extends StatefulWidget {
   /// Tiles per row. 4 is the panel's 4×4; 3 lays the same 16 slots out as
   /// 3×6, which fills a phone held upright.
   final int columns;
+
+  /// A small square in the tool's colour on each tile and card (Claude,
+  /// Codex, …). Off by default; an agent in a named Claude account shows
+  /// its account's colour either way.
+  final bool toolSquare;
 
   @override
   State<AgentsApp> createState() => _AgentsAppState();
@@ -125,6 +131,7 @@ class _AgentsAppState extends State<AgentsApp> {
           onClose: close,
           onVisible: _cardVisible,
           showBack: widget.backButton,
+          toolSquare: widget.toolSquare,
         ),
       ),
     );
@@ -335,6 +342,7 @@ class _AgentsAppState extends State<AgentsApp> {
               agent: a,
               state: state,
               onOpen: _open,
+              toolSquare: widget.toolSquare,
             ),
           )
         else
@@ -463,9 +471,13 @@ class AgentTile extends StatefulWidget {
     required this.agent,
     required this.state,
     required this.onOpen,
+    this.toolSquare = false,
   });
 
   final Agent agent;
+
+  /// See [AgentsApp.toolSquare].
+  final bool toolSquare;
   final AgentsState state;
   final void Function(BuildContext tileContext, GlobalKey tileKey, Agent a)
   onOpen;
@@ -505,9 +517,9 @@ class _AgentTileState extends State<AgentTile> {
                 children: [
                   if (look.stripes && !pressed)
                     const Positioned.fill(child: HungryStripes()),
-                  // The tool's colour, or (with more than one Claude account
-                  // set up) the colour of the account it runs in.
-                  if (!pressed)
+                  // The colour of the Claude account it runs in, or (when
+                  // asked for) the tool's.
+                  if (!pressed && (a.account != null || widget.toolSquare))
                     Positioned(
                       top: 10,
                       right: 10,
@@ -517,7 +529,7 @@ class _AgentTileState extends State<AgentTile> {
                             : '${a.account!.name} account',
                         child: Container(
                           key: a.account == null
-                              ? null
+                              ? const Key('agent-tile-tool')
                               : const Key('agent-tile-account'),
                           width: 8,
                           height: 8,

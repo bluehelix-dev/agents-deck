@@ -6,14 +6,20 @@ import 'package:flutter/services.dart';
 import 'package:agents_deck_ui/agents_deck_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Future<void> _pumpApp(WidgetTester tester, AgentsSource source) async {
+Future<void> _pumpApp(
+  WidgetTester tester,
+  AgentsSource source, {
+  bool toolSquare = false,
+}) async {
   tester.view.physicalSize = const Size(720, 720);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
       theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: DeckHud.bg),
-      home: Scaffold(body: AgentsApp(source: source, animate: false)),
+      home: Scaffold(
+        body: AgentsApp(source: source, animate: false, toolSquare: toolSquare),
+      ),
     ),
   );
   await tester.pump();
@@ -905,6 +911,15 @@ void main() {
   testWidgets('16 agents or fewer: one page, no bars', (tester) async {
     await _pumpApp(tester, FakeAgentsSource.demo());
     expect(find.byKey(const Key('agents-pager')), findsNothing);
+  });
+
+  testWidgets('the tool square shows only when asked for', (tester) async {
+    final source = FakeAgentsSource.demo();
+    await _pumpApp(tester, source);
+    expect(find.byKey(const Key('agent-tile-tool')), findsNothing);
+    await _pumpApp(tester, source, toolSquare: true);
+    expect(find.byKey(const Key('agent-tile-tool')), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the tile chip takes the account colour', (tester) async {

@@ -799,6 +799,7 @@ function updateTile(t, a) {
   if (t.acctKey !== acctKey) {
     t.acctKey = acctKey;
     t.chip.style.background = a.account ? acctColor(a.account) : '';
+    t.chip.classList.toggle('acct', !!a.account);
   }
   const subsNote = list.length ? (list.some((x) => x.type === 'workflow') ? `, a workflow with ${list.length} agent${list.length === 1 ? '' : 's'} working` : `, ${list.length} subagent${list.length === 1 ? '' : 's'} working`) : '';
   const acctNote = a.account ? `, ${a.account.name} account` : '';
@@ -1167,6 +1168,7 @@ function acctLabel(chip) {
     update: (a) => {
       el.hidden = !a.account;
       chip.style.background = a.account ? acctColor(a.account) : '';
+      chip.classList.toggle('acct', !!a.account);
       chip.title = a.account ? `${a.tool}, ${a.account.name} account` : a.tool;
       if (!a.account) return;
       setText(name, `${a.account.name} account`);
@@ -1516,6 +1518,20 @@ $('sort-toggle').addEventListener('click', (e) => {
 });
 try { needsFirst = localStorage.getItem('agents.needsFirst') === '1'; } catch { needsFirst = false; }
 $('sort-toggle').setAttribute('aria-pressed', String(needsFirst));
+
+// "tool colour": the square in the tool's colour on tiles and the card. Off
+// by default; an agent in a named Claude account shows its account's colour.
+function setToolSquare(on) {
+  document.body.classList.toggle('tool-square', on);
+  $('square-toggle').setAttribute('aria-pressed', String(on));
+  try { localStorage.setItem('agents.toolSquare', on ? '1' : '0'); } catch { /* storage unavailable */ }
+}
+$('square-toggle').addEventListener('click', () => setToolSquare(!document.body.classList.contains('tool-square')));
+{
+  let on = false;
+  try { on = localStorage.getItem('agents.toolSquare') === '1'; } catch { on = false; }
+  setToolSquare(on);
+}
 
 // ---------------------------------------------------------------- network
 async function api(path, body) {

@@ -146,6 +146,10 @@ class Phone {
   /// board beside you.
   final alerts = ValueNotifier<bool>(true);
 
+  /// Whether each tile shows a small square in its tool's colour (Claude,
+  /// Codex, …). Off by default: with one tool it says nothing.
+  final toolSquare = ValueNotifier<bool>(false);
+
   (AgentsConfig?, String?) loadConfig() =>
       AgentsConfig.load(paths: [bundlePath]);
 
@@ -163,6 +167,9 @@ class Phone {
       }
       if (j is Map && j['alerts'] is bool) {
         alerts.value = j['alerts'] as bool;
+      }
+      if (j is Map && j['toolSquare'] is bool) {
+        toolSquare.value = j['toolSquare'] as bool;
       }
     } catch (_) {
       // No settings yet, or unreadable: the defaults.
@@ -202,12 +209,18 @@ class Phone {
     if (on) await host.enableAlerts();
   }
 
+  void setToolSquare(bool on) {
+    toolSquare.value = on;
+    _saveSettings();
+  }
+
   void _saveSettings() {
     try {
       File(settingsPath).writeAsStringSync(
         jsonEncode({
           'keepScreenOn': keepScreenOn.value,
           'alerts': alerts.value,
+          'toolSquare': toolSquare.value,
         }),
       );
     } on FileSystemException {
@@ -460,31 +473,39 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
                           child: Overlay(
                             initialEntries: [
                               OverlayEntry(
-                                builder: (context) => AgentsApp(
-                                  source: widget.source,
-                                  animate: widget.animate,
-                                  columns: columns,
-                                  backButton: true, // no edge swipe on a phone
-                                  cardHost: (board) =>
-                                      CardMorph(key: _stage, child: board),
-                                  openCard:
-                                      (
-                                        tileContext,
-                                        tileKey, {
-                                        required id,
-                                        required fill,
-                                        required builder,
-                                      }) => _stage.currentState?.open(
-                                        tileKey,
-                                        fill: fill,
-                                        builder: builder,
+                                builder: (context) =>
+                                    ValueListenableBuilder<bool>(
+                                      valueListenable: widget.phone.toolSquare,
+                                      builder: (context, square, _) => AgentsApp(
+                                        toolSquare: square,
+                                        source: widget.source,
+                                        animate: widget.animate,
+                                        columns: columns,
+                                        backButton:
+                                            true, // no edge swipe on a phone
+                                        cardHost: (board) => CardMorph(
+                                          key: _stage,
+                                          child: board,
+                                        ),
+                                        openCard:
+                                            (
+                                              tileContext,
+                                              tileKey, {
+                                              required id,
+                                              required fill,
+                                              required builder,
+                                            }) => _stage.currentState?.open(
+                                              tileKey,
+                                              fill: fill,
+                                              builder: builder,
+                                            ),
+                                        pairingCard: (problem) => PairingCard(
+                                          problem: problem,
+                                          device: device,
+                                          ways: _ways,
+                                        ),
                                       ),
-                                  pairingCard: (problem) => PairingCard(
-                                    problem: problem,
-                                    device: device,
-                                    ways: _ways,
-                                  ),
-                                ),
+                                    ),
                               ),
                             ],
                           ),
@@ -1156,6 +1177,35 @@ class _SettingsCardState extends State<SettingsCard>
                 key: const Key('alerts'),
                 on: on,
                 onChanged: widget.phone.setAlerts,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        ValueListenableBuilder<bool>(
+          valueListenable: widget.phone.toolSquare,
+          builder: (context, on, _) => Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'tool colour on tiles',
+                      style: DeckHud.rm(20, DeckHud.ink),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'a small square in the corner: Claude, Codex or Gemini',
+                      style: DeckHud.mono(size: 15, color: DeckHud.dim),
+                    ),
+                  ],
+                ),
+              ),
+              DeckToggle(
+                key: const Key('tool-square'),
+                on: on,
+                onChanged: widget.phone.setToolSquare,
               ),
             ],
           ),

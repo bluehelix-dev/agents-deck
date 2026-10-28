@@ -40,6 +40,7 @@ class AgentDetail extends StatefulWidget {
     required this.onClose,
     this.onVisible,
     this.showBack = false,
+    this.toolSquare = false,
   });
 
   final AgentsSource source;
@@ -53,6 +54,9 @@ class AgentDetail extends StatefulWidget {
   /// A back button left of the mascot, for hosts without an edge swipe
   /// (the menu bar app). The desk panel closes cards with its swipe.
   final bool showBack;
+
+  /// See [AgentsApp.toolSquare].
+  final bool toolSquare;
 
   @override
   State<AgentDetail> createState() => _AgentDetailState();
@@ -605,15 +609,18 @@ class _AgentDetailState extends State<AgentDetail> {
                     ),
                     const SizedBox(width: 14),
                   ],
-                  // The tool's colour, or its Claude account's.
-                  Container(
-                    width: 8,
-                    height: 8,
-                    color: a.account == null
-                        ? agentToolColor(a.tool)
-                        : hatColor(a.account!.color).$1,
-                  ),
-                  const SizedBox(width: 8),
+                  // Its Claude account's colour, or (when asked for) the
+                  // tool's.
+                  if (a.account != null || widget.toolSquare) ...[
+                    Container(
+                      width: 8,
+                      height: 8,
+                      color: a.account == null
+                          ? agentToolColor(a.tool)
+                          : hatColor(a.account!.color).$1,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 300),
                     child: Container(

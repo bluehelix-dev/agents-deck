@@ -81,6 +81,9 @@ whether the app may post notifications, and without that the buzz alone remains.
 running for this: it hears about the deck over its live connection, which Android stops when the
 app leaves the screen.
 
+The switch **tool colour on tiles** puts a small square in each tile's corner in its tool's colour
+(Claude, Codex, Gemini). It is off by default, since with one tool it says nothing.
+
 ## Updating the app
 
 The app updates itself from this repository's GitHub releases (the repository is a constant in
