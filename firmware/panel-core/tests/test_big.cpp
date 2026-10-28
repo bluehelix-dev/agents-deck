@@ -24,6 +24,7 @@ static Fleet fleetOf(std::initializer_list<Agent> as) {
   memset(&f, 0, sizeof f);
   for (const Agent& a : as) f.agents[f.count++] = a;
   f.total = f.count;
+  f.canFocus = true;                                // a Mac deck
   return f;
 }
 
@@ -137,6 +138,15 @@ int main() {
     assert(c.cmd == DeckCmd::Resume);
     c = tap(S, ui, f, b.r[1], DeckScope::Admin, 12000);                              // remove: one tap
     assert(c.cmd == DeckCmd::Dismiss);
+
+    // On Windows (Server.focus false) there is no focus terminal: interrupt or
+    // stop takes the whole row.
+    f.agents[0].status = Status::Running;
+    b = bigCardButtons(S, f.agents[0], DeckScope::Act, false);
+    assert(b.n == 1 && b.kind[0] == Hit::Interrupt && b.r[0].w == bigCardInner(S).w);
+    f.agents[0].status = Status::Idle;
+    b = bigCardButtons(S, f.agents[0], DeckScope::Admin, false);
+    assert(b.n == 1 && b.kind[0] == Hit::Stop && b.r[0].w == bigCardInner(S).w);
   }
 
   // ---- the prompt: one layout; choose an option, then send
@@ -159,7 +169,24 @@ int main() {
       assert(p.opt[2].y + p.opt[2].h <= p.send.y - bk(S, 10));
       assert(p.titleY >= bigTopBarBottom(S) && (p.box.h == 0) == (w.waitDetail[0] == 0));
       if (p.box.h) assert(p.box.y + p.box.h <= p.opt[0].y);
+      // The options sit right under what they are about, not down by the buttons.
+      if (p.box.h) assert(p.opt[0].y - (p.box.y + p.box.h) <= bk(S, 20) + fontPx(*S.label) + bk(S, 10));
       assert(p.send.y == S.h - bk(S, 30) - bk(S, 68) && p.terminal.w == bk(S, 260));
+      const BigPrompt pw = bigPrompt(S, w, false);              // Windows: send takes the row
+      assert(pw.terminal.w == 0 && pw.send.w == bigCardInner(S).w);
+    }
+    // A permission starts with nothing chosen, even with a primary: a quick tap
+    // on send never approves by itself.
+    {
+      Fleet g = f;
+      snprintf(g.agents[0].waitKind, sizeof g.agents[0].waitKind, "permission");
+      g.agents[0].opts[0].primary = true;
+      PanelUi u;
+      bigOpen(u, g, 0);
+      assert(u.screen == Screen::Prompt && u.selected == -1);
+      snprintf(g.agents[0].waitKind, sizeof g.agents[0].waitKind, "question");
+      bigOpen(u, g, 0);
+      assert(u.selected == 0);                                    // a question keeps its primary
     }
     PanelUi ui;
     bigOpen(ui, f, 0);

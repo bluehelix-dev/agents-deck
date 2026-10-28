@@ -81,15 +81,16 @@ static inline void arms(Pen& p, bool bot, float l, float r) {
   else     { p.g(0, l, 1, 2, p.body);     p.g(13, r, 1, 2, p.body); }
 }
 
-// Leg set 0 = standing (LEGS_A), 1 = stepping (LEGS_B). `dy` lifts them (hop).
-static inline void legs(Pen& p, bool bot, int set, float dy = 0) {
+// Leg set 0 = standing (LEGS_A), 1 = stepping (LEGS_B). `dy` lifts them (hop);
+// `reach` (the body's bob, up is negative) stretches them up to the body.
+static inline void legs(Pen& p, bool bot, int set, float dy = 0, float reach = 0) {
   if (bot) {
     p.r(3.5f, (set ? 6.4f : 7) + dy, 2, 1.4f, p.body);
     p.r(8.5f, 7 + dy, 2, 1.4f, p.body);
     return;
   }
   static const float kA[] = {2, 4, 9, 11}, kB[] = {3, 5, 8, 10};
-  for (float x : (set ? kB : kA)) p.r(x, 6 + dy, 1, 1.6f, p.body);
+  for (float x : (set ? kB : kA)) p.r(x, 6 + dy + reach, 1, 1.6f - reach, p.body);
 }
 
 static inline void dots(Pen& p, int shown) {
@@ -211,7 +212,7 @@ static inline void drawSprite(Canvas& c, int x, int y, int scale, Species sp, Po
   bool showArms = true, showLegs = true;
   switch (pose) {
     case Pose::Bash:      p.gdy = phase(ms, 250, 2) ? -0.5f : 0; legSet = phase(ms, 250, 2); break;
-    case Pose::Delegate:
+    case Pose::Delegate:  armR = phase(ms, 300, 2) ? 1.5f : 0; break;   // conducting: the baton hand up, then down
     case Pose::Run:       p.gdy = half ? -0.5f : 0; legSet = half; armL = half ? 1 : 2; armR = half ? 2 : 1; break;
     case Pose::Think:     armR = 1; break;
     case Pose::Celebrate: p.gdy = legDy = phase(ms, 400, 2) ? -1.5f : 0; armL = armR = 0; break;
@@ -285,23 +286,13 @@ static inline void drawSprite(Canvas& c, int x, int y, int scale, Species sp, Po
       break;
     }
     case Pose::Delegate: {
-      eyes(2);
-      if (bubble) {                                      // a small block of its own: MINI(14.4, 3.2, 0.26)
-        const int mx = p.px(14.4f), my = p.py(3.2f);
-        const float k = 0.26f * scale;
-        auto mr = [&](float ux, float uy, float uw, float uh, uint16_t col) {
-          const int x0 = mx + (int)lroundf(ux * k), y0 = my + (int)lroundf(uy * k);
-          int x1 = mx + (int)lroundf((ux + uw) * k), y1 = my + (int)lroundf((uy + uh) * k);
-          if (x1 <= x0) x1 = x0 + 1;
-          if (y1 <= y0) y1 = y0 + 1;
-          c.rect(x0, y0, x1 - x0, y1 - y0, col);
-        };
-        mr(1, 0, 12, 6, body);
-        mr(0, 2, 1, 2, body); mr(13, 2, 1, 2, body);
-        mr(4, 1.5f, 1, 2, cut); mr(9, 1.5f, 1, 2, cut);
-        static const float kA[] = {2, 4, 9, 11}, kB[] = {3, 5, 8, 10};
-        for (float lx : (half ? kB : kA)) mr(lx, 6, 1, 1.6f, body);
-      }
+      eyes(2, 2, 1);                                     // eyes on the crew, to the right
+      // The conductor's baton in the raised hand, in the flag's light ink: up,
+      // then beating down toward its subagents (the ladder up the tile's edge).
+      const uint16_t ink = rgb565(0xE8, 0xE4, 0xDC);
+      const float bx = bot ? 13 : 14, by = bot ? -1 : 0;
+      static const float kUp[3][2] = {{0, -1}, {1, -2}, {2, -3}}, kDown[3][2] = {{0, 1.5f}, {1, 2}, {2, 2.5f}};
+      for (const auto& b : (phase(ms, 300, 2) ? kDown : kUp)) p.g(bx + b[0], by + b[1], 1, 1, ink);
       break;
     }
     case Pose::Hungry: {
@@ -387,5 +378,5 @@ static inline void drawSprite(Canvas& c, int x, int y, int scale, Species sp, Po
   }
 
   drawHat(p, bot, hat, hatColor, pose == Pose::Exit);
-  if (showLegs) legs(p, bot, legSet, legDy);
+  if (showLegs) legs(p, bot, legSet, legDy, pose == Pose::Celebrate ? 0 : p.gdy);
 }

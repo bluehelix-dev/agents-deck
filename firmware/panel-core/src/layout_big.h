@@ -60,7 +60,7 @@ static inline BigSpec specBig480() {
   s.text = &FONT_S;          // rm 17, mono 16-18 -> 11-12
   s.label = &FONT_XS;        // mono 13-15 -> 9-10
   s.tileTitle = &FONT_S;     // mono 16 -> 10.7
-  s.tileMeta = &FONT_XS;     // mono 12.5 -> 8.3 (10: the smallest that reads)
+  s.tileMeta = &FONT_S;      // mono 12.5 -> 8.3; 11.7 so it reads from the desk (with the tight status line)
   s.tileScale = 3;           // 92 px on a 170 px cell -> 61 px: x3 is the nearest (54)
   s.subScale = 1;            // 36 px -> 24 px
   s.cardScale = 2;           // 54 px -> 36 px: exactly x2
@@ -134,7 +134,9 @@ static inline Rect bigCardInner(const BigSpec& S) {
   return Rect{bk(S, 36), bk(S, 34), S.w - 2 * bk(S, 36), S.h - bk(S, 34) - bk(S, 30)};
 }
 
-static inline BigButtons bigCardButtons(const BigSpec& S, const Agent& a, DeckScope scope) {
+// Focus only where the deck can bring a terminal to the front (Server.focus:
+// not on Windows); without it the other button takes the row.
+static inline BigButtons bigCardButtons(const BigSpec& S, const Agent& a, DeckScope scope, bool canFocus = true) {
   BigButtons b;
   const Rect in = bigCardInner(S);
   const int h = bk(S, 68), y = in.y + in.h - h, gap = bk(S, 14), side = bk(S, 200);
@@ -144,14 +146,17 @@ static inline BigButtons bigCardButtons(const BigSpec& S, const Agent& a, DeckSc
   if (!act) return b;
   if (!exited) {
     const bool second = running || admin;
-    b.kind[b.n] = Hit::Focus;
-    b.r[b.n++] = Rect{in.x, y, second ? in.w - gap - side : in.w, h};
+    if (canFocus) {
+      b.kind[b.n] = Hit::Focus;
+      b.r[b.n++] = Rect{in.x, y, second ? in.w - gap - side : in.w, h};
+    }
+    const Rect rest = canFocus ? Rect{in.x + in.w - side, y, side, h} : Rect{in.x, y, in.w, h};
     if (running) {
       b.kind[b.n] = Hit::Interrupt;
-      b.r[b.n++] = Rect{in.x + in.w - side, y, side, h};
+      b.r[b.n++] = rest;
     } else if (admin) {
       b.kind[b.n] = Hit::Stop;
-      b.r[b.n++] = Rect{in.x + in.w - side, y, side, h};
+      b.r[b.n++] = rest;
     }
   } else if (admin && a.resumable) {
     b.kind[b.n] = Hit::Resume;
@@ -203,13 +208,14 @@ static inline int bigTopBarBottom(const BigSpec& S) {
   return bk(S, 34) + 13 * S.cardScale + bk(S, 10) + bk(S, 30);
 }
 
-static inline BigPrompt bigPrompt(const BigSpec& S, const Agent& a) {
+static inline BigPrompt bigPrompt(const BigSpec& S, const Agent& a, bool canFocus = true) {
   BigPrompt p{};
   const bool perm = !strcmp(a.waitKind, "permission");
   const Rect in = bigCardInner(S);
   const int btnH = bk(S, 68), btnY = in.y + in.h - btnH;
-  p.send = Rect{in.x, btnY, in.w - bk(S, 14) - bk(S, 260), btnH};
-  p.terminal = Rect{in.x + in.w - bk(S, 260), btnY, bk(S, 260), btnH};
+  // send, and focus terminal beside it where the deck can focus.
+  p.send = canFocus ? Rect{in.x, btnY, in.w - bk(S, 14) - bk(S, 260), btnH} : Rect{in.x, btnY, in.w, btnH};
+  p.terminal = canFocus ? Rect{in.x + in.w - bk(S, 260), btnY, bk(S, 260), btnH} : Rect{0, 0, 0, 0};
   const int qLine = (int)lroundf(fontPx(*S.heading) * 1.3f), tLine = (int)lroundf(fontPx(*S.text) * 1.45f);
   p.titleY = bigTopBarBottom(S) + bk(S, 20);
   p.titleLines = bigWrapLines(*S.heading, a.waitTitle[0] ? a.waitTitle : "needs you", in.w, 3);
@@ -228,8 +234,10 @@ static inline BigPrompt bigPrompt(const BigSpec& S, const Agent& a) {
     if (fit < rowH) rowH = fit < fontPx(*S.text) + 8 ? fontPx(*S.text) + 8 : fit;
   }
   p.subs = rowH >= fontPx(*S.text) + fontPx(*S.label) + bk(S, 4) + 2 * bk(S, 10);
-  const int optTop = p.n ? bottom - p.n * rowH - (p.n - 1) * gap : bottom;
-  for (int i = 0; i < p.n; i++) p.opt[i] = Rect{in.x, optTop + i * (rowH + gap), in.w, rowH};
+  // The lowest the options may start (pinned above the buttons); they move up
+  // under the detail when there is room, so the choice sits by what it is about.
+  const int lowest = p.n ? bottom - p.n * rowH - (p.n - 1) * gap : bottom;
+  int optTop = lowest;
   // The detail in a box, with the lines left above the options.
   if (a.waitDetail[0]) {
     const int pad = bk(S, 16);
@@ -245,11 +253,20 @@ static inline BigPrompt bigPrompt(const BigSpec& S, const Agent& a) {
     }
   }
   // Where a permission runs (a question's context is in its pill).
-  if (perm && a.promptCtx[0] && y + bk(S, 10) + fontPx(*S.label) <= optTop - 4) p.ctxY = y + bk(S, 10);
+  if (perm && a.promptCtx[0] && y + bk(S, 10) + fontPx(*S.label) <= optTop - 4) {
+    p.ctxY = y + bk(S, 10);
+    y = p.ctxY + fontPx(*S.label);
+  }
+  const int under = (p.box.h || p.ctxY ? y : textTop - bk(S, 10)) + bk(S, 20);
+  if (under < optTop) optTop = under;
+  for (int i = 0; i < p.n; i++) p.opt[i] = Rect{in.x, optTop + i * (rowH + gap), in.w, rowH};
   return p;
 }
 
+// The option chosen to start with: a question's primary; none on a permission,
+// so a quick tap on send never approves by itself.
 static inline int bigDefaultOption(const Agent& a) {
+  if (!strcmp(a.waitKind, "permission")) return -1;
   for (int i = 0; i < a.optCount; i++)
     if (a.opts[i].primary) return i;
   return -1;
@@ -276,16 +293,16 @@ static inline PanelHit bigHit(const BigSpec& S, const PanelUi& ui, const Fleet& 
   const Agent& a = f.agents[i];
   h.agent = i;
   if (ui.screen == Screen::Card) {
-    const BigButtons b = bigCardButtons(S, a, scope);
+    const BigButtons b = bigCardButtons(S, a, scope, f.canFocus);
     for (int k = 0; k < b.n; k++)
       if (b.r[k].contains(x, y)) { h.kind = b.kind[k]; return h; }
     return PanelHit();
   }
-  const BigPrompt p = bigPrompt(S, a);
+  const BigPrompt p = bigPrompt(S, a, f.canFocus);
   for (int k = 0; k < p.n; k++)
     if (p.opt[k].contains(x, y)) { h.kind = Hit::Option; h.index = k; return h; }
   if (p.send.contains(x, y)) { h.kind = Hit::Send; return h; }
-  if (p.terminal.contains(x, y)) { h.kind = Hit::Focus; return h; }
+  if (p.terminal.w && p.terminal.contains(x, y)) { h.kind = Hit::Focus; return h; }
   return PanelHit();
 }
 
@@ -512,6 +529,57 @@ static inline void ring(Canvas& c, const Rect& r, int t, int pct, uint16_t color
   }
 }
 
+// A small hash for the twinkle's pixels (and a string's seed).
+static inline uint32_t mix32(uint32_t h) {
+  h ^= h >> 16; h *= 0x7feb352dU; h ^= h >> 15; h *= 0x846ca68bU; h ^= h >> 16;
+  return h;
+}
+static inline uint32_t seedOf(const char* s) {
+  uint32_t h = 2166136261u;
+  for (; *s; s++) { h ^= (uint8_t)*s; h *= 16777619u; }
+  return h;
+}
+
+// WorkflowTwinkle: a dim grid of blue pixels in cells of `cell` px, and about
+// a sixth of them, at places fixed by `seed`, fading up and down on their own
+// clocks (2.4 to 4.8 s): up in four steps over 40 % of the cycle, lit to 60 %,
+// down in four.
+static inline void twinkle(Canvas& c, const Rect& r, float cell, uint16_t fill, uint16_t blue, uint32_t seed, uint32_t ms) {
+  const int cols = (int)(r.w / cell), rows = (int)(r.h / cell);
+  if (cols < 1 || rows < 1) return;
+  int side = (int)lroundf(cell * 0.3f);
+  if (side < 1) side = 1;
+  static const uint8_t kAlpha[] = {2, 2, 3, 4, 5};   // of 15: the grid at ~13 %, a lit pixel up to ~33 %
+  for (int y = 0; y < rows; y++)
+    for (int x = 0; x < cols; x++) {
+      const uint32_t h = mix32(seed ^ ((uint32_t)(y * 977 + x) * 0x9E3779B9u));
+      int step = 0;
+      if (h % 400 < 70) {
+        const uint32_t dur = 2400 + (h >> 9) % 2400, ph = (h >> 3) % dur;
+        const float f = (float)((ms + ph) % dur) / (float)dur;
+        step = f < 0.4f ? (int)(f / 0.4f * 4) : f < 0.6f ? 4 : 4 - (int)((f - 0.6f) / 0.4f * 4);
+        if (step < 0) step = 0;
+        if (step > 4) step = 4;
+      }
+      c.rect(r.x + (int)(x * cell), r.y + (int)(y * cell), side, side, blend565(fill, blue, kAlpha[step]));
+    }
+}
+
+// WorkflowBar: one segment per phase, the running one lit in the workflow's
+// blue, done ones at 45 %, the rest in the tile's dim at 35 %.
+static inline void workflowBar(Canvas& c, const Theme& T, const Agent& a, int x, int y, int w, int h, uint16_t fill,
+                               uint16_t dim, int gap) {
+  if (!a.wfCount) return;
+  const int i = wfCurrent(a), n = a.wfCount;
+  const int seg = (w - (n - 1) * gap) / n;
+  for (int k = 0; k < n; k++) {
+    const uint16_t col = k == i ? T.workflow
+                         : (k < i || (a.wf[k].done && !a.wf[k].running)) ? blend565(fill, T.workflow, 7)
+                                                                           : blend565(fill, dim, 5);
+    c.rect(x + k * (seg + gap), y, k == n - 1 ? w - k * (seg + gap) : seg, h, col);
+  }
+}
+
 // AgentTile, laid out on the deck's 170 px design cell and scaled to the real one.
 static inline void tile(Canvas& c, const BigSpec& S, const Theme& T, const Agent& a, const Rect& r, uint32_t ms,
                         int64_t now, bool pressed) {
@@ -524,34 +592,61 @@ static inline void tile(Canvas& c, const BigSpec& S, const Theme& T, const Agent
   const int ox = r.x + (r.w - side) / 2, oy = r.y + (r.h - side) / 2;   // the FittedBox's square
   c.rect(r.x, r.y, r.w, r.h, fill);
   if (k.stripes && !pressed) stripes(c, r, fill, T.accent, ms, d(24));
-  if (!pressed) c.rect(r.x + r.w - d(10) - d(8), r.y + d(10), d(8), d(8), k.chip);   // the tool chip
-  if (a.subagents) {                                 // subagents at work: a small body, and a count
-    const Pose sp = a.subTool[0] ? poseOfTool(a.subTool) : Pose::Think;
-    const int s = S.subScale;
-    drawSprite(c, r.x + d(9), r.y + d(8 + 4 * 2) - 4 * s, s, Species::Claude, sp, cc(k.body), fill, ms, false);
-    if (a.subagents > 1) {
-      char n[8];
-      snprintf(n, sizeof n, "\xC3\x97%u", (unsigned)a.subagents);
-      c.text(*S.tileMeta, r.x + d(9) + 14 * s + d(3), r.y + d(8) + 9 * s - S.tileMeta->cellH + 3, n, cc(k.meta));
+  else if (workflowing(a) && !pressed) twinkle(c, r, side / 20.f, fill, T.workflow, seedOf(a.id), ms);
+  // SubagentLadder: up the right edge, the newest on top; four fit, a "+N"
+  // above them counts the rest. The session steps left to make room.
+  int ladder = 0;
+  if (a.subagents) {
+    ladder = d(36 + 2);
+    const int s = S.subScale, n = a.subCount ? (a.subCount < 4 ? a.subCount : 4) : 1;
+    const int more = a.subagents - n;
+    const int x = r.x + r.w - d(2) - 18 * s;
+    int bottom = r.y + r.h - d(8);
+    for (int i = 0; i < n; i++) {                   // from the bottom up: the oldest shown first
+      const int idx = a.subCount ? (a.subCount - n) + i : -1;
+      const char* tool = idx >= 0 ? a.subs[idx].tool : a.subTool;
+      const Pose sp = tool[0] ? poseOfTool(tool) : Pose::Think;
+      drawSprite(c, x, bottom - 8 * s, s, Species::Claude, sp, cc(k.body), fill, ms, true, a.hat, a.hatColor);
+      bottom -= 13 * s + d(3);
+    }
+    if (more > 0) {
+      char m[8];
+      snprintf(m, sizeof m, "+%d", more);
+      c.text(*S.label, r.x + r.w - d(2) - d(8) - textW(*S.label, m), bottom + d(3) - d(2) - S.label->cellH, m, cc(k.meta));
     }
   }
+  const int cw = side - ladder;                     // the column the session is centred in
+  const int cx = ox + cw / 2;
   // The critter: its body where the deck draws it (92 px wide from y 30; the
-  // feet at 30 + 12/13 of its height), at the nearest whole scale.
+  // feet at 30 + 12/13 of its height), at the nearest whole scale. The flag of
+  // a finished turn is waved in orange, as for work.
   const int s = S.tileScale;
   const float unit = 92.f / 18.f;                    // the deck's critter: px per sprite unit
   const int feet = oy + d(30 + 12 * unit);
-  drawSprite(c, ox + side / 2 - 7 * s, feet - 12 * s, s, a.species, poseOf(a, now), cc(k.body), fill, ms, true, a.hat,
-             a.hatColor);
-  // Title (mono 16) at 30 + 92 x 13/18 + 14; the status line (12.5) 5 px under it.
+  const Pose pose = poseOf(a, now);
+  const uint16_t body = pose == Pose::Celebrate ? T.accent : k.body;
+  drawSprite(c, cx - 7 * s, feet - 12 * s, s, a.species, pose, cc(body), fill, ms, true, a.hat, a.hatColor);
+  // Title (mono 16) at 30 + 92 x 13/18 + 14; then the status line, or a
+  // running workflow's bar and line in its blue.
   const int titleTop = oy + d(30 + 92.f * 13 / 18 + 14);
-  const int tw = r.w - 2 * d(10);
-  const char* title = a.title[0] ? a.title : a.id;
-  const int ttw = textW(*S.tileTitle, title) < tw ? textW(*S.tileTitle, title) : (tw / S.tileTitle->cellW) * S.tileTitle->cellW;
-  textAt(c, *S.tileTitle, r.x + (r.w - ttw) / 2, titleTop, title, cc(k.label), tw);
+  const int tw = cw - 2 * d(10);
+  auto centred = [&](const Font& f, int top, const char* t, uint16_t col) {
+    const int w = textW(f, t) < tw ? textW(f, t) : (tw / f.cellW) * f.cellW;
+    textAt(c, f, cx - w / 2, top, t, col, tw);
+  };
+  centred(*S.tileTitle, titleTop, a.title[0] ? a.title : a.id, cc(k.label));
+  int y = titleTop + fontPx(*S.tileTitle) + d(5);
   char meta[80];
-  metaLine(a, now, meta, sizeof meta);
-  const int mw = textW(*S.tileMeta, meta) < tw ? textW(*S.tileMeta, meta) : (tw / S.tileMeta->cellW) * S.tileMeta->cellW;
-  textAt(c, *S.tileMeta, r.x + (r.w - mw) / 2, titleTop + d(16 + 5), meta, cc(k.meta), tw);
+  if (a.wfCount) {
+    const int bw = d(104) < tw ? d(104) : tw, bh = d(5) < 2 ? 2 : d(5);
+    workflowBar(c, T, a, cx - bw / 2, y, bw, bh, fill, cc(k.meta), d(3) < 1 ? 1 : d(3));
+    y += bh + d(5);
+    wfLine(a, meta, sizeof meta);
+    centred(*S.tileMeta, y, meta, cc(T.workflow));
+  } else {
+    metaLine(a, now, meta, sizeof meta, true);
+    centred(*S.tileMeta, y, meta, cc(k.meta));
+  }
   if (!pressed) ring(c, r, d(4) < 2 ? 2 : d(4), a.ctxWindow ? ctxPct(a) : 0, k.ring, k.ringTrack);
 }
 
@@ -565,10 +660,7 @@ static inline void home(Canvas& c, const BigSpec& S, const Theme& T, const Panel
     const Rect r = bigCell(g, cell);
     const int i = bigAgentAt(f, page, cell);
     if (i >= 0) tile(c, S, T, f.agents[i], r, in.ms, in.nowEpoch, ui.pressed.kind == Hit::Tile && ui.pressed.agent == i);
-    else {
-      c.rect(r.x, r.y, r.w, r.h, T.emptyFill);
-      c.frame(r.x, r.y, r.w, r.h, T.emptyOutline);
-    }
+    else c.rect(r.x, r.y, r.w, r.h, T.emptyFill);   // a free cell: nearly the background, no outline
   }
   if (ui.wifi && g.bars.w)                           // the Wi-Fi mark (round_geom.h), right-aligned with the grid
     drawNetMark(c, (float)(g.x0 + 4 * g.cell + 3 * g.gap - 18), (float)(g.bars.y + g.bars.h / 2 + 6), T.dim);
@@ -636,22 +728,11 @@ static inline void topBar(Canvas& c, const BigSpec& S, const Theme& T, const Pan
                           uint16_t pillFill, uint16_t pillInk, uint16_t body, uint16_t cut) {
   const Rect r = bigCardInner(S);
   const int cs = S.cardScale;
-  drawSprite(c, r.x, r.y, cs, a.species, poseOf(a, in.nowEpoch), body, cut, in.ms, true, a.hat, a.hatColor);
-  if (a.subagents) {                                 // SubagentCrew: up to six small critters and a count
-    int x = r.x + 18 * cs + bk(S, 16);
-    const int n = a.subagents > 6 ? 6 : a.subagents;
-    const int ss = S.crewScale;
-    for (int i = 0; i < n; i++) {
-      // Each posed by its latest tool (thinking before its first); those past the kept ones run.
-      const Pose p = i < a.subCount ? (a.subs[i].tool[0] ? poseOfTool(a.subs[i].tool) : Pose::Think)
-                     : i == 0 && a.subTool[0] ? poseOfTool(a.subTool) : Pose::Run;
-      drawSprite(c, x, r.y + 13 * cs - 13 * ss, ss, Species::Claude, p, body, cut, in.ms, true);
-      x += 18 * ss + bk(S, 9);
-    }
-    char buf[32];
-    snprintf(buf, sizeof buf, "%u subagent%s", (unsigned)a.subagents, a.subagents == 1 ? "" : "s");
-    c.text(*S.label, x + bk(S, 4), r.y + 13 * cs - S.label->cellH + 2, buf, body);
-  }
+  // Its subagents are listed under the header (crewList); the flag of a
+  // finished turn is waved in orange, as for work.
+  const Pose pose = poseOf(a, in.nowEpoch);
+  drawSprite(c, r.x, r.y, cs, a.species, pose, pose == Pose::Celebrate ? T.accent : body, cut, in.ms, true, a.hat,
+             a.hatColor);
   const int titleTop = r.y + 13 * cs + bk(S, 10), titleH = bk(S, 30);
   // The pill (mono 15, 12 x 4 padding, radius 8) and the chip, right-aligned.
   char pill[112];
@@ -663,10 +744,8 @@ static inline void topBar(Canvas& c, const BigSpec& S, const Theme& T, const Pan
   const Rect pr{r.x + r.w - pw, titleTop + (titleH - ph) / 2, pw, ph};
   rrect(c, pr, bk(S, 8), pillFill);
   textAt(c, pf, pr.x + bk(S, 12), pr.y + bk(S, 4), pill, pillInk, pw - 2 * bk(S, 12));
-  const int chip = bk(S, 8);
-  c.rect(pr.x - bk(S, 8) - chip, titleTop + (titleH - chip) / 2, chip, chip, toolColor(T, a.tool));
   textAt(c, *S.title, r.x, titleTop + (titleH - fontPx(*S.title)) / 2, a.title[0] ? a.title : a.id, ink,
-         pr.x - chip - 2 * bk(S, 8) - r.x);
+         pr.x - bk(S, 16) - r.x);
 }
 
 static inline void tickBar(Canvas& c, const BigSpec& S, int x, int y, int w, int pct, uint16_t col) {
@@ -679,16 +758,128 @@ static inline void tickBar(Canvas& c, const BigSpec& S, int x, int y, int w, int
   }
 }
 
+// The card's subagents (SubagentList): a line each with its critter, what it
+// was sent to do, its kind (a workflow agent's phase) and its tool with how
+// long it has been at it ("Grep · 2m"); as many lines as `rows`, then a count.
+static inline int crewList(Canvas& c, const BigSpec& S, const Theme& T, const PanelInput& in, const Agent& a, int x,
+                           int y, int w, int rows, uint16_t body) {
+  const Font& lf = *S.label;
+  char buf[96];
+  const bool wf = a.subCount && !strcmp(a.subs[0].type, "workflow");
+  snprintf(buf, sizeof buf, wf ? "workflow" DECK_DOT "%u agent%s" : "%u subagent%s", (unsigned)a.subagents,
+           a.subagents == 1 ? "" : "s");
+  textAt(c, lf, x, y, buf, T.dim);
+  y += fontPx(lf) + bk(S, 8);
+  const int rowH = bk(S, 36), toolW = bk(S, 128), kindW = w >= bk(S, 420) ? bk(S, 110) : 0;
+  const int ss = S.crewScale;
+  for (int i = 0; i < rows && i < a.subCount; i++) {
+    const Subagent& s = a.subs[i];
+    drawSprite(c, x, y + (rowH - 13 * ss) / 2 + 5 * ss - 2, ss, Species::Claude,
+               s.tool[0] ? poseOfTool(s.tool) : Pose::Think, body, T.bg, in.ms, true, a.hat, a.hatColor);
+    // "label · phase" for a workflow agent; "general-purpose" says "general".
+    char title[48], kind[24];
+    snprintf(title, sizeof title, "%s", s.title);
+    snprintf(kind, sizeof kind, "%s", !strcmp(s.type, "general-purpose") ? "general" : s.type);
+    if (!strcmp(s.type, "workflow")) {
+      char* sep = strstr(title, DECK_DOT);
+      for (char* p = sep; p; p = strstr(p + 1, DECK_DOT)) sep = p;
+      if (sep) {
+        snprintf(kind, sizeof kind, "%s", sep + strlen(DECK_DOT));
+        *sep = '\0';
+      } else {
+        snprintf(kind, sizeof kind, "workflow");
+      }
+    }
+    char tool[32], age[8];
+    if (s.startedAt && in.nowEpoch) {
+      fmtAge(in.nowEpoch - s.startedAt, age, sizeof age);
+      snprintf(tool, sizeof tool, "%s" DECK_DOT "%s", s.tool[0] ? s.tool : "thinking", age);
+    } else {
+      snprintf(tool, sizeof tool, "%s", s.tool[0] ? s.tool : "thinking");
+    }
+    const int tx = x + 18 * ss + bk(S, 18), ty = y + (rowH - fontPx(*S.text)) / 2;
+    const int toolX = x + w - toolW, kindX = toolX - kindW;
+    textAt(c, *S.text, tx, ty, title, T.ink, kindX - bk(S, 12) - tx);
+    if (kindW) textAt(c, lf, kindX, ty + fontPx(*S.text) - fontPx(lf), kind, T.dim, kindW - bk(S, 8));
+    const int tw = textW(lf, tool) < toolW ? textW(lf, tool) : toolW;
+    textAt(c, lf, x + w - tw, ty + fontPx(*S.text) - fontPx(lf), tool, T.dim, toolW);
+    y += rowH;
+  }
+  const int shown = rows < a.subCount ? rows : a.subCount;
+  if (a.subagents > shown && shown > 0) {
+    snprintf(buf, sizeof buf, "+%u more", (unsigned)(a.subagents - shown));
+    textAt(c, lf, x, y + bk(S, 4), buf, T.dim);
+    y += fontPx(lf) + bk(S, 8);
+  }
+  return y;
+}
+
+// WorkflowPhases: each phase with its count, the running one in the
+// workflow's blue, done ones in ink, the ones to come dim.
+static inline void workflowPhases(Canvas& c, const BigSpec& S, const Theme& T, const Agent& a, int x, int y, int w) {
+  const Font& f = *S.body;
+  const int cur = wfCurrent(a), gap = bk(S, 18);
+  int xx = x;
+  char buf[32];
+  for (int k = 0; k < a.wfCount; k++) {
+    const WorkflowPhase& p = a.wf[k];
+    snprintf(buf, sizeof buf, "%s %u/%u", p.title, (unsigned)p.done, (unsigned)(p.done + p.running));
+    const int bw = textW(f, buf);
+    if (xx + bw > x + w) {                           // no room for the next: say there are more
+      if (xx + textW(f, "\xE2\x80\xA6") <= x + w) textAt(c, f, xx, y, "\xE2\x80\xA6", T.dim);
+      return;
+    }
+    const uint16_t col = k == cur ? T.workflow : (k < cur || (p.done && !p.running)) ? T.ink : T.dim;
+    textAt(c, f, xx, y, buf, col);
+    xx += bw + gap;
+  }
+}
+
 static inline void card(Canvas& c, const BigSpec& S, const Theme& T, const PanelInput& in, const Agent& a) {
   const Rect r = bigCardInner(S);
   char buf[224];
   const Look look = lookOf(T, a);
+  // A finished turn nobody has looked at slides its stripes behind the card
+  // too, and a workflow at work twinkles there, as on its tile.
+  if (hungry(a)) stripes(c, Rect{0, 0, S.w, S.h}, T.bg, T.accent, in.ms, bk(S, 24));
+  else if (workflowing(a)) twinkle(c, Rect{0, 0, S.w, S.h}, (float)bk(S, 14), T.bg, T.workflow, seedOf(a.id), in.ms);
   uint16_t pillFill = T.panel, pillInk = T.ink;
   if (a.status == Status::Running) { pillFill = T.ink; pillInk = T.bg; }
   else if (a.status == Status::Error) { pillFill = T.accent; pillInk = T.bg; }
-  topBar(c, S, T, in, a, T.ink, pillFill, pillInk, look.body == T.bg ? T.ink : look.body, T.bg);
-  int y = bigTopBarBottom(S) + bk(S, 26);
+  const uint16_t body = look.body == T.bg ? T.ink : look.body;
+  topBar(c, S, T, in, a, T.ink, pillFill, pillInk, body, T.bg);
+  // The sections' spacing; tighter when a workflow and its crew share the card.
+  const int G = a.wfCount && a.subagents ? bk(S, 16) : bk(S, 26);
+  int y = bigTopBarBottom(S) + G;
   const Font& lf = *S.label;
+  const BigButtons b = bigCardButtons(S, a, in.scope, in.fleet->canFocus);
+  const int btnTop = b.n ? b.r[0].y : r.y + r.h;
+  const int footerY = btnTop - (b.n ? bk(S, 22) : 0) - fontPx(lf);
+  const int line = (int)lroundf(fontPx(*S.text) * 1.45f);
+  // A running workflow: its name and phases.
+  if (a.wfCount) {
+    snprintf(buf, sizeof buf, "workflow" DECK_DOT "%s", a.wfName);
+    textAt(c, lf, r.x, y, buf, T.dim, r.w);
+    y += fontPx(lf) + bk(S, 8);
+    workflowPhases(c, S, T, a, r.x, y, r.w);
+    y += fontPx(*S.body) + G;
+  }
+  // Its subagents, in the room the rest leaves (one line of the last prompt).
+  if (a.subagents) {
+    const int rest = (fontPx(lf) + bk(S, 8) + fontPx(*S.body) + G)        // doing now
+                     + (fontPx(*S.heading) + bk(S, 10) + bk(S, 14) + G)   // context
+                     + (fontPx(lf) + bk(S, 6) + fontPx(*S.heading) + G)   // tokens, cost, turns
+                     + (fontPx(lf) + bk(S, 8) + line);                            // the last prompt, one line
+    int room = footerY - bk(S, 8) - y - rest - (fontPx(lf) + bk(S, 8)) - G;
+    const int rowH = bk(S, 36), moreH = fontPx(lf) + bk(S, 8);
+    const int kept = a.subCount;
+    int rows = room / rowH;
+    if (rows > 4) rows = 4;
+    if (rows >= kept && a.subagents <= kept) rows = kept;
+    else rows = (room - moreH) / rowH < kept ? (room - moreH) / rowH : kept;
+    if (rows < 0) rows = 0;
+    y = crewList(c, S, T, in, a, r.x, y, r.w, rows, body) + G - bk(S, 8);
+  }
   // Doing now (_doingNow).
   const char* label = "doing now";
   uint16_t valCol = T.ink;
@@ -723,7 +914,7 @@ static inline void card(Canvas& c, const BigSpec& S, const Theme& T, const Panel
   textAt(c, lf, r.x, y, label, T.dim);
   y += fontPx(lf) + bk(S, 8);
   textAt(c, *S.body, r.x, y, val, valCol, r.w);
-  y += fontPx(*S.body) + bk(S, 26);
+  y += fontPx(*S.body) + G;
   // Context.
   const Font& hf = *S.heading;
   const int cw = textAt(c, hf, r.x, y, "context", T.ink);
@@ -740,7 +931,7 @@ static inline void card(Canvas& c, const BigSpec& S, const Theme& T, const Panel
   textAt(c, hf, r.x + r.w - textW(hf, buf), y, buf, T.ink);
   y += fontPx(hf) + bk(S, 10);
   tickBar(c, S, r.x, y, r.w, a.ctxWindow ? ctxPct(a) : 0, T.ink);
-  y += bk(S, 14) + bk(S, 26);
+  y += bk(S, 14) + G;
   // Tokens out, cache read, cost, turns.
   {
     const char* labels[4] = {"tokens out", "cache read", "cost" DECK_DOT "est", "turns"};
@@ -755,15 +946,11 @@ static inline void card(Canvas& c, const BigSpec& S, const Theme& T, const Panel
       textAt(c, lf, r.x + i * colW, y, labels[i], T.dim, colW - 4);
       textAt(c, hf, r.x + i * colW, y + fontPx(lf) + bk(S, 6), vals[i], T.ink, colW - 4);
     }
-    y += fontPx(lf) + bk(S, 6) + fontPx(hf) + bk(S, 26);
+    y += fontPx(lf) + bk(S, 6) + fontPx(hf) + G;
   }
   // The last prompt, up to four lines, down to the footer.
   textAt(c, lf, r.x, y, "last prompt", T.dim);
   y += fontPx(lf) + bk(S, 8);
-  const BigButtons b = bigCardButtons(S, a, in.scope);
-  const int btnTop = b.n ? b.r[0].y : r.y + r.h;
-  const int footerY = btnTop - (b.n ? bk(S, 22) : 0) - fontPx(lf);
-  const int line = (int)lroundf(fontPx(*S.text) * 1.45f);
   int lines = (footerY - bk(S, 8) - y) / line;
   if (lines > 4) lines = 4;
   if (lines > 0)
@@ -819,7 +1006,8 @@ static inline void prompt(Canvas& c, const BigSpec& S, const Theme& T, const Pan
   else rframe(c, Rect{0, 0, S.w, S.h}, rad, bk(S, 3), T.accent);
   topBar(c, S, T, in, a, ink, perm ? T.bg : T.accent, perm ? T.accent : T.bg, perm ? T.bg : T.accent, surface);
   const Rect r = bigCardInner(S);
-  const BigPrompt p = bigPrompt(S, a);
+  const bool canFocus = in.fleet->canFocus;
+  const BigPrompt p = bigPrompt(S, a, canFocus);
   const int qLine = (int)lroundf(fontPx(*S.heading) * 1.3f), tLine = (int)lroundf(fontPx(*S.text) * 1.45f);
   textWrapped(c, *S.heading, r.x, p.titleY - (S.heading->cellH - fontPx(*S.heading)) / 2,
               a.waitTitle[0] ? a.waitTitle : "needs you", ink, r.w, p.titleLines, qLine);
@@ -867,11 +1055,21 @@ static inline void prompt(Canvas& c, const BigSpec& S, const Theme& T, const Pan
   if (!p.n) textAt(c, *S.label, r.x, p.send.y - bk(S, 20) - fontPx(*S.label), "free-text answer" DECK_DOT "type it at the terminal",
                    perm ? T.bg : T.dim, r.w);
 
-  // send N, and focus terminal.
-  char send[24];
+  // The answer button says what it does: on a permission "allow", "allow
+  // always" or "deny" once one is chosen ("choose one" before); a question
+  // "send N". Focus terminal beside it where the deck can focus.
+  char send[32];
   const bool chosen = ui.selected >= 0 && ui.selected < a.optCount;
-  if (chosen) snprintf(send, sizeof send, "send %s", a.opts[ui.selected].key);
-  else snprintf(send, sizeof send, "send");
+  if (chosen && perm) {
+    const char* l = a.opts[ui.selected].label;
+    if (!strncmp(l, "yes", 3)) snprintf(send, sizeof send, "%s", strstr(l, "don't ask") || strstr(l, "always") ? "allow always" : "allow");
+    else if (!strncmp(l, "no", 2)) snprintf(send, sizeof send, "deny");
+    else snprintf(send, sizeof send, "send %s", a.opts[ui.selected].key);
+  } else if (chosen) {
+    snprintf(send, sizeof send, "send %s", a.opts[ui.selected].key);
+  } else {
+    snprintf(send, sizeof send, perm ? "choose one" : "send");
+  }
   const bool sp = ui.pressed.kind == Hit::Send, fp = ui.pressed.kind == Hit::Focus;
   if (p.n) {
     if (sp && chosen) button(c, S, p.send, send, T.ink, T.bg, T.ink);
@@ -880,6 +1078,7 @@ static inline void prompt(Canvas& c, const BigSpec& S, const Theme& T, const Pan
     else if (perm) button(c, S, p.send, send, T.bg, T.accent, T.bg);
     else button(c, S, p.send, send, T.accent, T.bg, T.accent);
   }
+  if (!canFocus) return;
   const Rect term = p.n ? p.terminal : Rect{r.x, p.send.y, r.w, p.send.h};
   if (fp) button(c, S, term, "focus terminal", perm ? T.bg : T.ink, perm ? T.accent : T.bg, perm ? T.bg : T.ink);
   else button(c, S, term, "focus terminal", surface, ink, perm ? T.bg : T.dim);

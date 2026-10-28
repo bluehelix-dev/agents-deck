@@ -144,7 +144,7 @@ int main() {
   // text
   assert(status(mk("a", Status::Running, 1000), 1000 + 12 * 60) == "running \xC2\xB7 12m");
   assert(status(mk("a", Status::Waiting, 1000), 1045) == "needs you \xC2\xB7 45s");
-  assert(status(mk("a", Status::Idle, 1000, true), 1000 + 7200) == "hungry \xC2\xB7 2h");
+  assert(status(mk("a", Status::Idle, 1000, true), 1000 + 7200) == "ready \xC2\xB7 2h");
   assert(status(mk("a", Status::Idle, 1000), 1060) == "idle \xC2\xB7 1m");
   assert(status(mk("a", Status::Error, 0), 1060) == "error");
   assert(status(mk("a", Status::Starting, 1000), 1060) == "starting");

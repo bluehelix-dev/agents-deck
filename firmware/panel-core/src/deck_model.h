@@ -122,6 +122,16 @@ static inline void agentFromLink(const agentsdeck_link_v1_Agent& in, Agent& a) {
     copyLine(s.title, sizeof s.title, in.subagents[i].title);
     copyLine(s.type, sizeof s.type, in.subagents[i].type);
     copyLine(s.tool, sizeof s.tool, in.subagents[i].tool);
+    s.startedAt = in.subagents[i].started_at_ms > 0 ? in.subagents[i].started_at_ms / 1000 : 0;
+  }
+  if (in.has_workflow) {
+    copyLine(a.wfName, sizeof a.wfName, in.workflow.name);
+    for (pb_size_t i = 0; i < in.workflow.phases_count && a.wfCount < kMaxPhases; i++) {
+      WorkflowPhase& p = a.wf[a.wfCount++];
+      copyLine(p.title, sizeof p.title, in.workflow.phases[i].title);
+      p.running = in.workflow.phases[i].running > 255 ? 255 : (uint8_t)in.workflow.phases[i].running;
+      p.done = in.workflow.phases[i].done > 255 ? 255 : (uint8_t)in.workflow.phases[i].done;
+    }
   }
   copyLine(a.folder, sizeof a.folder, in.folder);
   copyLine(a.branch, sizeof a.branch, in.branch);
@@ -205,6 +215,7 @@ static inline bool deckApply(DeckFleet& d, const agentsdeck_link_v1_Frame& f, ui
       const agentsdeck_link_v1_SnapshotBegin& b = f.body.snapshot_begin;
       memset(&d.next, 0, sizeof d.next);
       copyLine(d.next.server, sizeof d.next.server, b.has_server ? b.server.name : "");
+      d.next.canFocus = b.has_server && b.server.focus;
       d.nextKnownCount = 0;
       d.inSnapshot = true;
       if (b.has_server) deckSetClock(d, b.server.time_ms, nowMillis);

@@ -218,6 +218,19 @@ static inline void agentToLink(const Json& j, agentsdeck_link_v1_Agent& a) {
     FIXTURE_COPY(sa.title, sj["title"].str());
     FIXTURE_COPY(sa.type, sj["type"].str());
     FIXTURE_COPY(sa.tool, sj["tool"].str());
+    sa.started_at_ms = parseIso8601(sj["startedAt"].str()) * 1000;
+  }
+  const Json& wf = j["workflow"];
+  if (!wf.isNull()) {
+    a.has_workflow = true;
+    FIXTURE_COPY(a.workflow.name, wf["name"].str());
+    for (const Json& pj : wf["phases"].a) {
+      if (a.workflow.phases_count >= 8) break;
+      agentsdeck_link_v1_WorkflowPhase& p = a.workflow.phases[a.workflow.phases_count++];
+      FIXTURE_COPY(p.title, pj["title"].str());
+      p.running = (uint32_t)pj["running"].num();
+      p.done = (uint32_t)pj["done"].num();
+    }
   }
   a.lost = j["lost"].truthy();
   a.resumable = j["resumable"].truthy();
@@ -247,6 +260,8 @@ static inline bool snapshotFrames(const std::string& stateJson, std::vector<agen
   FIXTURE_COPY(b.body.snapshot_begin.server.name, doc["server"]["name"].str());
   FIXTURE_COPY(b.body.snapshot_begin.server.version, doc["server"]["version"].str());
   b.body.snapshot_begin.server.time_ms = parseIso8601(doc["server"]["time"].str()) * 1000;
+  // A Mac deck can focus terminals; the fixture says so unless "focus": false.
+  b.body.snapshot_begin.server.focus = doc["server"]["focus"].isNull() || doc["server"]["focus"].truthy();
   b.body.snapshot_begin.agent_count = (uint32_t)doc["agents"].a.size();
   for (const Json& j : doc["agents"].a) {
     agentsdeck_link_v1_Frame& f = frame(agentsdeck_link_v1_Frame_agent_changed_tag);

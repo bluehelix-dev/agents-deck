@@ -7,6 +7,7 @@
 #include "../sim/fixture.h"
 #include "crc16.h"
 #include "deck_model.h"
+#include "deck_ui.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
 
@@ -130,6 +131,15 @@ int main() {
       snprintf(sa.title, sizeof sa.title, "task %d\nsecond line", i);
       snprintf(sa.type, sizeof sa.type, "Explore");
       snprintf(sa.tool, sizeof sa.tool, i ? "Grep" : "");
+      sa.started_at_ms = i ? 1791421000000 + i * 1000 : 0;
+    }
+    in.has_workflow = true;
+    snprintf(in.workflow.name, sizeof in.workflow.name, "bughunt");
+    for (int i = 0; i < 8; i++) {                    // eight phases: the board keeps the first kMaxPhases
+      agentsdeck_link_v1_WorkflowPhase& p = in.workflow.phases[in.workflow.phases_count++];
+      snprintf(p.title, sizeof p.title, "phase %d", i);
+      p.running = i == 1 ? 3 : 0;
+      p.done = i == 0 ? 2 : 0;
     }
     in.has_hat = true;
     snprintf(in.hat.shape, sizeof in.hat.shape, "propeller");
@@ -153,9 +163,17 @@ int main() {
     assert(a.costUsd > 4.11f && a.costUsd < 4.13f && a.turns == 27);
     assert(a.unseen && a.external && a.subagents == 5);
     // The first kMaxSubs subagents, each on one line; the count stays whole.
-    assert(a.subCount == kMaxSubs && kMaxSubs == 3);
+    assert(a.subCount == kMaxSubs && kMaxSubs == 4);
     assert(!strcmp(a.subs[0].title, "task 0 second line") && !strcmp(a.subs[0].type, "Explore") && !a.subs[0].tool[0]);
     assert(!strcmp(a.subs[2].title, "task 2 second line") && !strcmp(a.subs[2].tool, "Grep"));
+    assert(a.subs[0].startedAt == 0 && a.subs[2].startedAt == 1791421002);   // when each began, in seconds
+    // The workflow: its name and the first kMaxPhases phases with their counts.
+    assert(!strcmp(a.wfName, "bughunt") && a.wfCount == kMaxPhases);
+    assert(!strcmp(a.wf[1].title, "phase 1") && a.wf[1].running == 3 && a.wf[0].done == 2);
+    assert(wfCurrent(a) == 1);
+    char line[48];
+    wfLine(a, line, sizeof line);
+    assert(!strcmp(line, "phase 1 0/3" DECK_DOT "2 of 6"));
     assert(!strcmp(kHatShapes[a.hat - 1], "propeller") && !strcmp(kHatColors[a.hatColor], "blue"));
 
     // No hat, an unknown shape, an unknown colour; a Claude agent with nothing else.
@@ -165,11 +183,11 @@ int main() {
     assert(a.hat == 0 && a.hatColor == kHatInk && a.species == Species::Claude && a.statusSince == 0);
     assert(!a.ctxWindow && !a.waitKind[0] && !a.actTool[0]);
     b.has_hat = true;
-    snprintf(b.hat.shape, sizeof b.hat.shape, "sombrero");
+    snprintf(b.hat.shape, sizeof b.hat.shape, "space helmet");   // not one of the 22
     snprintf(b.hat.color, sizeof b.hat.color, "blue");
     agentFromLink(b, a);
     assert(a.hat == 0);
-    snprintf(b.hat.shape, sizeof b.hat.shape, "bandana");
+    snprintf(b.hat.shape, sizeof b.hat.shape, "halo");     // the last of the 22
     snprintf(b.hat.color, sizeof b.hat.color, "mauve");
     agentFromLink(b, a);
     assert(a.hat == kHatShapeCount && a.hatColor == kHatInk);

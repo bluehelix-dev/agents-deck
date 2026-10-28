@@ -15,6 +15,7 @@
 struct Theme {
   uint16_t bg, panel, ink, dim, accent, line;
   uint16_t emptyFill, emptyOutline, ringTrack, ringTrackOnAccent, focusedFill, focusedAccent;
+  uint16_t workflow;           // a running workflow's blue (DeckHud.workflow)
 };
 
 // The deck's palette (clients/flutter/agents_ui/lib/src/theme.dart,
@@ -33,6 +34,7 @@ static inline Theme deckTheme(bool trueBlack) {
   t.ringTrackOnAccent = blend565(t.accent, t.bg, 4);   // 0x400A0A0A over the accent
   t.focusedFill = rgb565(0x24, 0x24, 0x1F);
   t.focusedAccent = rgb565(0xFF, 0x6A, 0x26);
+  t.workflow = rgb565(0x3D, 0x8B, 0xFF);
   return t;
 }
 
@@ -52,6 +54,36 @@ struct Look {
 };
 
 static inline bool hungry(const Agent& a) { return a.status == Status::Idle && a.unseen; }
+
+// A workflow at work: its agents still running (a finished one stays on the
+// tile a while, still). Its tile twinkles blue.
+static inline bool workflowing(const Agent& a) {
+  if (a.status != Status::Running) return false;
+  for (int i = 0; i < a.wfCount; i++)
+    if (a.wf[i].running) return true;
+  for (int i = 0; i < a.subCount; i++)
+    if (!strcmp(a.subs[i].type, "workflow")) return true;
+  return false;
+}
+
+// The phase a workflow run is in: the last with agents running, else the last
+// with any done; -1 before the first agent starts (AgentWorkflow.current).
+static inline int wfCurrent(const Agent& a) {
+  for (int i = a.wfCount - 1; i >= 0; i--)
+    if (a.wf[i].running) return i;
+  for (int i = a.wfCount - 1; i >= 0; i--)
+    if (a.wf[i].done) return i;
+  return -1;
+}
+
+// "Suche 5/5 · 2 of 6": the tile's line while the run is on (AgentWorkflow.line).
+static inline void wfLine(const Agent& a, char* out, size_t cap) {
+  const int i = wfCurrent(a);
+  if (i < 0) { snprintf(out, cap, "workflow" DECK_DOT "starting"); return; }
+  const WorkflowPhase& p = a.wf[i];
+  snprintf(out, cap, "%s %u/%u" DECK_DOT "%d of %u", p.title, (unsigned)p.done, (unsigned)(p.done + p.running), i + 1,
+           (unsigned)a.wfCount);
+}
 
 static inline Look lookOf(const Theme& t, const Agent& a) {
   const uint16_t chip = toolColor(t, a.tool);
@@ -74,8 +106,10 @@ static inline Look lookOf(const Theme& t, const Agent& a) {
 
 // ---------------------------------------------------------------- text
 
-// The tile's second line (agentMetaLine in agents_model.dart).
-static inline void metaLine(const Agent& a, int64_t nowEpoch, char* out, size_t cap) {
+// The tile's second line (agentMetaLine in agents_model.dart). `tight` drops
+// what the tile shows elsewhere ("ctx": the ring; "ago"), for small cells:
+// "edit · 41%", "done · 12m".
+static inline void metaLine(const Agent& a, int64_t nowEpoch, char* out, size_t cap, bool tight = false) {
   char age[8];
   fmtAge(a.statusSince ? nowEpoch - a.statusSince : 0, age, sizeof age);
   switch (a.status) {
@@ -89,8 +123,8 @@ static inline void metaLine(const Agent& a, int64_t nowEpoch, char* out, size_t 
       else if (!strcmp(verb, "multiedit") || !strcmp(verb, "notebookedit")) v = "edit";
       else if (!strcmp(verb, "webfetch")) v = "fetch";
       else if (!strcmp(verb, "websearch")) v = "search";
-      else if (!strcmp(verb, "compact")) v = "compacting";
-      snprintf(out, cap, "%s" DECK_DOT "%d%% ctx", v, ctxPct(a));
+      else if (!strcmp(verb, "compact")) v = tight ? "compact" : "compacting";
+      snprintf(out, cap, tight ? "%s" DECK_DOT "%d%%" : "%s" DECK_DOT "%d%% ctx", v, ctxPct(a));
       return;
     }
     case Status::Waiting:
@@ -112,9 +146,9 @@ static inline void metaLine(const Agent& a, int64_t nowEpoch, char* out, size_t 
       return;
     case Status::Idle:
       if (a.unseen) snprintf(out, cap, "ready");
-      else snprintf(out, cap, "done" DECK_DOT "%s ago", age);
+      else snprintf(out, cap, tight ? "done" DECK_DOT "%s" : "done" DECK_DOT "%s ago", age);
       return;
-    case Status::Unknown: snprintf(out, cap, "done" DECK_DOT "%s ago", age); return;
+    case Status::Unknown: snprintf(out, cap, tight ? "done" DECK_DOT "%s" : "done" DECK_DOT "%s ago", age); return;
     case Status::Error:    snprintf(out, cap, "%s", a.errMsg[0] ? a.errMsg : "error"); return;
     case Status::Starting: snprintf(out, cap, "starting"); return;
     case Status::Exited:

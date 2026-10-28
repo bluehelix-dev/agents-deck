@@ -230,10 +230,58 @@ static int renderBig(const std::string& dir, const BigSpec& S, const char* devic
   shot("card-error");
   open("h0m3l4");
   shot("permission");
+  ui.selected = 0;
+  shot("permission-allow");
   open("4uthfl");
   shot("question");
   ui.selected = 1;
   shot("question-selected");
+  open("d0cs1t");
+  shot("card-ready");
+  {                                                // billing-jobs runs a workflow: three phases, five agents
+    static DeckFleet wf;
+    wf = deck;
+    const int i = findAgent(wf.fleet, "fw0t4x");
+    if (i >= 0) {
+      Agent& a = wf.fleet.agents[i];
+      snprintf(a.wfName, sizeof a.wfName, "bughunt");
+      a.wfCount = 4;
+      const struct { const char* t; uint8_t run, done; } kPh[] = {{"Scout", 0, 3}, {"Suche", 3, 2}, {"Jury", 0, 0}, {"Bericht", 0, 0}};
+      for (int k = 0; k < 4; k++) {
+        snprintf(a.wf[k].title, sizeof a.wf[k].title, "%s", kPh[k].t);
+        a.wf[k].running = kPh[k].run;
+        a.wf[k].done = kPh[k].done;
+      }
+      a.subagents = 5;
+      a.subCount = 4;
+      const char* kTools[] = {"Grep", "Read", "Bash", "Grep"};
+      for (int k = 0; k < 4; k++) {
+        Subagent& s = a.subs[k];
+        snprintf(s.title, sizeof s.title, "find:%s" DECK_DOT "Suche", k == 0 ? "auth" : k == 1 ? "billing" : k == 2 ? "queue" : "retry");
+        snprintf(s.type, sizeof s.type, "workflow");
+        snprintf(s.tool, sizeof s.tool, "%s", kTools[k]);
+        s.startedAt = now - 40 - 25 * k;
+      }
+      snprintf(a.subTool, sizeof a.subTool, "Grep");
+    }
+    in.fleet = &wf.fleet;
+    bigHome(ui);
+    shot("home-workflow");
+    bigOpen(ui, wf.fleet, i);
+    shot("card-workflow");
+    // A finished turn a moment ago: the flag, in orange.
+    const int j = findAgent(wf.fleet, "scr4tc");
+    if (j >= 0) wf.fleet.agents[j].statusSince = now - 2;
+    bigHome(ui);
+    shot("home-celebrate");
+    // On Windows: no focus terminal; interrupt or stop take the row.
+    wf.fleet.canFocus = false;
+    bigOpen(ui, wf.fleet, findAgent(wf.fleet, "k3f9a2"));
+    shot("card-windows");
+    bigOpen(ui, wf.fleet, findAgent(wf.fleet, "h0m3l4"));
+    shot("permission-windows");
+    in.fleet = &f;
+  }
   bigHome(ui);
   uiToast(ui, "sent", ms);
   shot("toast");

@@ -54,15 +54,23 @@ struct Option {
 // Working subagents kept per agent, for the card's list (Deck Link sends up
 // to six; Agent.subagents counts them all).
 #ifndef PANEL_SUBAGENTS
-#define PANEL_SUBAGENTS 3
+#define PANEL_SUBAGENTS 4
 #endif
 constexpr int kMaxSubs = PANEL_SUBAGENTS;
 
 // One working subagent (CARD): its task, its type and its latest tool.
 struct Subagent {
   char title[40];           // the task it was given: "map the payment retry paths"
-  char type[16];            // "Explore", "general-purpose", "" when unknown
+  char type[16];            // "Explore", "general-purpose", "workflow" (title "label · phase"), "" when unknown
   char tool[16];            // its latest tool, for its critter's pose; "" when none yet
+  int64_t startedAt;        // epoch seconds, 0 when unknown
+};
+
+// A running workflow's phases, in the script's order (Deck Link sends up to eight).
+constexpr int kMaxPhases = 6;
+struct WorkflowPhase {
+  char title[16];
+  uint8_t running, done;
 };
 
 // Which harness runs the agent (Deck Link's Tool), for the tile's corner chip.
@@ -100,6 +108,9 @@ struct Agent {
   char subTool[16];         // the first working subagent's tool, for its corner critter
   uint8_t subCount;         // subagents kept in subs (CARD), at most kMaxSubs
   Subagent subs[kMaxSubs];
+  char wfName[24];          // the Workflow run it has going ("" for none)
+  uint8_t wfCount;          // phases kept, at most kMaxPhases
+  WorkflowPhase wf[kMaxPhases];
   char folder[32];
   char branch[32];
   char promptId[16];        // Agent.waiting.id, sent back in Answer
@@ -110,6 +121,7 @@ struct Agent {
 
 struct Fleet {
   char server[32];
+  bool canFocus;            // the deck can bring a terminal to the front (Server.focus; not on Windows)
   int64_t serverTime;       // epoch seconds: the deck's clock (deck_model.h keeps it current)
   uint8_t count;            // agents kept, at most kMaxAgents
   uint16_t total;           // agents on the deck

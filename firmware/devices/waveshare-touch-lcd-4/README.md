@@ -4,9 +4,9 @@ The deck's 4×4 board on a [Waveshare ESP32-S3-Touch-LCD-4](https://www.waveshar
 (480×480 ST7701 LCD, GT911 touch), over USB or Wi-Fi with [Deck Link](../../../docs/link/protocol.md). It looks
 like the desk panel and the web board.
 
-| grid | card | permission | question | approval |
+| grid | workflow | card | permission | question |
 |---|---|---|---|---|
-| <img src="docs/home.png" width="180" alt="the 4x4 grid"> | <img src="docs/card.png" width="180" alt="an agent's card"> | <img src="docs/permission.png" width="180" alt="a permission prompt"> | <img src="docs/question.png" width="180" alt="a question with its options"> | <img src="docs/not-approved.png" width="180" alt="waiting for approval"> |
+| <img src="docs/home.png" width="180" alt="the 4x4 grid"> | <img src="docs/home-workflow.png" width="180" alt="a tile running a workflow, twinkling blue"> | <img src="docs/card-workflow.png" width="180" alt="the card of a workflow: its phases and its agents"> | <img src="docs/permission-allow.png" width="180" alt="a permission prompt with allow chosen"> | <img src="docs/question.png" width="180" alt="a question with its options"> |
 
 (Rendered on the host from `docs/fixtures/state.json` by `firmware/panel-core/tools/render_docs.sh`.
 Every screen is in `docs/`.)
@@ -15,12 +15,20 @@ The board is the same size as the 4″ desk panel (720×720) at 480×480, so it 
 Flutter UI with every size times 2/3 (`layout_big.h`).
 
 - **Grid.** The deck's 4×4 board with square tiles by slot, paged (`DeckGrid`, `AgentTile`).
-  - Each tile shows the critter with its pose and hat, the title, a status line, the context along
-    the border, the tool chip, and the subagent critter.
-  - Orange means it needs you; stripes mean a finished turn you haven't looked at.
+  - Each tile shows the critter with its pose and hat, the title, a short status line ("edit · 41%",
+    "done · 12m") and the context along the border. Free cells stay dark.
+  - Subagents at work climb the tile's right edge as small critters, the newest on top; four fit,
+    "+N" counts the rest. Delegating, the critter conducts them with a baton.
+  - A running workflow shows its phases as a blue bar and "Suche 2/5 · 2 of 4", and the tile
+    twinkles blue.
+  - Orange means it needs you; stripes and "ready" mean a finished turn you haven't looked at. The
+    flag of a turn that just finished is waved in orange.
   - Swipe or tap the page bars to change page; BOOT goes to the next page.
-- **Card.** Tap a tile for the desk panel's overview:
-  - the critter and its subagents, the title, the tool chip and the status pill;
+- **Card.** Tap a tile for the desk panel's overview, with the tile's stripes or twinkle behind it:
+  - the critter, the title and the status pill;
+  - a running workflow's name and phases;
+  - its subagents: what each was sent to do, its kind and its tool with how long it has been at it
+    ("Grep · 2m"), as many as fit, then "+N more";
   - doing now;
   - context with the tick bar;
   - tokens out, cache read, cost, turns;
@@ -28,16 +36,17 @@ Flutter UI with every size times 2/3 (`layout_big.h`).
   - model, folder and branch.
 
   The button row underneath:
-  - **focus terminal**;
+  - **focus terminal** (not when the deck runs on Windows, which can't bring a terminal forward);
   - **interrupt** while the agent runs;
   - otherwise **stop**, which arms on the first tap ("tap again to stop", for 3 s);
   - once the agent has exited, resume and remove.
 
   Focus and interrupt need scope `act`; stop, resume and remove need `admin`.
-- **Prompts.** One layout for permissions and questions: the question, the command or detail, the
-  options with their hint lines. Tap one to choose it (the primary is chosen to start with), then
-  **send**. **Focus terminal** sits beside it. A permission is the orange card; a question is dark
-  with the orange border.
+- **Prompts.** One layout for permissions and questions: the question, the command or detail, and
+  right under it the options with their hint lines. Tap one to choose it, then the button beside
+  **focus terminal** answers. A permission starts with nothing chosen, and its button says what it
+  does: **allow**, **allow always** or **deny**. A question starts with its primary chosen and says
+  **send 1**. A permission is the orange card; a question is dark with the orange border.
 - **Back.** Swipe right, or press BOOT.
 - **Other screens.** Waiting for approval (with the command), connecting to the deck, deck offline,
   no agents.
