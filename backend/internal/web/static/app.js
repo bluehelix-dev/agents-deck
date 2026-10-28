@@ -87,8 +87,10 @@ const needsYou = (a) => a.status === 'waiting' || a.status === 'error';
 
 // Finished a turn nobody has reviewed yet: hungry until its terminal is focused.
 const hungry = (a) => a.status === 'idle' && a.unseen;
-// A workflow at work: blue pixels twinkle behind the critter.
-const workflowing = (a) => a.status === 'running' && (!!a.workflow || (a.subagents || []).some((x) => x.type === 'workflow'));
+// A workflow at work (its agents still running; a finished one stays on the
+// tile a while, still): blue pixels twinkle behind the critter.
+const workflowing = (a) => a.status === 'running' &&
+  ((a.workflow?.phases || []).some((p) => p.running > 0) || (a.subagents || []).some((x) => x.type === 'workflow'));
 
 // The twinkle: a dim grid of blue pixels, and 70 of them, at random places,
 // each fading up and down on its own clock. Built once per tile, when needed.

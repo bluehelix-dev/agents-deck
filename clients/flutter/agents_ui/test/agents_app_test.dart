@@ -925,6 +925,19 @@ void main() {
     };
     await _pumpApp(tester, FakeAgentsSource.fromState(fixture));
     expect(find.byKey(const Key('agent-tile-twinkle')), findsOneWidget);
+    // Over (no agent running): the phases stay a while, the twinkle stops.
+    final over = FakeAgentsSource.demo().toJson();
+    (over['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['status'] == 'running',
+    )['workflow'] = {
+      'name': 'bughunt',
+      'phases': [
+        {'title': 'Find', 'running': 0, 'done': 3},
+      ],
+    };
+    await _pumpApp(tester, FakeAgentsSource.fromState(over));
+    expect(find.byKey(const Key('agent-tile-twinkle')), findsNothing);
+    await _pumpApp(tester, FakeAgentsSource.fromState(fixture));
     expect(
       find.descendant(
         of: find.byKey(ValueKey('agent-tile-${running.first['id']}')),

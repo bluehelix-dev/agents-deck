@@ -727,10 +727,12 @@ class _StripesPainter extends CustomPainter {
   bool shouldRepaint(_StripesPainter old) => false;
 }
 
-/// A workflow at work: its tile twinkles blue behind the critter.
+/// A workflow at work: its tile twinkles blue behind the critter. Only while
+/// its agents run; a finished one stays on the tile a while, still.
 bool _workflowing(Agent a) =>
     a.status == AgentStatus.running &&
-    (a.workflow != null || a.subagents.any((s) => s.type == 'workflow'));
+    ((a.workflow?.phases.any((p) => p.running > 0) ?? false) ||
+        a.subagents.any((s) => s.type == 'workflow'));
 
 /// A dim grid of blue pixels behind a working workflow, and 70 of them, at
 /// random places, each fading up and down softly on its own clock (2.4 to
