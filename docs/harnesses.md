@@ -58,7 +58,7 @@ Test it against a fake: a socket in a temp folder (`herdr_test.go`, `cmux_test.g
   - waiting for you: `model.Waiting`, with `A.Waiting` set to the prompt. `screenPrompt` (in
     `harness.go`) builds it from a Claude Code dialog on the screen: the question and numbered options.
     Build it once per question, not on every poll, so its id stays the same while you answer it;
-  - idle: `model.Idle`. Set `A.Unseen` when a turn finished while the deck watched (the hungry tile).
+  - idle: `model.Idle`. Set `A.Unseen` when a turn finished while the deck watched (the "ready" tile).
 - For a Claude agent, set `SessionID` and `Transcript`, then call `claude.Tail` (model, context, tokens,
   cost, title) and `d.subagents`. `syncLive` then leaves the session alone, so it doesn't show up twice.
 - Keep what the actions need (a socket path, a terminal id) in new `store.Entry` fields tagged

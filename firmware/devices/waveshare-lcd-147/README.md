@@ -21,7 +21,7 @@ default `view` scope is all it needs.
   failed.
 - **Right, the mini-board**: up to 8 agents in slot order. A solid orange cell is an agent that waits
   for you. The white frame marks the hero.
-- The board picks the hero itself: waiting → error → finished but not reviewed ("hungry") → running →
+- The board picks the hero itself: waiting → error → finished but not reviewed ("ready") → running →
   the rest. Equal rank: the most recent change wins.
 - **BOOT button**: a short press shows the next agent and holds it for 30 s. A small square in the
   footer marks the hold. A new waiting agent ends it. The button changes only what the board shows.

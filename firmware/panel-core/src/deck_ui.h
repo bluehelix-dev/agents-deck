@@ -111,7 +111,7 @@ static inline void metaLine(const Agent& a, int64_t nowEpoch, char* out, size_t 
       }
       return;
     case Status::Idle:
-      if (a.unseen) snprintf(out, cap, "hungry" DECK_DOT "feed me");
+      if (a.unseen) snprintf(out, cap, "ready");
       else snprintf(out, cap, "done" DECK_DOT "%s ago", age);
       return;
     case Status::Unknown: snprintf(out, cap, "done" DECK_DOT "%s ago", age); return;

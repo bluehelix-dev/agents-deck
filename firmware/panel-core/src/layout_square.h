@@ -908,7 +908,7 @@ static inline void pillLabel(const Agent& a, int64_t now, char* out, size_t cap)
   switch (a.status) {
     case Status::Running:  snprintf(out, cap, "running" DECK_DOT "%s", age); break;
     case Status::Waiting:  snprintf(out, cap, "needs you" DECK_DOT "%s", age); break;
-    case Status::Idle:     snprintf(out, cap, "%s" DECK_DOT "%s", a.unseen ? "hungry" : "idle", age); break;
+    case Status::Idle:     snprintf(out, cap, "%s" DECK_DOT "%s", a.unseen ? "ready" : "idle", age); break;
     case Status::Error:    snprintf(out, cap, "error" DECK_DOT "%s", age); break;
     case Status::Starting: snprintf(out, cap, "starting"); break;
     case Status::Exited:   snprintf(out, cap, "%s", a.lost ? "lost" : "exited"); break;

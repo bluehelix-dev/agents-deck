@@ -100,7 +100,7 @@ void main() {
     expect(find.text('edit · 41% ctx'), findsOneWidget);
     expect(find.text('allow bash?'), findsOneWidget);
     expect(find.text('pick 1 of 3'), findsOneWidget);
-    expect(find.text('hungry · feed me'), findsOneWidget);
+    expect(find.text('ready'), findsOneWidget);
     expect(find.text('done · 1h ago'), findsOneWidget);
     expect(find.text('api 529 overloaded · retrying'), findsOneWidget);
     expect(find.text('plan · 27% ctx'), findsOneWidget);
@@ -295,7 +295,7 @@ void main() {
   ) async {
     await _pumpApp(tester, FakeAgentsSource.demo());
     await _open(tester, 'docs-site');
-    expect(find.text('hungry · 12m'), findsOneWidget);
+    expect(find.text('ready · 12m'), findsOneWidget);
     expect(find.text('rewrite install guide'), findsOneWidget);
     expect(find.byKey(const Key('agent-interrupt')), findsNothing);
     expect(find.byKey(const Key('agent-focus')), findsOneWidget);
@@ -755,7 +755,7 @@ void main() {
     final source =
         FakeAgentsSource.demo(); // docs-site is unseen in the fixture
     await _pumpApp(tester, source);
-    expect(find.text('hungry · feed me'), findsOneWidget);
+    expect(find.text('ready'), findsOneWidget);
     expect(find.byType(HungryStripes), findsOneWidget);
     await _open(tester, 'docs-site');
     expect(find.text('review in terminal'), findsOneWidget);
@@ -776,7 +776,7 @@ void main() {
     final source = FakeAgentsSource.demo();
     await _pumpApp(tester, source);
     await _open(tester, 'docs-site');
-    expect(find.text('hungry · 12m'), findsOneWidget);
+    expect(find.text('ready · 12m'), findsOneWidget);
 
     // A permission prompt appears on the open agent: layout swaps in place.
     final json = source.toJson();
@@ -948,6 +948,16 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the card of a hungry agent slides its stripes too', (
+    tester,
+  ) async {
+    await _pumpApp(tester, FakeAgentsSource.demo());
+    await _open(tester, 'docs-site'); // unseen in the fixture: hungry
+    expect(find.byKey(const Key('agent-card-stripes')), findsOneWidget);
+    expect(find.byKey(const Key('agent-card-twinkle')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

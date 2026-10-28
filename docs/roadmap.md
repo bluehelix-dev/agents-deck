@@ -31,7 +31,7 @@ Decided: Flutter desktop, reusing the panel UI through the shared package.
 Off by default. `agentctl set notify off|needs-you|all`:
 
 - `needs-you`: a permission prompt or a question is waiting.
-- `all`: also when an agent finishes a turn (turns hungry).
+- `all`: also when an agent finishes a turn (turns ready).
 
 Delivered by the menu bar app as native notifications. Clicking one opens that agent's card. No sound unless asked for.
 

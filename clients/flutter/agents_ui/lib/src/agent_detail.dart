@@ -749,8 +749,11 @@ class _AgentDetailState extends State<AgentDetail> {
     final armed = others.where((x) => x.name == _confirmHandoff).firstOrNull;
     return _card(
       fill: DeckHud.bg,
-      // A workflow at work twinkles behind the card too, as on its tile.
-      backdrop: agentWorkflowing(a)
+      // A workflow at work twinkles behind the card too, as on its tile,
+      // and a finished turn nobody has looked at slides its stripes.
+      backdrop: AgentLook.of(a).stripes
+          ? const HungryStripes(key: Key('agent-card-stripes'))
+          : agentWorkflowing(a)
           ? WorkflowTwinkle(
               key: const Key('agent-card-twinkle'),
               seed: a.id,

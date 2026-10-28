@@ -10,10 +10,10 @@ One tile per agent, on a 4×4 deck: the same board in the menu bar, on the desk 
 - **Hats.** Every agent wears a pixel hat picked by its working folder, so agents of one project look alike at a glance: 22 shapes (hard hat, cap, beanie, helmet, wizard, beret, chef, crown, headphones, propeller, top hat, cowboy, bandana, pirate, viking, sombrero, fez, party hat, mortarboard, bowler, nightcap, halo) in 8 colours, chosen by a stable hash of the folder. Tap the critter on an agent's card (or click it in the web dashboard) to pick another shape or colour for that folder, or go back to automatic. While an agent works its hat animates too, a pixel at a time (the propeller spins, the bandana's tails flutter on the left, the wizard's tip sways, the fez's tassel swings, the halo hovers…); otherwise it stays still. From the terminal: `agentctl hats`, `agentctl set hat <agent|folder> <shape> [colour]`, `agentctl set hat <agent|folder> auto`. The hats were inspired by the hatted pixel Claudes in [“9 NEW Claude Mods that can truly change how you work”](https://www.youtube.com/watch?v=lDrAZ1wAyVs) by Jay E (RoboNuggets).
 - **Claude accounts.** If you use more than one Claude account (say personal and work, each its own Claude config folder), name them once: `agentctl account add personal ~/.claude sky`, `agentctl account add work ~/.claude-work yellow`. Each agent then shows a small square in its account's colour: on its tile, next to its name on the card, and in its terminal's header. Sessions you started by hand are found in every account. `agentctl new -a work` starts an agent in a given account (`agentctl account default work` changes the default). When one account runs out of usage, **continue on…** on the agent's card (or `agentctl handoff <agent> <account>`) copies the conversation into the other account and resumes it there: an agent the deck started comes back in the same tile, and a session you started by hand keeps its own terminal while the copy starts as a new agent. The original conversation stays in the first account.
 - **Colour.** Orange means working; a solid orange tile means the agent needs you (a permission prompt or a question).
-- **Workflows.** While an agent runs a workflow, its tile and its open card twinkle: a dim grid of blue pixels, a few of them fading up and down at random. A finished turn nobody has looked at yet slides orange stripes instead (hungry · feed me).
+- **Workflows.** While an agent runs a workflow, its tile and its open card twinkle: a dim grid of blue pixels, a few of them fading up and down at random. A finished turn nobody has looked at yet slides orange stripes instead ("ready").
 - **Tool colour.** Off by default: a small square in the tile's corner in its tool's colour (Claude, Codex, Gemini), for a deck that runs more than one. Turn it on with **tool colour** in the web dashboard's header, or the switch **tool colour on tiles** in the Android app's settings. An agent in a named Claude account shows its account's colour either way.
 - **The border** fills clockwise with the agent's context window.
-- **Hungry.** An agent that finished but whose result you haven't reviewed gets sliding orange stripes and a critter chomping at a cookie, until you focus its terminal or give it a new task.
+- **Ready.** An agent that finished but whose result you haven't reviewed says "ready", with sliding orange stripes on its tile and open card and a critter chomping at a cookie, until you focus its terminal or give it a new task.
 - **Subagents.** Subagents at work climb the tile's right edge: a small critter each, in the session's colour and hat, posed by what it is doing (reading, editing, in the shell), the newest on top; four fit, a "+N" above them counts the rest, and the session steps a little left to make room. The agent's card lists the crew under its title: a line per subagent with its critter, what it was sent to do, its kind (Explore, general, fork; a workflow agent's phase) and the tool it is in; as many lines as the card has room for, then "+N more". A session whose
   turn is over while its subagents go on (background agents) shows "N subagents working" until their
   transcripts go quiet, and a subagent's permission prompt shows on the session like its own. A workflow (the Workflow tool, `/workflows`) gets a bar of its own on the tile, one segment per phase in the script's order, done phases dimmed, the running one lit in blue, under it "Suche 5/5 · 2 of 6"; the card lists the phases with their counts, and each of the workflow's agents by its label and phase. The tile's own colour (working, needs you) stays what it is: the bar is the workflow, the tile is the session.
@@ -112,7 +112,7 @@ again. The daemon talks to Orca through its `orca` CLI only (`worktree ps`, `ter
 Agents you run in [herdr](https://herdr.dev) (Claude Code, Codex and the other agents it knows) show up
 on the deck while herdr runs, from every herdr session: the default one and named ones
 (`herdr --session work`). Their status is herdr's own: working, blocked (waiting for you) and done
-(hungry until you look at it, in herdr or from the deck). A Claude agent's tokens, context, cost and
+(ready until you look at it, in herdr or from the deck). A Claude agent's tokens, context, cost and
 account come from its transcript, matched through the agent's process, so herdr's Claude integration is
 optional.
 
@@ -127,7 +127,7 @@ deck until its state changes. The daemon talks to herdr through its socket API o
 
 Claude Code sessions you run in [cmux](https://cmux.com)'s terminals show up on the deck by themselves
 while cmux is open. Their status comes from cmux's Claude hooks, which it installs in every Claude it
-starts: working, waiting for you, and hungry when a turn finishes. The deck reads them from the file
+starts: working, waiting for you, and ready when a turn finishes. The deck reads them from the file
 cmux keeps (`~/.cmuxterm/claude-hook-sessions.json`), so showing them needs no setup. Tokens, context,
 cost and account come from the session's transcript.
 
@@ -151,7 +151,7 @@ Claude Code sessions you start by hand in any terminal (plain `claude`) can join
 
 The list comes from Claude Code itself (`claude agents --json`), so it covers every active session on the Mac: ones in your terminals and **background** sessions (`claude --bg`, and the ones the Claude desktop app runs). Older Claude Code versions fall back to scanning for `claude` processes in terminals.
 
-Added sessions are **watched**: status (working, idle, hungry when a turn finishes while watched), activity, context, cost and subagents come from the session's transcript, and **focus** jumps to its terminal tab. Claude Code reports when one is blocked on you, so the tile turns "needs you"; answer it in that session (the deck can't type into it). Focus on a background session opens it in a new iTerm tab with `claude attach`. **remove from deck** takes the session off the deck; the session itself keeps running. Added sessions come back whenever they run again.
+Added sessions are **watched**: status (working, idle, ready when a turn finishes while watched), activity, context, cost and subagents come from the session's transcript, and **focus** jumps to its terminal tab. Claude Code reports when one is blocked on you, so the tile turns "needs you"; answer it in that session (the deck can't type into it). Focus on a background session opens it in a new iTerm tab with `claude attach`. **remove from deck** takes the session off the deck; the session itself keeps running. Added sessions come back whenever they run again.
 
 ## Agent terminals
 

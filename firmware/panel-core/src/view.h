@@ -130,14 +130,14 @@ static inline int ctxPct(const Agent& a) {
 
 #define DECK_DOT " \xC2\xB7 "   // " · "
 
-// "running · 12m", "needs you · 3m", "hungry · 2m" …
+// "running · 12m", "needs you · 3m", "ready · 2m" …
 static inline void statusLine(const Agent& a, int64_t nowEpoch, char* out, size_t cap) {
   const char* word = "";
   switch (a.status) {
     case Status::Running:  word = "running"; break;
     case Status::Waiting:  word = "needs you"; break;
     case Status::Error:    word = "error"; break;
-    case Status::Idle:     word = a.unseen ? "hungry" : "idle"; break;
+    case Status::Idle:     word = a.unseen ? "ready" : "idle"; break;
     case Status::Exited:   word = "exited"; break;
     case Status::Starting: word = "starting"; break;
     default: break;

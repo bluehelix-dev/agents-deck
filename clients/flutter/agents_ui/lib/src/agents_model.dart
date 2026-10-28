@@ -655,7 +655,7 @@ String agentMetaLine(Agent a, AgentsState state, [DateTime? localNow]) {
           return 'needs input';
       }
     case AgentStatus.idle when a.hungry:
-      return 'hungry · feed me';
+      return 'ready';
     case AgentStatus.idle:
     case AgentStatus.unknown:
       return 'done · ${shortDuration(state.inStatus(a, localNow))} ago';
@@ -680,7 +680,7 @@ String agentPillLabel(Agent a, AgentsState state, [DateTime? localNow]) {
               (a.waiting?.context.isNotEmpty ?? false)
           ? a.waiting!.context
           : 'needs you · $t',
-    AgentStatus.idle when a.hungry => 'hungry · $t',
+    AgentStatus.idle when a.hungry => 'ready · $t',
     AgentStatus.idle || AgentStatus.unknown => 'idle · $t',
     AgentStatus.error => 'error',
     AgentStatus.starting => 'starting · $t',

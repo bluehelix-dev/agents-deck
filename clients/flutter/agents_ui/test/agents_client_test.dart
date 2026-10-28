@@ -334,7 +334,7 @@ void main() {
       expect(meta('fw0t4x'), 'plan · 27% ctx'); // TodoWrite
       expect(meta('h0m3l4'), 'allow bash?');
       expect(meta('4uthfl'), 'pick 1 of 3');
-      expect(meta('d0cs1t'), 'hungry · feed me'); // finished, not yet reviewed
+      expect(meta('d0cs1t'), 'ready'); // finished, not yet reviewed
       expect(meta('h4ptic'), 'done · 0s ago');
       expect(meta('1nfr4t'), 'api 529 overloaded · retrying');
     });

@@ -622,7 +622,7 @@ static inline void pillLabel(const Agent& a, int64_t now, char* out, size_t cap)
       if (!strcmp(a.waitKind, "question") && a.promptCtx[0]) snprintf(out, cap, "%s", a.promptCtx);
       else snprintf(out, cap, "needs you" DECK_DOT "%s", t);
       break;
-    case Status::Idle:     snprintf(out, cap, "%s" DECK_DOT "%s", a.unseen ? "hungry" : "idle", t); break;
+    case Status::Idle:     snprintf(out, cap, "%s" DECK_DOT "%s", a.unseen ? "ready" : "idle", t); break;
     case Status::Error:    snprintf(out, cap, "error"); break;
     case Status::Starting: snprintf(out, cap, "starting" DECK_DOT "%s", t); break;
     case Status::Exited:   snprintf(out, cap, "%s" DECK_DOT "%s", a.lost ? "lost with tmux" : "exited", t); break;

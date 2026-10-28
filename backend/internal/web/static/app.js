@@ -138,7 +138,7 @@ function workflowBar(t, w) {
 }
 
 function tileMeta(a) {
-  if (hungry(a)) return 'hungry · feed me';
+  if (hungry(a)) return 'ready';
   switch (a.status) {
     case 'running': return `${verb(a.activity?.tool)} · ${ctxPct(a)}% ctx`;
     case 'waiting': {
@@ -163,7 +163,7 @@ function pillText(a) {
   switch (a.status) {
     case 'running': return `running · ${since}`;
     case 'waiting': return a.waiting?.kind === 'question' && a.waiting.context ? a.waiting.context : `needs you · ${since}`;
-    case 'idle': return a.unseen ? `hungry · ${since}` : `idle · ${since}`;
+    case 'idle': return a.unseen ? `ready · ${since}` : `idle · ${since}`;
     case 'error': return `error · ${since}`;
     case 'exited': return a.lost ? `lost with tmux · ${since}` : `exited · ${since}`;
     default: return a.status;
@@ -1468,6 +1468,8 @@ function renderDetail() {
   // A workflow at work twinkles behind the panel too, as on its tile.
   const wf = workflowing(a) && !(a.status === 'waiting' && a.waiting);
   panel.classList.toggle('p-workflow', wf);
+  // …and a finished turn nobody has looked at slides its stripes there.
+  panel.classList.toggle('p-hungry', hungry(a));
   if (wf && !panel.querySelector(':scope > .tw')) panel.prepend(twinkleLayer(14, panel.clientWidth, panel.scrollHeight));
 }
 

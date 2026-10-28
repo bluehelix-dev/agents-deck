@@ -241,14 +241,14 @@ static inline void drawNotice(Canvas& c, const RoundTheme& T, const RoundInput& 
 // ---------------------------------------------------------------- the detail
 
 // What an agent is doing, in a word, and for how long: "working · 12m",
-// "thinking · 3s", "waiting · 2m", "hungry · 12m", "idle · 1h", "error · 5m".
+// "thinking · 3s", "waiting · 2m", "ready · 12m", "idle · 1h", "error · 5m".
 // No commands or comments: the round screens say only the state.
 static inline const char* roundStateWord(const Agent& a) {
   switch (a.status) {
     case Status::Running:  return a.actTool[0] ? "working" : "thinking";
     case Status::Waiting:  return "waiting";
     case Status::Error:    return "error";
-    case Status::Idle:     return a.unseen ? "hungry" : "idle";
+    case Status::Idle:     return a.unseen ? "ready" : "idle";
     case Status::Starting: return "starting";
     case Status::Exited:   return a.lost ? "lost" : "exited";
     default:               return "idle";

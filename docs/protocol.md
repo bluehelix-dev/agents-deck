@@ -89,7 +89,7 @@ The full state is small (≤ a few KB per agent), so there are no deltas.
   "attached": true,               // a terminal is currently showing it
   "resumable": false,             // exited Claude agent that /resume can bring back
   "lost": false,                  // omitted when false: ended with the tmux server (crash, reboot), not by itself; POST /v1/restore brings it back
-  "unseen": false,                // finished a turn nobody has looked at yet ("hungry"); cleared when its terminal is focused or it gets a new prompt
+  "unseen": false,                // finished a turn nobody has looked at yet ("ready"); cleared when its terminal is focused or it gets a new prompt
   "external": false,              // mirrored from another app (a Codex app thread): focus opens it there, dismiss hides it; answer/interrupt/resume return an error
   "app": "orca",                  // omitted for agentctl's own: the app an external agent runs in: "orca" (the Orca app), "herdr" or "cmux";
                                   // focus switches to its terminal there, answer and interrupt work; dismiss hides it until it's active

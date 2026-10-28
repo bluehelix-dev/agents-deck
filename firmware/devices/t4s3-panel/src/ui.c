@@ -165,7 +165,7 @@ static void meta(char *b, size_t size, const agentsdeck_link_v1_Agent *a)
 		return;
 	case agentsdeck_link_v1_Status_STATUS_IDLE:
 		if (a->unseen) {
-			snprintf(b, size, "hungry \xE2\x80\xA2 feed me");
+			snprintf(b, size, "ready");
 			return;
 		}
 		ago(t, sizeof t, a->status_since_ms);

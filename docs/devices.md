@@ -26,7 +26,7 @@ draws the same pixels as the boards, from the made-up fleet in
 
 - **One deck.** Every board shows the same agents as the web dashboard and the menu bar: who's
   working, who needs you, who's done, with the same critters, hats and colours. Orange means an
-  agent needs you; a finished agent you haven't looked at yet is "hungry".
+  agent needs you; a finished agent you haven't looked at yet is "ready".
 - **Plugged in, it just works.** Register the USB port once (`agentctl link add`) and any board you
   plug into it is approved at once and can answer prompts, focus an agent's terminal and interrupt it
   (scope `act`). Stopping an agent takes scope `admin`, which you give by hand
@@ -164,7 +164,7 @@ left, a mini-board of eight on the right, and an RGB LED that flashes orange whe
 | <img src="images/devices/lcd147-waiting.png" width="260" alt="an agent waiting, in orange"> | <img src="images/devices/lcd147-running.png" width="260" alt="an agent working"> | <img src="images/devices/lcd147-approval.png" width="260" alt="the waiting for approval notice"> |
 
 - **What's special:** read-only and cheap. It picks the agent to show by itself (waiting, then failed,
-  then hungry, then running). Its BOOT button shows the next agent for 30 s.
+  then ready, then running). Its BOOT button shows the next agent for 30 s.
 - **Build:** the default env (`pio run -d firmware/devices/waveshare-lcd-147 -t upload`).
 - **Known issues:** no touch and no Wi-Fi: it stays on USB, and it never answers anything.
 - **Get one:** [Waveshare ESP32-S3-LCD-1.47B](https://www.waveshare.com/esp32-s3-lcd-1.47b.htm) (the

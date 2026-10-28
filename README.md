@@ -219,7 +219,7 @@ ESP32-S3-Touch-LCD-2.8C> working on it, first over USB, then over Wi-Fi.
 | **Desk panel.** A 4″ touch panel on Wi-Fi ([Wall Panel](https://github.com/dotstartech/wall-panel)), paired with `agentctl pair`. | **Terminal.** `agentctl` starts, lists, resumes and restores agents. |
 
 Each critter shows what its agent is doing: thinking, reading, editing, running commands, compacting,
-waiting for you, or hungry for review once it's done. It wears a pixel hat picked by its working
+waiting for you, or ready for review once it's done. It wears a pixel hat picked by its working
 folder, so a project's agents look alike. The full tour is in [docs/features.md](docs/features.md).
 
 ## Works with your harness
