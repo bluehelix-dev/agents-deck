@@ -122,3 +122,37 @@ func TestWatchedSessionHooks(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A turn that ends says "ready" until you look at it. Only a terminal the deck
+// knows to be in front counts as looking: on Windows it knows none, and a
+// watched session has no tmux name, so neither may pass for "seen".
+func TestStopLeavesASessionReady(t *testing.T) {
+	d := &Daemon{Store: store.New("", "test", "0")}
+	sid := "9a7b8c90-1111-4222-8333-944455556667"
+	d.Store.Add(&store.Entry{External: true, SessionID: sid, A: model.Agent{ID: "l1", Tool: "claude", External: true, Status: model.Idle}})
+	d.Store.Add(&store.Entry{SessionID: "own-" + sid, TmuxName: "t1", A: model.Agent{ID: "o1", Tool: "claude", Status: model.Idle}})
+	// A watched session's hooks find it by session; the deck's own agent
+	// sends its id.
+	turn := func(agent, session string) {
+		for _, name := range []string{"UserPromptSubmit", "Stop"} {
+			ev := `{"hook_event_name":"` + name + `","session_id":"` + session + `","prompt":"go"}`
+			if err := d.Hook(agent, []byte(ev)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	turn("", sid)
+	if e, _ := d.Store.Get("l1"); e.A.Status != model.Idle || !e.A.Unseen {
+		t.Fatalf("watched session, no terminal known in front: want ready, got %s unseen=%v", e.A.Status, e.A.Unseen)
+	}
+	turn("o1", "own-"+sid)
+	if e, _ := d.Store.Get("o1"); !e.A.Unseen {
+		t.Fatal("own session, no terminal known in front: want ready")
+	}
+	// Its tmux window in front (the Mac): you watched it finish.
+	d.front = "t1"
+	turn("o1", "own-"+sid)
+	if e, _ := d.Store.Get("o1"); e.A.Unseen {
+		t.Fatal("finished in front of you: want done, not ready")
+	}
+}

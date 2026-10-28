@@ -345,8 +345,12 @@ func (d *Daemon) Hook(agentID string, body []byte) error {
 		if bySession {
 			e.LiveHooks = true // from here on its hooks set its status
 		}
-		if e.A.Unseen && front == e.TmuxName {
-			e.A.Unseen = false // finished while you were watching it
+		// Finished while you were watching it: only where the deck knows
+		// which terminal is in front (tmux). On Windows it never does, and a
+		// session started by hand has no tmux name either: "" == "" must not
+		// count as seen.
+		if e.A.Unseen && front != "" && front == e.TmuxName {
+			e.A.Unseen = false
 		}
 		return changed
 	}) {
