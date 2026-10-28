@@ -39,7 +39,10 @@ func Workflow(transcript string, window time.Duration) *model.Workflow {
 	if len(order) == 0 {
 		return nil
 	}
-	name, titles := scriptPhases(transcript)
+	name, titles := runScript(transcript, filepath.Base(filepath.Dir(journal)))
+	if name == "" && titles == nil {
+		name, titles = scriptPhases(transcript)
+	}
 	if name == "" {
 		name = filepath.Base(filepath.Dir(journal))
 	}
@@ -179,6 +182,21 @@ func scriptPhases(transcript string) (name string, titles []string) {
 		}
 	}
 	return "", nil
+}
+
+// runScript reads the meta off the copy of the script Claude Code keeps for
+// each run (<session>/workflows/scripts/<name>-<run>.js). It stays when the
+// Workflow call has long scrolled out of a busy transcript's tail.
+func runScript(transcript, run string) (name string, titles []string) {
+	files, _ := filepath.Glob(filepath.Join(strings.TrimSuffix(transcript, ".jsonl"), "workflows", "scripts", "*-"+run+".js"))
+	if len(files) != 1 {
+		return "", nil
+	}
+	b, err := os.ReadFile(files[0])
+	if err != nil || len(b) > 4<<20 {
+		return "", nil
+	}
+	return metaOf(string(b))
 }
 
 // metaOf reads `export const meta = { name, phases: [{title}] }` off a

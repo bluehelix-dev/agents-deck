@@ -119,6 +119,40 @@ const DIMENSIONS = [{ title: 'not a phase' }]
 	}
 }
 
+// A busy session: the Workflow call has scrolled out of the transcript's
+// tail, but the run's own copy of the script still names its phases.
+func TestWorkflowPhasesFromTheRunsScript(t *testing.T) {
+	dir := t.TempDir()
+	tr := filepath.Join(dir, "0b5c2f4e-1111-4222-8333-944455556667.jsonl")
+	if err := os.WriteFile(tr, []byte(`{"type":"user","message":{"content":"go"}}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	base := strings.TrimSuffix(tr, ".jsonl")
+	scripts := filepath.Join(base, "workflows", "scripts")
+	run := filepath.Join(base, "subagents", "workflows", "wf_9")
+	for _, d := range []string{scripts, run} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	src := `export const meta = {
+  name: 'vier',
+  phases: [{ title: 'Scout' }, { title: 'Suche' }, { title: 'Prüfen' }, { title: 'Bericht' }],
+}
+`
+	if err := os.WriteFile(filepath.Join(scripts, "vier-wf_9.js"), []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	journal := `{"type":"launched"}` + "\n" + `{"type":"started","agentId":"a1","label":"s","phase":"Scout"}` + "\n"
+	if err := os.WriteFile(filepath.Join(run, "journal.jsonl"), []byte(journal), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	wf := Workflow(tr, time.Minute)
+	if wf == nil || wf.Name != "vier" || len(wf.Phases) != 4 || wf.Phases[3].Title != "Bericht" {
+		t.Fatalf("phases from the run's script: %+v", wf)
+	}
+}
+
 func TestMetaOfInlineScript(t *testing.T) {
 	name, titles := metaOf("export const meta = {\n  name: \"review\",\n  description: 'd',\n  phases: [{ title: \"Review\" }, { title: \"Verify\" }],\n}\n")
 	if name != "review" || len(titles) != 2 || titles[1] != "Verify" {
