@@ -55,7 +55,7 @@ type Event struct {
 	NotificationType string          `json:"notification_type"`
 	Source           string          `json:"source"`
 	Reason           string          `json:"reason"`
-	Trigger          string          `json:"trigger"` // PreCompact, PostCompact: manual | auto
+	Trigger          string          `json:"trigger"`  // PreCompact, PostCompact: manual | auto
 	AgentID          string          `json:"agent_id"` // set on a subagent's own hooks
 }
 

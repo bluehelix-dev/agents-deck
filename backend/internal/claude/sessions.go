@@ -221,7 +221,11 @@ func Subagents(transcript string, window, toolWindow time.Duration) []model.Suba
 			continue
 		}
 		id := strings.TrimPrefix(strings.TrimSuffix(filepath.Base(f), ".jsonl"), "agent-")
-		s := model.Subagent{ID: id, Tool: tool, StartedAt: start.UTC().Truncate(time.Second)}
+		s := model.Subagent{ID: id, Tool: tool}
+		since := st.ModTime() // no creation time: order by last write
+		if !start.IsZero() {
+			s.StartedAt, since = start.UTC().Truncate(time.Second), start
+		}
 		var meta struct {
 			Type        string `json:"agentType"`
 			Description string `json:"description"`
@@ -241,12 +245,17 @@ func Subagents(transcript string, window, toolWindow time.Duration) []model.Suba
 		if s.Title == "" {
 			s.Title = "subagent"
 		}
-		out = append(out, found{s, start})
+		out = append(out, found{s, since})
 	}
 	if len(out) == 0 {
 		return nil
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].since.Before(out[j].since) })
+	sort.Slice(out, func(i, j int) bool {
+		if !out[i].since.Equal(out[j].since) {
+			return out[i].since.Before(out[j].since)
+		}
+		return out[i].s.ID < out[j].s.ID
+	})
 	subs := make([]model.Subagent, len(out))
 	for i, f := range out {
 		subs[i] = f.s
@@ -280,7 +289,8 @@ func TranscriptTurn(path string, window time.Duration) (running bool, tool strin
 
 // subagentTail reads the end of a subagent transcript: whether its last
 // message is a final reply, whether it is a tool call still waiting for its
-// result, the tool of its latest call, and roughly when it started.
+// result, the tool of its latest call, and when it started (zero when the
+// file system does not keep a creation time).
 func subagentTail(path string, size int64) (done, inTool bool, tool string, start time.Time) {
 	f, err := os.Open(path)
 	if err != nil {

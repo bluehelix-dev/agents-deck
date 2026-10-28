@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -105,7 +106,11 @@ func TestSubagents(t *testing.T) {
 	toolCall := `{"type":"assistant","message":{"stop_reason":null,"content":[{"type":"tool_use","name":"Grep"}]}}`
 	result := `{"type":"user","message":{"content":[{"type":"tool_result","content":"ok"}]}}`
 	final := `{"type":"assistant","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"done"}]}}`
-	write("agent-a1.jsonl", toolCall+"\n"+result+"\n"+`{"type":"attachment","attachment":{}}`+"\n")
+	a1 := write("agent-a1.jsonl", toolCall+"\n"+result+"\n"+`{"type":"attachment","attachment":{}}`+"\n")
+	// a1 is still writing: its last write is ahead of its start, which stays.
+	if later := time.Now().Add(10 * time.Minute); os.Chtimes(a1, later, later) != nil {
+		t.Fatal("chtimes")
+	}
 	write("agent-a1.meta.json", `{"agentType":"Explore","description":"find  the\nauth code"}`)
 	write("agent-a2.jsonl", toolCall+"\n"+result+"\n"+final+"\n") // finished
 	old := time.Now().Add(-5 * time.Minute)
@@ -136,8 +141,10 @@ func TestSubagents(t *testing.T) {
 		t.Fatalf("want a1, a3 and w1 working: %+v", subs)
 	}
 	for _, x := range subs {
-		if x.StartedAt.IsZero() || time.Since(x.StartedAt) > time.Hour {
-			t.Fatalf("start time from the transcript's creation: %+v", x)
+		known := runtime.GOOS == "windows" || runtime.GOOS == "darwin"
+		if known && x.StartedAt.IsZero() || !x.StartedAt.IsZero() && time.Since(x.StartedAt) > time.Hour ||
+			x.StartedAt.After(time.Now().Add(time.Minute)) {
+			t.Fatalf("start time from the transcript's creation, not its last write: %+v", x)
 		}
 	}
 	for _, x := range subs {

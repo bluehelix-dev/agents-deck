@@ -1,4 +1,4 @@
-//go:build !darwin
+//go:build !darwin && !windows
 
 package claude
 
@@ -7,4 +7,6 @@ import (
 	"time"
 )
 
-func birthTime(st os.FileInfo) time.Time { return st.ModTime() }
+// birthTime is unknown here: the standard library has no creation time, and
+// the mtime would be the last write, not the start.
+func birthTime(os.FileInfo) time.Time { return time.Time{} }

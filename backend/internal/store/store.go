@@ -20,26 +20,26 @@ type Entry struct {
 	SessionID     string      `json:"sessionId"`  // Claude session uuid
 	Transcript    string      `json:"transcript"` // Claude JSONL path, learned from hooks
 	TmuxName      string      `json:"tmuxName"`
-	Sim           bool        `json:"sim,omitempty"`      // simulated agent (agentctl sim): never resumable, no history
-	TitleSet      bool        `json:"titleSet,omitempty"` // the user named it (-t): never auto-renamed
-	Account       string      `json:"account,omitempty"`  // the Claude account the deck started it in ("" = see its transcript)
-	CustomTitle   string      `json:"-"`                  // Claude's custom-title (/rename), from the transcript
-	External      bool        `json:"-"`                  // mirrored from another app (Codex, Orca, herdr, cmux); never persisted
-	Background    bool        `json:"-"`                  // shown running only because its subagents are writing
-	CompactToIdle bool        `json:"-"`                  // the running compaction began idle: it ends idle too
-	CompactSince  time.Time   `json:"-"`                  // when the running compaction began (hooks.go EndStaleCompact)
-	LiveTTY       string      `json:"-"`                  // a watched hand-started session: its terminal
-	LiveAttach    string      `json:"-"`                  // a watched background session: its `claude attach` id
-	LiveToolUse   string      `json:"-"`                  // a watched session: the tool call its prompt was built for
-	LiveHooks     bool        `json:"-"`                  // a watched session that reports through hooks: they set its status
-	OrcaTerminal  string      `json:"-"`                  // an agent in Orca: its terminal handle
-	OrcaPane      string      `json:"-"`                  // …and Orca's pane key (stable id)
-	OrcaTurn      int64       `json:"-"`                  // …stateStartedAt of the state its prompt was built for
-	HerdrSocket   string      `json:"-"`                  // an agent in herdr: its session's socket
-	HerdrPane     string      `json:"-"`                  // …its pane ("w1:p2"; changes when panes move)
-	HerdrTurn     int64       `json:"-"`                  // …state_change_seq of the state its prompt was built for
-	CmuxSurface   string      `json:"-"`                  // an agent in cmux: its terminal (surface id)
-	CmuxTurn      float64     `json:"-"`                  // …updatedAt of the hook report its prompt was built for
+	Sim           bool        `json:"sim,omitempty"`           // simulated agent (agentctl sim): never resumable, no history
+	TitleSet      bool        `json:"titleSet,omitempty"`      // the user named it (-t): never auto-renamed
+	Account       string      `json:"account,omitempty"`       // the Claude account the deck started it in ("" = see its transcript)
+	CustomTitle   string      `json:"-"`                       // Claude's custom-title (/rename), from the transcript
+	External      bool        `json:"-"`                       // mirrored from another app (Codex, Orca, herdr, cmux); never persisted
+	Background    bool        `json:"background,omitempty"`    // shown running only because its subagents are writing
+	CompactToIdle bool        `json:"compactToIdle,omitempty"` // the running compaction began idle: it ends idle too
+	CompactSince  time.Time   `json:"compactSince,omitzero"`   // when the running compaction began (hooks.go EndStaleCompact)
+	LiveTTY       string      `json:"-"`                       // a watched hand-started session: its terminal
+	LiveAttach    string      `json:"-"`                       // a watched background session: its `claude attach` id
+	LiveToolUse   string      `json:"-"`                       // a watched session: the tool call its prompt was built for
+	LiveHooks     bool        `json:"-"`                       // a watched session that reports through hooks: they set its status
+	OrcaTerminal  string      `json:"-"`                       // an agent in Orca: its terminal handle
+	OrcaPane      string      `json:"-"`                       // …and Orca's pane key (stable id)
+	OrcaTurn      int64       `json:"-"`                       // …stateStartedAt of the state its prompt was built for
+	HerdrSocket   string      `json:"-"`                       // an agent in herdr: its session's socket
+	HerdrPane     string      `json:"-"`                       // …its pane ("w1:p2"; changes when panes move)
+	HerdrTurn     int64       `json:"-"`                       // …state_change_seq of the state its prompt was built for
+	CmuxSurface   string      `json:"-"`                       // an agent in cmux: its terminal (surface id)
+	CmuxTurn      float64     `json:"-"`                       // …updatedAt of the hook report its prompt was built for
 
 	// Transcript accounting (rebuilt from the file on restart).
 	Offset  int64               `json:"-"`
