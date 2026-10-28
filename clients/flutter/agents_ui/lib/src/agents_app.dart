@@ -597,6 +597,7 @@ class _AgentTileState extends State<AgentTile> {
                                     centerBody: true,
                                     width: 92,
                                     body: c(look.body),
+                                    celebrateBody: c(DeckHud.accent),
                                     bubble: look.bubble == null
                                         ? null
                                         : c(look.bubble!),

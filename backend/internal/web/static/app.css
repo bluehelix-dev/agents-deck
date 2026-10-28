@@ -677,6 +677,8 @@ body.panel-mode.paged .grid { aspect-ratio: auto; height: calc(var(--pv) - 30px)
   background-image: repeating-linear-gradient(135deg, rgba(255, 77, 0, 0.16) 0 12px, transparent 12px 24px);
   background-size: 34px 34px; animation: zebra 0.6s steps(6) infinite; }
 @keyframes zebra { from { background-position: 0 0 } to { background-position: 34px 0 } }
+/* the "just finished" flag is waved in orange, as for work */
+.tile.celebrating, .detail.p-celebrate { --body: var(--accent); }
 .detail.p-hungry { --body: var(--accent); background-image: repeating-linear-gradient(135deg, rgba(255, 77, 0, 0.16) 0 12px, transparent 12px 24px);
   background-size: 34px 34px; animation: zebra 0.6s steps(6) infinite; }
 

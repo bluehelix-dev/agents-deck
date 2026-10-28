@@ -228,6 +228,7 @@ class CritterSprite extends StatefulWidget {
     this.bubble,
     this.celebrateUntil,
     this.afterCelebrate = CritterPose.idle,
+    this.celebrateBody,
     this.species = CritterSpecies.claude,
     this.centerBody = false,
     this.hat,
@@ -254,6 +255,10 @@ class CritterSprite extends StatefulWidget {
 
   /// What a finished critter turns into after the hop (idle, or hungry).
   final CritterPose afterCelebrate;
+
+  /// The body's colour while it waves the flag (the deck's orange, as for
+  /// work); null = [body].
+  final Color? celebrateBody;
   final double width;
   final Color body;
   final Color cut;
@@ -323,7 +328,9 @@ class _CritterSpriteState extends State<CritterSprite> {
         size: Size(widget.width, widget.width * 13 / 18),
         painter: _CritterPainter(
           pose: _pose,
-          body: widget.body,
+          body: _pose == CritterPose.celebrate
+              ? widget.celebrateBody ?? widget.body
+              : widget.body,
           cut: widget.cut,
           bubble: widget.bubble ?? widget.body,
           species: widget.species,

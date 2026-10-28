@@ -788,7 +788,7 @@ function wireDrag(el, id) {
 function updateTile(t, a) {
   const wfOn = workflowing(a);
   if (wfOn && !t.tw) { t.tw = twinkleLayer(); t.el.prepend(t.tw); }
-  const cls = `tile st-${a.status} tool-${a.tool}` + (hungry(a) ? ' hungry' : '') + (wfOn ? ' workflow' : '') + (a.focused ? ' focused' : '') + (a.id === selectedId ? ' selected' : '');
+  const cls = `tile st-${a.status} tool-${a.tool}` + (hungry(a) ? ' hungry' : '') + (wfOn ? ' workflow' : '') + (poseOf(a) === 'celebrate' ? ' celebrating' : '') + (a.focused ? ' focused' : '') + (a.id === selectedId ? ' selected' : '');
   if (t.cls !== cls) { t.el.className = cls; t.cls = cls; }
   setSprite(t.spr, poseOf(a), a.tool, a.hat);
   const used = a.context?.window > 0 ? Math.min(100, (a.context.used / a.context.window) * 100) : 0;
@@ -1470,6 +1470,8 @@ function renderDetail() {
   panel.classList.toggle('p-workflow', wf);
   // …and a finished turn nobody has looked at slides its stripes there.
   panel.classList.toggle('p-hungry', hungry(a));
+  // The flag is waved in orange, as for work.
+  panel.classList.toggle('p-celebrate', poseOf(a) === 'celebrate');
   if (wf && !panel.querySelector(':scope > .tw')) panel.prepend(twinkleLayer(14, panel.clientWidth, panel.scrollHeight));
 }
 
@@ -1627,7 +1629,7 @@ async function start() {
   setInterval(() => state && render(), 15000); // refresh relative times
   // End "just finished" hops on time (cheap: only re-renders when one is due).
   setInterval(() => {
-    if (state?.agents.some((a) => a.status === 'idle' && a.statusSince && now() - Date.parse(a.statusSince) < CELEBRATE_MS + 1500)) renderGrid();
+    if (state?.agents.some((a) => a.status === 'idle' && a.statusSince && now() - Date.parse(a.statusSince) < CELEBRATE_MS + 1500)) { renderGrid(); renderDetail(); }
   }, 1000);
   if (FIXTURE) return startFixture();
   setConn('connecting');

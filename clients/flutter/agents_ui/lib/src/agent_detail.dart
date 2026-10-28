@@ -577,6 +577,7 @@ class _AgentDetailState extends State<AgentDetail> {
                       hat: a.hat,
                       width: 54,
                       body: body,
+                      celebrateBody: DeckHud.accent,
                       cut: cut,
                     ),
                   ),
