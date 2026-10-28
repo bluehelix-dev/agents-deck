@@ -8,6 +8,7 @@ import 'agents_client.dart';
 import 'agents_model.dart';
 import 'agents_style.dart';
 import 'critter.dart';
+import 'twinkle.dart';
 
 /// The header's left column: the 54 px critter (13/18 as tall as wide) and
 /// the 30 px title; the right column lines up with them.
@@ -337,17 +338,35 @@ class _AgentDetailState extends State<AgentDetail> {
 
   // ---- shared pieces ---------------------------------------------------------
 
-  Widget _card({required Color fill, Color? border, required Widget child}) {
+  Widget _card({
+    required Color fill,
+    Color? border,
+    Widget? backdrop,
+    required Widget child,
+  }) {
+    final content = Padding(
+      padding: const EdgeInsets.fromLTRB(36, 34, 36, 30),
+      child: child,
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         color: fill,
         borderRadius: BorderRadius.circular(_cardRadius),
         border: border == null ? null : Border.all(color: border, width: 3),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(36, 34, 36, 30),
-        child: child,
-      ),
+      child: backdrop == null
+          ? content
+          : Stack(
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(_cardRadius),
+                    child: backdrop,
+                  ),
+                ),
+                content,
+              ],
+            ),
     );
   }
 
@@ -730,6 +749,14 @@ class _AgentDetailState extends State<AgentDetail> {
     final armed = others.where((x) => x.name == _confirmHandoff).firstOrNull;
     return _card(
       fill: DeckHud.bg,
+      // A workflow at work twinkles behind the card too, as on its tile.
+      backdrop: agentWorkflowing(a)
+          ? WorkflowTwinkle(
+              key: const Key('agent-card-twinkle'),
+              seed: a.id,
+              cell: 14,
+            )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

@@ -92,17 +92,21 @@ const hungry = (a) => a.status === 'idle' && a.unseen;
 const workflowing = (a) => a.status === 'running' &&
   ((a.workflow?.phases || []).some((p) => p.running > 0) || (a.subagents || []).some((x) => x.type === 'workflow'));
 
-// The twinkle: a dim grid of blue pixels, and 70 of them, at random places,
-// each fading up and down on its own clock. Built once per tile, when needed.
-function twinkleLayer() {
+// The twinkle: a dim grid of blue pixels, and a sixth of them, at random
+// places, each fading up and down on its own clock. A tile's grid is 20
+// cells across; the side panel's has cells of `cell` px over its size.
+// Built once per tile (or panel), when needed.
+function twinkleLayer(cell = 0, w = 0, hgt = 0) {
+  const cols = cell ? Math.ceil(w / cell) : 20, rows = cell ? Math.ceil(hgt / cell) : 20;
+  const at = (n) => (cell ? `${n * cell}px` : `${n * 5}%`);
   const cells = [];
-  for (let x = 0; x < 20; x++) for (let y = 0; y < 20; y++) cells.push([x, y]);
+  for (let x = 0; x < cols; x++) for (let y = 0; y < rows; y++) cells.push([x, y]);
   for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
-  const px = cells.slice(0, 70).map(([x, y]) => {
+  const px = cells.slice(0, Math.round(cells.length * 70 / 400)).map(([x, y]) => {
     const dur = 2.4 + Math.random() * 2.4;
-    return h('i', { style: `left:${x * 5}%;top:${y * 5}%;animation-duration:${dur.toFixed(1)}s;animation-delay:-${(Math.random() * dur).toFixed(1)}s` });
+    return h('i', { style: `left:${at(x)};top:${at(y)};animation-duration:${dur.toFixed(1)}s;animation-delay:-${(Math.random() * dur).toFixed(1)}s` });
   });
-  return h('span', { class: 'tw', 'aria-hidden': 'true' }, ...px);
+  return h('span', { class: cell ? 'tw tw-px' : 'tw', 'aria-hidden': 'true', ...(cell ? { style: `height:${rows * cell}px` } : {}) }, ...px);
 }
 
 // A running workflow: which phase it is in, by the journal (the last phase
@@ -1461,6 +1465,10 @@ function renderDetail() {
     if (hadFocus) $('d-title')?.focus({ preventScroll: true });
   }
   det.update(a);
+  // A workflow at work twinkles behind the panel too, as on its tile.
+  const wf = workflowing(a) && !(a.status === 'waiting' && a.waiting);
+  panel.classList.toggle('p-workflow', wf);
+  if (wf && !panel.querySelector(':scope > .tw')) panel.prepend(twinkleLayer(14, panel.clientWidth, panel.scrollHeight));
 }
 
 // ---------------------------------------------------------------- render

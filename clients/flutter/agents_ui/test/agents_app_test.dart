@@ -938,6 +938,9 @@ void main() {
     await _pumpApp(tester, FakeAgentsSource.fromState(over));
     expect(find.byKey(const Key('agent-tile-twinkle')), findsNothing);
     await _pumpApp(tester, FakeAgentsSource.fromState(fixture));
+    // Its card twinkles too.
+    await _open(tester, running.first['title'] as String);
+    expect(find.byKey(const Key('agent-card-twinkle')), findsOneWidget);
     expect(
       find.descendant(
         of: find.byKey(ValueKey('agent-tile-${running.first['id']}')),
