@@ -1089,25 +1089,65 @@ function crewKind(x) {
   }
   return [x.title, x.type === 'general-purpose' ? 'general' : x.type || ''];
 }
+function crewLine(a, x, { kind: withKind = true } = {}) {
+  const [title, kind] = crewKind(x);
+  const tool = (x.tool || 'thinking') + (x.startedAt ? ` · ${rel(x.startedAt)}` : '');
+  const m = h('span', { class: 'd-mini' });
+  setSprite(m, x.tool ? TOOL_POSE[x.tool.toLowerCase()] || 'run' : 'think', 'claude', a.hat);
+  return h('li', { class: 'd-crew-line', 'aria-label': [title, kind, tool].filter(Boolean).join(', ') }, m,
+    h('span', { class: 'd-crew-t', text: title, title }), h('span', { class: 'd-crew-k', text: withKind ? kind : '' }), h('span', { class: 'd-crew-tool', text: tool }));
+}
+
+// A running workflow as phase sections: each phase a row with its count and
+// a square per agent (done ones dim, the running phase's blue, a phase to
+// come one outlined square), and under a phase with agents at work those
+// agents as crew lines; the rest of the crew as a plain list.
+function phaseSections(a, subs) {
+  const w = a.workflow;
+  const cur = workflowPhase(w);
+  const byPhase = new Map();
+  for (const x of subs) {
+    if (x.type !== 'workflow') continue;
+    const k = crewKind(x)[1];
+    if (!byPhase.has(k)) byPhase.set(k, []);
+    byPhase.get(k).push(x);
+  }
+  let left = CREW_MAX;
+  const out = [h('span', { class: 'lbl', text: `workflow · ${w.name}` })];
+  (w.phases || []).forEach((p, k) => {
+    const running = p.running > 0, done = !running && (k < cur || p.done > 0);
+    const count = p.done + p.running;
+    const dots = [];
+    for (let i = 0; i < p.done; i++) dots.push(h('i', { class: 'dot done' }));
+    for (let i = 0; i < p.running; i++) dots.push(h('i', { class: 'dot on' }));
+    if (!count) dots.push(h('i', { class: 'dot next' }));
+    const agents = (byPhase.get(p.title) || []).slice(0, Math.max(0, left));
+    left -= agents.length;
+    out.push(h('div', { class: `d-ph${running ? ' on' : done ? ' past' : ''}` },
+      h('div', { class: 'd-ph-head' }, h('span', { class: 'd-ph-t', text: p.title }), h('span', { class: 'd-ph-n', text: count ? `${p.done}/${count}` : '' })),
+      h('div', { class: 'd-ph-dots', 'aria-label': `${p.done} done, ${p.running} running` }, ...dots),
+      ...(agents.length ? [h('ul', { class: 'd-crew-list' }, ...agents.map((x) => crewLine(a, x, { kind: false })))] : [])));
+  });
+  const wfCount = subs.filter((x) => x.type === 'workflow').length;
+  if (wfCount > CREW_MAX) out.push(h('span', { class: 'd-crew-n', text: `+${wfCount - CREW_MAX} more` }));
+  return out;
+}
+
 function crewUpdate(crew, a) {
   const subs = a.subagents || [];
-  const key = subs.map((x) => `${x.id}:${x.tool || ''}:${x.type || ''}:${x.title}:${x.startedAt ? rel(x.startedAt) : ''}`).join(',') + `|${a.hat ? a.hat.shape + a.hat.color : ''}`;
+  const w = a.workflow;
+  const key = subs.map((x) => `${x.id}:${x.tool || ''}:${x.type || ''}:${x.title}:${x.startedAt ? rel(x.startedAt) : ''}`).join(',') +
+    `|${a.hat ? a.hat.shape + a.hat.color : ''}|${w ? w.name + (w.phases || []).map((p) => `${p.title}:${p.running}:${p.done}`).join(',') : ''}`;
   if (crew.dataset.key === key) return;
   crew.dataset.key = key;
-  crew.hidden = subs.length === 0;
-  const shown = subs.slice(0, CREW_MAX);
-  const lines = shown.map((x) => {
-    const [title, kind] = crewKind(x);
-    const tool = (x.tool || 'thinking') + (x.startedAt ? ` · ${rel(x.startedAt)}` : '');
-    const m = h('span', { class: 'd-mini' });
-    setSprite(m, x.tool ? TOOL_POSE[x.tool.toLowerCase()] || 'run' : 'think', 'claude', a.hat);
-    return h('li', { class: 'd-crew-line', 'aria-label': [title, kind, tool].filter(Boolean).join(', ') }, m,
-      h('span', { class: 'd-crew-t', text: title, title }), h('span', { class: 'd-crew-k', text: kind }), h('span', { class: 'd-crew-tool', text: tool }));
-  });
-  const more = subs.length - shown.length;
-  const wf = subs.some((x) => x.type === 'workflow');
-  const label = wf ? `workflow · ${subs.length} agent${subs.length === 1 ? '' : 's'}` : `${subs.length} subagent${subs.length === 1 ? '' : 's'}`;
-  crew.replaceChildren(h('span', { class: 'lbl', text: label }), h('ul', { class: 'd-crew-list' }, ...lines),
+  crew.hidden = subs.length === 0 && !w;
+  const rest = w ? subs.filter((x) => x.type !== 'workflow') : subs;
+  const shown = rest.slice(0, CREW_MAX);
+  const more = rest.length - shown.length;
+  const label = `${rest.length} subagent${rest.length === 1 ? '' : 's'}`;
+  crew.replaceChildren(
+    ...(w ? phaseSections(a, subs) : []),
+    ...(rest.length ? [h('span', { class: 'lbl' + (w ? ' d-crew-rest' : ''), text: label }), h('ul', { class: 'd-crew-list' }, ...shown.map((x) => crewLine(a, x)))] : []),
     ...(more > 0 ? [h('span', { class: 'd-crew-n', text: `+${more} more` })] : []));
 }
 
@@ -1683,7 +1723,11 @@ async function startFixture() {
   if (params.has('accounts')) for (const a of data.agents) if (a.tool === 'claude') a.account = { ...fixtureAccounts[a.slot % 3 === 0 ? 1 : 0] };
   if (params.has('workflow')) {
     const a = data.agents.find((x) => x.title === 'billing-jobs');
-    if (a) a.workflow = { name: 'bughunt', phases: [{ title: 'Scout', running: 0, done: 1 }, { title: 'Find', running: 3, done: 1 }, { title: 'Verify', running: 0, done: 0 }] };
+    if (a) {
+      a.workflow = { name: 'bughunt', phases: [{ title: 'Scout', running: 0, done: 1 }, { title: 'Find', running: 3, done: 1 }, { title: 'Verify', running: 0, done: 0 }] };
+      a.subagents = [['w1', 'find:auth', 'Grep', 40], ['w2', 'find:billing', 'Read', 65], ['w3', 'find:queue', 'Bash', 70]]
+        .map(([id, label, tool, ago]) => ({ id, title: `${label} · Find`, type: 'workflow', tool, startedAt: iso(Date.now() - ago * 1000) }));
+    }
   }
   if (params.has('lost')) for (const a of data.agents.slice(-2)) Object.assign(a, { status: 'exited', lost: true, resumable: true, activity: null, waiting: null });
   fx = data;

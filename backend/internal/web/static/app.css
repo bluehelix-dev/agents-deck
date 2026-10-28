@@ -434,6 +434,20 @@ body.offline .main { opacity: 0.4; }
 .d-crew-k, .d-crew-tool { font-family: var(--f-label); font-size: 12px; color: var(--d-dim); white-space: nowrap; }
 .d-crew-tool { text-align: right; min-width: 64px; }
 .d-crew-n { font-family: var(--f-label); font-size: 12px; color: var(--d-dim); }
+/* a workflow's phase sections */
+.d-ph { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.d-ph-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.d-ph-t { font-size: 15px; color: var(--d-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d-ph.past .d-ph-t { color: var(--d-fg); }
+.d-ph.on .d-ph-t { color: #3D8BFF; font-weight: 700; }
+.d-ph-n { font-family: var(--f-label); font-size: 12px; color: var(--d-dim); white-space: nowrap; }
+.d-ph-dots { display: flex; gap: 3px; line-height: 0; }
+.d-ph-dots .dot { width: 8px; height: 8px; display: block; }
+.d-ph-dots .dot.done { background: var(--d-dim); }
+.d-ph-dots .dot.on { background: #3D8BFF; }
+.d-ph-dots .dot.next { box-sizing: border-box; border: 1px solid var(--line); }
+.d-ph .d-crew-list { margin-top: 4px; }
+.d-crew-rest { margin-top: 10px; }
 @media (max-width: 480px) { .d-crew-list { grid-template-columns: 32px minmax(0, 1fr) auto; } .d-crew-k { display: none; } }
 .d-title:focus { outline: none; }
 .d-title {

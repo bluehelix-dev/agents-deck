@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -312,6 +313,53 @@ func TestTailTranscript(t *testing.T) {
 		t.Fatalf("api error not surfaced: %s %+v", e.A.Status, e.A.Error)
 	}
 }
+
+// A session's subagents (the Task tool's, a workflow's) have transcripts of
+// their own: their usage counts into the session's tokens and cost, by
+// message id, read on from where the last call stopped.
+func TestTailCountsSubagents(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "s.jsonl")
+	msg := func(id string, out int64) string {
+		return `{"type":"assistant","message":{"id":"` + id + `","model":"claude-opus-5-5","usage":{"input_tokens":1,"output_tokens":` + itoa(out) + `,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}` + "\n"
+	}
+	if err := os.WriteFile(path, []byte(msg("m1", 100)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(dir, "s", "subagents")
+	wf := filepath.Join(sub, "workflows", "wf_1")
+	if err := os.MkdirAll(wf, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	a1 := filepath.Join(sub, "agent-a1.jsonl")
+	if err := os.WriteFile(a1, []byte(msg("s1", 10)+msg("s1", 10)), 0o600); err != nil { // one message, two blocks
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wf, "agent-w1.jsonl"), []byte(msg("w1", 5)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e := &store.Entry{Transcript: path}
+	if !Tail(e) || e.A.Tokens.Output != 115 {
+		t.Fatalf("session + subagents: output %d, want 115", e.A.Tokens.Output)
+	}
+	if Tail(e) {
+		t.Fatal("nothing new: no change")
+	}
+	// A subagent writes on while the session's own transcript is quiet.
+	f, _ := os.OpenFile(a1, os.O_APPEND|os.O_WRONLY, 0)
+	f.WriteString(msg("s2", 20))
+	f.WriteString(`{"type":"assistant","message":{"id":"s3","model":"claude-opus-5-5","usage":{"input_tokens":1,"output_tokens":1000`) // partial
+	f.Close()
+	if !Tail(e) || e.A.Tokens.Output != 135 {
+		t.Fatalf("subagent appended: output %d, want 135 (a partial line waits)", e.A.Tokens.Output)
+	}
+	// The session's context is its own, not a subagent's.
+	if e.A.Context.Used != 1 {
+		t.Fatalf("context from a subagent: %+v", e.A.Context)
+	}
+}
+
+func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 
 func TestDisplayTitle(t *testing.T) {
 	cases := []struct {

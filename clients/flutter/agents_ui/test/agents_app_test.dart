@@ -736,8 +736,83 @@ void main() {
     expect(tester.getSize(seg.first).height, greaterThan(0));
     expect(find.text('Search 3/5 · 2 of 3'), findsOneWidget);
     await _open(tester, 'checkout-api');
+    // The card on the 720 px panel, with three other subagents sharing the
+    // room: the phases on one line, the running one in blue, a phase to
+    // come without a count.
     expect(find.byKey(const Key('agent-workflow')), findsOneWidget);
-    expect(find.text('Jury 0/0'), findsOneWidget);
+    expect(find.byKey(const Key('agent-workflow-line')), findsOneWidget);
+    expect(find.text('Search 3/5'), findsOneWidget);
+    expect(find.text('Jury'), findsOneWidget);
+    expect(find.text('Jury 0/0'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a workflow card with room: phase sections, a square per agent', (
+    tester,
+  ) async {
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final api = (j['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['id'] == 'k3f9a2',
+    );
+    api['workflow'] = {
+      'name': 'bughunt',
+      'phases': [
+        {'title': 'Scout', 'running': 0, 'done': 1},
+        {'title': 'Search', 'running': 2, 'done': 3},
+        {'title': 'Jury', 'running': 0, 'done': 0},
+      ],
+    };
+    api['subagents'] = [
+      {
+        'id': 'w1',
+        'title': 'find:auth · Search',
+        'type': 'workflow',
+        'tool': 'Grep',
+      },
+      {
+        'id': 'w2',
+        'title': 'find:api · Search',
+        'type': 'workflow',
+        'tool': 'Read',
+      },
+    ];
+    tester.view.physicalSize = const Size(720, 1100);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: DeckHud.bg),
+        home: Scaffold(
+          body: AgentsApp(
+            source: FakeAgentsSource.fromState(j),
+            animate: false,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await _open(tester, 'checkout-api');
+    // Search: three done (dim) and two running (blue) squares; Jury, to
+    // come, one outlined square and no count. Its two agents sit under
+    // Search without a kind column: the section says the phase.
+    expect(find.byKey(const Key('agent-workflow-line')), findsNothing);
+    expect(find.text('3/5'), findsOneWidget);
+    expect(find.text('Jury 0/0'), findsNothing);
+    final search = find.byKey(const Key('agent-workflow-phase-Search'));
+    expect(
+      find.descendant(of: search, matching: find.byType(Container)),
+      findsNWidgets(5),
+    );
+    final jury = find.byKey(const Key('agent-workflow-phase-Jury'));
+    expect(
+      find.descendant(of: jury, matching: find.byType(Container)),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('agent-subagent-w1')), findsOneWidget);
+    expect(find.text('find:auth'), findsOneWidget);
+    expect(find.text('Search'), findsOneWidget); // the section's title only
     expect(tester.takeException(), isNull);
   });
 

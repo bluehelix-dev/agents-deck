@@ -43,7 +43,8 @@ type Entry struct {
 
 	// Transcript accounting (rebuilt from the file on restart).
 	Offset  int64               `json:"-"`
-	Usage   map[string]msgUsage `json:"-"` // message id -> last usage seen
+	Usage   map[string]msgUsage `json:"-"` // message id -> last usage seen (the session's and its subagents')
+	SubRead map[string]int64    `json:"-"` // subagent transcript path -> bytes folded into Usage
 	Pending string              `json:"-"` // partial trailing line
 	PromptN int                 `json:"promptN"`
 	Menu    bool                `json:"-"` // current prompt is an arrow-key menu, not numbered

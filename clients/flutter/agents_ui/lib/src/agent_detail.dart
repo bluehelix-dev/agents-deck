@@ -774,19 +774,37 @@ class _AgentDetailState extends State<AgentDetail> {
             cut: DeckHud.bg,
           ),
           const SizedBox(height: 26),
+          // A workflow's phases, with its agents under the running one; any
+          // other subagents as the crew list. Both share the room with the
+          // last prompt, four parts to its one: as many lines as fit, then
+          // a count.
           if (a.workflow case final wf?) ...[
-            _label('workflow · ${wf.name}', DeckHud.dim),
-            const SizedBox(height: 8),
-            WorkflowPhases(workflow: wf),
+            Flexible(
+              flex: 4,
+              child: WorkflowSections(
+                workflow: wf,
+                subagents: [
+                  for (final s in a.subagents)
+                    if (s.type == 'workflow') s,
+                ],
+                hat: a.hat,
+                body: body,
+                cut: DeckHud.bg,
+                now: state.serverNow(),
+              ),
+            ),
             const SizedBox(height: 26),
           ],
-          if (a.subagents.isNotEmpty) ...[
-            // Shares the room with the last prompt, four parts to its one:
-            // as many lines as fit (two on the 720 px panel), then a count.
+          if (a.subagents.any(
+            (s) => a.workflow == null || s.type != 'workflow',
+          )) ...[
             Flexible(
               flex: 4,
               child: SubagentList(
-                subagents: a.subagents,
+                subagents: [
+                  for (final s in a.subagents)
+                    if (a.workflow == null || s.type != 'workflow') s,
+                ],
                 hat: a.hat,
                 body: body,
                 cut: DeckHud.bg,
@@ -1507,37 +1525,199 @@ class _AgentDetailState extends State<AgentDetail> {
   }
 }
 
-/// A running workflow's phases, each with its agents done and running; the
-/// phase the run is in stands in the workflow's blue.
-class WorkflowPhases extends StatelessWidget {
-  const WorkflowPhases({super.key, required this.workflow});
+/// A running workflow as phase sections (the Claude app's view): each phase
+/// is a row with its count and a square per agent, done ones dim, the running
+/// phase's in the workflow's blue, a phase to come as one outlined square.
+/// Under a phase with agents at work, those agents as crew lines ([SubagentLine]);
+/// as many as fit the room, then "+N more".
+class WorkflowSections extends StatelessWidget {
+  const WorkflowSections({
+    super.key,
+    required this.workflow,
+    required this.subagents,
+    required this.body,
+    required this.cut,
+    this.hat,
+    this.now,
+  });
 
   final AgentWorkflow workflow;
 
+  /// The workflow's agents at work (type "workflow", title "label · phase").
+  final List<AgentSubagent> subagents;
+  final AgentHat? hat;
+  final Color body;
+  final Color cut;
+  final DateTime? now;
+
+  /// Heights: the label, a phase (its row and its dots), the gap between
+  /// phases, one crew line with its gap, the "+N more" line; and, when the
+  /// room is short, a phase as a row without dots, then all of them on one
+  /// line ("Scout 3/3 · Search 2/5 · Jury").
+  static const _labelH = 21.0,
+      _topH = 8.0,
+      _phaseH = 39.0,
+      _gapH = 10.0,
+      _lineH = 36.0,
+      _moreH = 29.0,
+      _rowH = 25.0,
+      _rowGapH = 4.0,
+      _oneLineH = 25.0;
+
   @override
   Widget build(BuildContext context) {
-    final i = workflow.current;
-    return Wrap(
-      key: const Key('agent-workflow'),
-      spacing: 18,
-      runSpacing: 8,
-      children: [
-        for (final (k, p) in workflow.phases.indexed)
-          Text(
-            '${p.title} ${p.done}/${p.done + p.running}',
-            style: DeckHud.rm(
-              17,
-              k == i
-                  ? DeckHud.workflow
-                  : (k < i || (p.done > 0 && p.running == 0))
-                  ? DeckHud.ink
-                  : DeckHud.dim,
-              weight: k == i ? 700 : 400,
+    final phases = workflow.phases;
+    final cur = workflow.current;
+    final meta = DeckHud.mono(size: 14, color: DeckHud.dim);
+    // Each phase's agents, in the crew's order.
+    final byPhase = <String, List<AgentSubagent>>{};
+    for (final s in subagents) {
+      byPhase.putIfAbsent(SubagentList.titleAndKind(s).$2, () => []).add(s);
+    }
+    final total = subagents.length;
+    return LayoutBuilder(
+      builder: (context, box) {
+        final kinds = !box.maxWidth.isFinite || box.maxWidth >= 420;
+        final n = phases.length;
+        // How much the phases get: with their dots, as bare rows, or one line.
+        final bases = [
+          _labelH + _topH + n * _phaseH + (n - 1) * _gapH,
+          _labelH + _topH + n * _rowH + (n - 1) * _rowGapH,
+          _labelH + _topH + _oneLineH,
+        ];
+        final maxH = box.maxHeight.isFinite ? box.maxHeight : double.infinity;
+        var level = bases.indexWhere((b) => b <= maxH);
+        if (level < 0) level = 2;
+        final base = bases[level];
+        var fit = total;
+        bool fits(int k) =>
+            base + k * _lineH + (k < total ? _moreH : 0) <= maxH;
+        while (fit > 0 && !fits(fit)) {
+          fit--;
+        }
+        var left = fit;
+        final children = <Widget>[
+          Text('workflow · ${workflow.name}', style: meta),
+        ];
+        Color colorOf(int k, AgentWorkflowPhase p) {
+          final running = p.running > 0;
+          final done = !running && (k < cur || p.done > 0);
+          return running
+              ? DeckHud.workflow
+              : done
+              ? DeckHud.ink
+              : DeckHud.dim;
+        }
+
+        String countOf(AgentWorkflowPhase p) =>
+            p.done + p.running > 0 ? '${p.done}/${p.done + p.running}' : '';
+        if (level == 2) {
+          // One line: the phases with their counts, the running one in blue.
+          children.addAll([
+            const SizedBox(height: 8),
+            Wrap(
+              key: const Key('agent-workflow-line'),
+              spacing: 18,
+              runSpacing: 4,
+              children: [
+                for (final (k, p) in phases.indexed)
+                  Text(
+                    [p.title, countOf(p)].where((s) => s.isNotEmpty).join(' '),
+                    style: DeckHud.rm(
+                      17,
+                      colorOf(k, p),
+                      weight: p.running > 0 ? 700 : 400,
+                    ),
+                  ),
+              ],
             ),
-          ),
-      ],
+          ]);
+        }
+        for (final (k, p) in phases.indexed) {
+          final running = p.running > 0;
+          final count = p.done + p.running;
+          if (level < 2) {
+            children.addAll([
+              SizedBox(height: k == 0 ? 8 : (level == 0 ? _gapH : _rowGapH)),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Expanded(
+                    child: Text(
+                      p.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: DeckHud.rm(
+                        17,
+                        colorOf(k, p),
+                        weight: running ? 700 : 400,
+                      ),
+                    ),
+                  ),
+                  if (count > 0) Text(countOf(p), style: meta),
+                ],
+              ),
+            ]);
+          }
+          if (level == 0) {
+            children.addAll([
+              const SizedBox(height: 6),
+              Row(
+                key: Key('agent-workflow-phase-${p.title}'),
+                children: [
+                  for (var i = 0; i < p.done; i++) _dot(DeckHud.dim),
+                  for (var i = 0; i < p.running; i++) _dot(DeckHud.workflow),
+                  if (count == 0) _dot(null),
+                ],
+              ),
+            ]);
+          }
+          final agents = byPhase[p.title] ?? const <AgentSubagent>[];
+          for (final s in agents) {
+            if (left == 0) break;
+            left--;
+            children.addAll([
+              const SizedBox(height: 10),
+              SubagentLine(
+                subagent: s,
+                kinds: kinds,
+                meta: meta,
+                hat: hat,
+                body: body,
+                cut: cut,
+                now: now,
+                showKind: false, // the phase is the section's title
+              ),
+            ]);
+          }
+        }
+        if (total > fit) {
+          children.addAll([
+            const SizedBox(height: 8),
+            Text('+${total - fit} more', style: meta),
+          ]);
+        }
+        return Column(
+          key: const Key('agent-workflow'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: children,
+        );
+      },
     );
   }
+
+  /// One agent of a phase: filled, or outlined for a phase to come.
+  static Widget _dot(Color? fill) => Container(
+    width: 8,
+    height: 8,
+    margin: const EdgeInsets.only(right: 3),
+    decoration: BoxDecoration(
+      color: fill,
+      border: fill == null ? Border.all(color: agentsRowOutline) : null,
+    ),
+  );
 }
 
 /// An agent's working subagents as a crew list: a line each, with its critter
@@ -1613,7 +1793,15 @@ class SubagentList extends StatelessWidget {
             Text(what, style: meta),
             for (final s in shown) ...[
               const SizedBox(height: 10),
-              _line(s, kinds, meta),
+              SubagentLine(
+                subagent: s,
+                kinds: kinds,
+                meta: meta,
+                hat: hat,
+                body: body,
+                cut: cut,
+                now: now,
+              ),
             ],
             if (more > 0 && shown.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -1624,9 +1812,39 @@ class SubagentList extends StatelessWidget {
       },
     );
   }
+}
 
-  Widget _line(AgentSubagent s, bool kinds, TextStyle meta) {
-    final (title, kind) = titleAndKind(s);
+/// One line of the crew: the critter posed by its latest tool and in the
+/// session's hat, what it was sent to do, its kind (unless the section says
+/// it) and its tool with how long it has been at it ("Grep · 2m").
+class SubagentLine extends StatelessWidget {
+  const SubagentLine({
+    super.key,
+    required this.subagent,
+    required this.kinds,
+    required this.meta,
+    required this.body,
+    required this.cut,
+    this.hat,
+    this.now,
+    this.showKind = true,
+  });
+
+  final AgentSubagent subagent;
+
+  /// Whether there is room for the kind column (not on a phone upright).
+  final bool kinds;
+  final TextStyle meta;
+  final AgentHat? hat;
+  final Color body;
+  final Color cut;
+  final DateTime? now;
+  final bool showKind;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = subagent;
+    final (title, kind) = SubagentList.titleAndKind(s);
     var tool = s.tool.isEmpty ? 'thinking' : s.tool;
     final since = s.startedAt, at = now;
     if (since != null && at != null) {
@@ -1655,7 +1873,7 @@ class SubagentList extends StatelessWidget {
               style: DeckHud.rm(17, DeckHud.ink),
             ),
           ),
-          if (kinds && kind.isNotEmpty) ...[
+          if (showKind && kinds && kind.isNotEmpty) ...[
             const SizedBox(width: 12),
             SizedBox(
               width: 110,

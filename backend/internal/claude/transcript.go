@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/brushknight/agents-deck/backend/internal/model"
@@ -42,18 +43,32 @@ type line struct {
 }
 
 // Tail reads transcript lines appended since the last call and folds usage,
-// model, branch, Claude's own title and API errors into the agent.
+// model, branch, Claude's own title and API errors into the agent. The
+// session's subagents (the Task tool's, a workflow's) write transcripts of
+// their own: their usage counts into the session's tokens and cost too.
 func Tail(e *store.Entry) bool {
 	if e.Transcript == "" {
 		return false
 	}
+	changed := tailSession(e)
+	if tailSubagents(e) {
+		changed = true
+	}
+	if changed {
+		e.A.Tokens, e.A.CostUSD = e.Totals(pricing.Cost)
+		e.A.Title = e.DisplayTitle() // names follow Claude's titles live
+	}
+	return changed
+}
+
+func tailSession(e *store.Entry) bool {
 	f, err := os.Open(e.Transcript)
 	if err != nil {
 		return false
 	}
 	defer f.Close()
 	if st, err := f.Stat(); err != nil || st.Size() < e.Offset {
-		e.Offset, e.Usage, e.Pending = 0, nil, "" // truncated or replaced
+		e.Offset, e.Usage, e.Pending, e.SubRead = 0, nil, "", nil // truncated or replaced
 	} else if st.Size() == e.Offset {
 		return false
 	}
@@ -141,10 +156,71 @@ func Tail(e *store.Entry) bool {
 			e.A.Context.Window = 1_000_000
 		}
 	}
-	if changed {
-		e.A.Tokens, e.A.CostUSD = e.Totals(pricing.Cost)
-		e.A.Title = e.DisplayTitle() // names follow Claude's titles live
+	return changed
+}
+
+// tailSubagents folds the usage of the session's subagent transcripts
+// (<session>/subagents/agent-*.jsonl and the workflow runs' agents under
+// workflows/<run>/) into e.Usage, by message id like the session's own. Each
+// file is read from where the last call left it; a partial last line waits.
+func tailSubagents(e *store.Entry) bool {
+	base := filepath.Join(strings.TrimSuffix(e.Transcript, ".jsonl"), "subagents")
+	files, _ := filepath.Glob(filepath.Join(base, "agent-*.jsonl"))
+	wf, _ := filepath.Glob(filepath.Join(base, "workflows", "*", "agent-*.jsonl"))
+	files = append(files, wf...)
+	changed := false
+	for _, path := range files {
+		if foldUsage(e, path) {
+			changed = true
+		}
 	}
+	return changed
+}
+
+func foldUsage(e *store.Entry, path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	off := e.SubRead[path]
+	if st.Size() < off {
+		off = 0 // truncated or replaced
+	}
+	if st.Size() == off {
+		return false
+	}
+	if _, err := f.Seek(off, io.SeekStart); err != nil {
+		return false
+	}
+	buf, _ := io.ReadAll(io.LimitReader(f, maxRead))
+	last := bytes.LastIndexByte(buf, '\n')
+	if last < 0 {
+		return false
+	}
+	changed := false
+	sc := bufio.NewScanner(bytes.NewReader(buf[:last]))
+	sc.Buffer(make([]byte, 64<<10), 16<<20)
+	for sc.Scan() {
+		var l line
+		if json.Unmarshal(sc.Bytes(), &l) != nil || l.Type != "assistant" || l.Message == nil || l.IsAPIErr {
+			continue
+		}
+		if l.Message.Usage == nil || l.Message.ID == "" || l.Message.Model == "<synthetic>" {
+			continue
+		}
+		u := l.Message.Usage
+		e.SetUsage(l.Message.ID, l.Message.Model, model.Tokens{Input: u.Input, Output: u.Output, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite})
+		changed = true
+	}
+	if e.SubRead == nil {
+		e.SubRead = map[string]int64{}
+	}
+	e.SubRead[path] = off + int64(last) + 1
 	return changed
 }
 
