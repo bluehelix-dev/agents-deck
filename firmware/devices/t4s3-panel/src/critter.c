@@ -406,14 +406,10 @@ void critter_draw(lv_layer_t *layer, const critter_t *c, int32_t x0, int32_t y0,
 		rect(&f, &x, 4.4f, 1, 1, 2, K_CUT);
 		rect(&f, &x, 9.4f, 1, 1, 2, K_CUT);
 		break;
-	case F_HUNGRY: {
-		rect(&f, &x, 4.6f, 1, 1, 2, K_CUT);
-		rect(&f, &x, 9.6f, 1, 1, 2, K_CUT);
-		bool open = la_on(&x, 800);
-		if (bot)
-			rect(&f, &x, 6.2f, open ? 3.4f : 4, 1.6f, open ? 1.4f : 0.5f, K_CUT);
-		else
-			rect(&f, &x, 6.2f, open ? 4.2f : 4.8f, 2.2f, open ? 1.6f : 0.5f, K_CUT);
+	case F_HUNGRY: {	/* ready: awake and calm, a 150 ms blink every 4 s */
+		bool shut = phase(&x, 4000, 0) >= 0.9625f;
+		rect(&f, &x, 4, shut ? 3 : 2, 1, shut ? 0.5f : 2, K_CUT);
+		rect(&f, &x, 9, shut ? 3 : 2, 1, shut ? 0.5f : 2, K_CUT);
 		break;
 	}
 	case F_CELEBRATE:
@@ -507,12 +503,7 @@ void critter_draw(lv_layer_t *layer, const critter_t *c, int32_t x0, int32_t y0,
 		break;
 	}
 	case POSE_DELEGATE: mini(&b, &x, 14.4f, 3.2f, 0.26f); break;
-	case POSE_HUNGRY: {
-		static const char *const r[] = {".###.", "##.##", "#####", "#.###", ".###."};
-		pen_t cb = la_on(&x, 600) ? b : moved(b, 0, 0.6f);
-		pixels(&cb, &x, r, 5, 14.3f, 0.75f, 0.75f, -4.2f, K_BODY);
-		break;
-	}
+	case POSE_HUNGRY: break;	/* ready: no bubble */
 	case POSE_CELEBRATE:
 		for (int i = 0; i < 2; i++) {
 			pen_t s = b;

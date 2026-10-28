@@ -295,15 +295,10 @@ static inline void drawSprite(Canvas& c, int x, int y, int scale, Species sp, Po
       for (const auto& b : (phase(ms, 300, 2) ? kDown : kUp)) p.g(bx + b[0], by + b[1], 1, 1, ink);
       break;
     }
-    case Pose::Hungry: {
-      eyes(1, 2, 0.6f);
-      const int chomp = phase(ms, 1000, 2);              // mouth open, mouth shut
-      if (bot) { if (chomp) p.g(6.2f, 4, 1.6f, 0.5f, cut); else p.g(6.2f, 3.4f, 1.6f, 1.4f, cut); }
-      else     { if (chomp) p.g(6.2f, 4.8f + f, 2.2f, 0.5f, cut); else p.g(6.2f, 4.2f + f, 2.2f, 1.6f, cut); }
-      static const char* const kCookie[] = {".###.", "##.##", "#####", "#.###", ".###."};
-      if (bubble) p.pixels(kCookie, 5, 14.3f, 0.75f, 0.75f, -4.2f, body, phase(ms, 600, 2) ? 0.6f : 0);
+    case Pose::Hungry:                                   // ready: awake and calm, a 150 ms blink every 4 s
+      if (ms % 4000 < 3850) eyes(2);
+      else eyes(3, 0.5f);
       break;
-    }
     case Pose::Celebrate: {
       for (float ex : {4.5f, 9.5f}) {                    // ^ ^
         p.stroke(ex - 1, 3.3f + f, ex, 2.2f + f, cut);

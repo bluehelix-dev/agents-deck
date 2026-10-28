@@ -18,8 +18,9 @@ import 'hats.dart';
 ///   (globe), planning (checklist ticking), delegating (conducting with a
 ///   baton, eyes on its subagents up the tile's right edge); any other tool
 ///   walks with "…";
-/// * just finished — a short hop waving a checkered flag, then hungry: eyes up at a
-///   bobbing cookie, mouth chomping, until its result has been looked at;
+/// * just finished — a short hop waving a checkered flag, then ready: awake and
+///   calm, eyes open, a blink now and then, no bubble, until its result has been
+///   looked at;
 /// * waiting — eyes up, blinking "?";
 /// * error   — X eyes, both arms up, "!";
 /// * idle    — eyes closed, drifting "z z";
@@ -184,8 +185,8 @@ int critterFrame(CritterPose pose, int tick) => switch (pose) {
   CritterPose.plan => (tick ~/ 10) % 4,
   // The baton beats every 300 ms: up, then down toward the crew.
   CritterPose.delegate => (tick ~/ 6) % 2,
-  // Chomp and bob the cookie every 300 ms.
-  CritterPose.hungry => (tick ~/ 6) % 2,
+  // Ready: awake, a 150 ms blink every 4 s.
+  CritterPose.hungry => tick % 80 >= 77 ? 1 : 0,
   // Hop every 200 ms; sparkles twinkle in turn.
   CritterPose.celebrate => ((tick ~/ 4) % 2) * 10 + (tick ~/ 4) % 3,
 };
@@ -523,15 +524,14 @@ class _CritterPainter extends CustomPainter {
         canvas.drawRect(cell(4.4, 1 + ey, 1, 2), hole);
         canvas.drawRect(cell(9.4, 1 + ey, 1, 2), hole);
       case CritterPose.hungry:
-        // Eyes up at the cookie; the mouth chomps open and shut.
-        canvas.drawRect(cell(4.6, 1 + ey, 1, 2), hole);
-        canvas.drawRect(cell(9.6, 1 + ey, 1, 2), hole);
-        canvas.drawRect(
-          bot
-              ? (f == 0 ? cell(6.2, 3.4, 1.6, 1.4) : cell(6.2, 4.0, 1.6, 0.5))
-              : (f == 0 ? cell(6.2, 3.7, 2.2, 1.6) : cell(6.2, 4.3, 2.2, 0.5)),
-          hole,
-        );
+        // Ready: awake and calm, eyes open; a blink now and then.
+        if (f == 0) {
+          canvas.drawRect(cell(4, 2 + ey, 1, 2), hole);
+          canvas.drawRect(cell(9, 2 + ey, 1, 2), hole);
+        } else {
+          canvas.drawRect(cell(4, 3 + ey, 1, 0.5), hole);
+          canvas.drawRect(cell(9, 3 + ey, 1, 0.5), hole);
+        }
       case CritterPose.celebrate:
         // Happy "^ ^" eyes.
         final happy = Paint()
@@ -744,17 +744,6 @@ class _CritterPainter extends CustomPainter {
           canvas.drawRect(cell(x - d, y, d * 3, d), sp); // plus sign
           canvas.drawRect(cell(x, y - d, d, d * 3), sp);
         }
-      case CritterPose.hungry:
-        _bitmap(
-          canvas,
-          _cookie,
-          14.3,
-          f == 0 ? -4.2 : -3.6,
-          0.75,
-          0.75,
-          fill,
-          cell,
-        );
       case CritterPose.compact:
         // A stack of pages pressed into one.
         const gap = [1.1, 0.7, 0.0, 0.7];
@@ -763,6 +752,7 @@ class _CritterPainter extends CustomPainter {
         }
       case CritterPose.delegate:
       case CritterPose.exited:
+      case CritterPose.hungry: // ready: no bubble
         break;
     }
   }
@@ -847,7 +837,6 @@ class _CritterPainter extends CustomPainter {
 
   static const _flagInk = Color(0xFFE8E4DC);
 
-  static const _cookie = ['.###.', '##.##', '#####', '#.###', '.###.'];
   static const _lens = ['.##..', '#..#.', '#..#.', '.##..', '....#'];
   static const _prompt = ['#..', '.#.', '#..'];
   static const _globeA = ['.###.', '#.#.#', '#####', '#.#.#', '.###.'];

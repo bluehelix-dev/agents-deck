@@ -262,6 +262,11 @@ body.offline .main { opacity: 0.4; }
 @keyframes lb { 0%, 49% { opacity: 0 } 50%, 100% { opacity: 1 } }
 @keyframes bob { 0%, 49% { transform: translateY(0) } 50%, 100% { transform: translateY(-0.5px) } }
 @keyframes blink { 0%, 59% { opacity: 1 } 60%, 100% { opacity: 0.15 } }
+/* ready: eyes open, a 150 ms blink every 4 s */
+@keyframes wake { 0%, 96.24% { opacity: 1 } 96.25%, 100% { opacity: 0 } }
+@keyframes shut { 0%, 96.24% { opacity: 0 } 96.25%, 100% { opacity: 1 } }
+.wake { animation: wake 4s step-end infinite; }
+.shut { opacity: 0; animation: shut 4s step-end infinite; }
 @keyframes dots { 0% { opacity: .2 } 50% { opacity: 1 } 100% { opacity: .2 } }
 @keyframes zz { 0%, 100% { transform: translateY(0); opacity: .9 } 50% { transform: translateY(-0.6px); opacity: .4 } }
 .la { animation: la .5s infinite; }

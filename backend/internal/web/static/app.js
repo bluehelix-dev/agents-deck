@@ -629,11 +629,8 @@ function spriteSVG(pose, species = 'claude', hat = null, opts = {}) {
       break;
     }
     case 'hungry':
-      // Eyes up at a bobbing cookie; the mouth chomps open and shut.
-      eyes = '<rect class="c" x="4.6" y="1" width="1" height="2"/><rect class="c" x="9.6" y="1" width="1" height="2"/>' +
-        (bot ? '<rect class="c la slow" x="6.2" y="3.4" width="1.6" height="1.4"/><rect class="c lb slow" x="6.2" y="4" width="1.6" height="0.5"/>'
-          : '<rect class="c la slow" x="6.2" y="4.2" width="2.2" height="1.6"/><rect class="c lb slow" x="6.2" y="4.8" width="2.2" height="0.5"/>');
-      bubble = `<g class="bobc">${pixels(['.###.', '##.##', '#####', '#.###', '.###.'], 14.3, 0.75, '', 0.75, -4.2)}</g>`;
+      // Ready: awake and calm, eyes open, a short blink every 4 s; no bubble.
+      eyes = `<g class="wake">${eyesOpen(2)}</g><g class="shut">${eyesOpenAt(3, 0.5)}</g>`;
       break;
     case 'celebrate': {
       eyes = [4.5, 9.5].map((x) => `<path class="cx" stroke-width="0.55" d="M${x - 1} 3.3 L${x} 2.2 L${x + 1} 3.3"/>`).join('');
