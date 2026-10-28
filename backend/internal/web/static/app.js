@@ -87,6 +87,21 @@ const needsYou = (a) => a.status === 'waiting' || a.status === 'error';
 
 // Finished a turn nobody has reviewed yet: hungry until its terminal is focused.
 const hungry = (a) => a.status === 'idle' && a.unseen;
+// A workflow at work: blue pixels twinkle behind the critter.
+const workflowing = (a) => a.status === 'running' && (!!a.workflow || (a.subagents || []).some((x) => x.type === 'workflow'));
+
+// The twinkle: a dim grid of blue pixels, and 70 of them, at random places,
+// each fading up and down on its own clock. Built once per tile, when needed.
+function twinkleLayer() {
+  const cells = [];
+  for (let x = 0; x < 20; x++) for (let y = 0; y < 20; y++) cells.push([x, y]);
+  for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
+  const px = cells.slice(0, 70).map(([x, y]) => {
+    const dur = 2.4 + Math.random() * 2.4;
+    return h('i', { style: `left:${x * 5}%;top:${y * 5}%;animation-duration:${dur.toFixed(1)}s;animation-delay:-${(Math.random() * dur).toFixed(1)}s` });
+  });
+  return h('span', { class: 'tw', 'aria-hidden': 'true' }, ...px);
+}
 
 // A running workflow: which phase it is in, by the journal (the last phase
 // with agents running, else the last with any done).
@@ -765,7 +780,9 @@ function wireDrag(el, id) {
 }
 
 function updateTile(t, a) {
-  const cls = `tile st-${a.status} tool-${a.tool}` + (hungry(a) ? ' hungry' : '') + (a.focused ? ' focused' : '') + (a.id === selectedId ? ' selected' : '');
+  const wfOn = workflowing(a);
+  if (wfOn && !t.tw) { t.tw = twinkleLayer(); t.el.prepend(t.tw); }
+  const cls = `tile st-${a.status} tool-${a.tool}` + (hungry(a) ? ' hungry' : '') + (wfOn ? ' workflow' : '') + (a.focused ? ' focused' : '') + (a.id === selectedId ? ' selected' : '');
   if (t.cls !== cls) { t.el.className = cls; t.cls = cls; }
   setSprite(t.spr, poseOf(a), a.tool, a.hat);
   const used = a.context?.window > 0 ? Math.min(100, (a.context.used / a.context.window) * 100) : 0;
@@ -1610,7 +1627,7 @@ async function start() {
 // ?fixture loads ./fixture.json and animates it locally. Extra dev flags:
 //   &open=<id>  open that agent's panel   &still  no simulation
 //   &picker     the "add a session" picker   &hatpick  the hat picker (with &open=<id>)
-//   &many       40 agents (pages)
+//   &many       40 agents (pages)       &workflow  billing-jobs runs a workflow
 //   &empty      no agents                 &offline  disconnected banner   &expired  401 screen
 let fx = null;
 const AGO = { 0: 38, 1: 2, 2: 12, 3: 4, 4: 3, 5: 63, 6: 5, 7: 60, 8: 9, 10: 7, 15: 190 }; // minutes since status change, by slot
@@ -1653,6 +1670,10 @@ async function startFixture() {
   if (params.has('hatpick')) setTimeout(() => { const p = document.querySelector('.hatpick'); if (p) p.hidden = false; }, 400);
   for (const a of data.agents) a.autoHat = a.hat; // what "back to automatic" restores
   if (params.has('accounts')) for (const a of data.agents) if (a.tool === 'claude') a.account = { ...fixtureAccounts[a.slot % 3 === 0 ? 1 : 0] };
+  if (params.has('workflow')) {
+    const a = data.agents.find((x) => x.title === 'billing-jobs');
+    if (a) a.workflow = { name: 'bughunt', phases: [{ title: 'Scout', running: 0, done: 1 }, { title: 'Find', running: 3, done: 1 }, { title: 'Verify', running: 0, done: 0 }] };
+  }
   if (params.has('lost')) for (const a of data.agents.slice(-2)) Object.assign(a, { status: 'exited', lost: true, resumable: true, activity: null, waiting: null });
   fx = data;
   fxEmit();

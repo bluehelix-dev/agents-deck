@@ -677,3 +677,11 @@ body.panel-mode.paged .grid { aspect-ratio: auto; height: calc(var(--pv) - 30px)
   background-image: repeating-linear-gradient(135deg, rgba(255, 77, 0, 0.16) 0 12px, transparent 12px 24px);
   background-size: 34px 34px; animation: zebra 0.6s steps(6) infinite; }
 @keyframes zebra { from { background-position: 0 0 } to { background-position: 34px 0 } }
+
+/* a workflow at work: a dim grid of blue pixels, a few twinkling at random */
+.tile.workflow { isolation: isolate; }
+.tile .tw { display: none; position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+  background-image: conic-gradient(from 270deg at 30% 30%, rgba(61, 139, 255, 0.10) 90deg, transparent 0); background-size: 5% 5%; }
+.tile.workflow .tw { display: block; }
+.tile .tw i { position: absolute; width: 1.5%; aspect-ratio: 1; background: #3D8BFF; opacity: 0; animation: twinkle 3s steps(4) infinite; }
+@keyframes twinkle { 0%, 100% { opacity: 0 } 40%, 60% { opacity: 0.32 } }

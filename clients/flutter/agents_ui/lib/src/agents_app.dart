@@ -516,7 +516,14 @@ class _AgentTileState extends State<AgentTile> {
               child: Stack(
                 children: [
                   if (look.stripes && !pressed)
-                    const Positioned.fill(child: HungryStripes()),
+                    const Positioned.fill(child: HungryStripes())
+                  else if (_workflowing(a) && !pressed)
+                    Positioned.fill(
+                      child: WorkflowTwinkle(
+                        key: const Key('agent-tile-twinkle'),
+                        seed: a.id,
+                      ),
+                    ),
                   // The colour of the Claude account it runs in, or (when
                   // asked for) the tool's.
                   if (!pressed && (a.account != null || widget.toolSquare))
@@ -718,6 +725,111 @@ class _StripesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StripesPainter old) => false;
+}
+
+/// A workflow at work: its tile twinkles blue behind the critter.
+bool _workflowing(Agent a) =>
+    a.status == AgentStatus.running &&
+    (a.workflow != null || a.subagents.any((s) => s.type == 'workflow'));
+
+/// A dim grid of blue pixels behind a working workflow, and 70 of them, at
+/// random places, each fading up and down softly on its own clock (2.4 to
+/// 4.8 s). [seed] (the agent's id) keeps a tile's pattern the same.
+class WorkflowTwinkle extends StatefulWidget {
+  const WorkflowTwinkle({super.key, required this.seed});
+
+  final String seed;
+
+  @override
+  State<WorkflowTwinkle> createState() => _WorkflowTwinkleState();
+}
+
+class _WorkflowTwinkleState extends State<WorkflowTwinkle> {
+  final _tick = ValueNotifier<int>(0);
+  CritterClock? _clock;
+  late _TwinklePainter _painter = _TwinklePainter(_tick, widget.seed);
+
+  @override
+  void didUpdateWidget(WorkflowTwinkle old) {
+    super.didUpdateWidget(old);
+    if (old.seed != widget.seed) _painter = _TwinklePainter(_tick, widget.seed);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final c = CritterScope.of(context);
+    if (c != _clock) {
+      _clock?.removeListener(_onTick);
+      _clock = c?..addListener(_onTick);
+    }
+    _onTick();
+  }
+
+  // A frame every 100 ms: the fades step anyway.
+  void _onTick() => _tick.value = (_clock?.value ?? 0) ~/ 2;
+
+  @override
+  void dispose() {
+    _clock?.removeListener(_onTick);
+    _tick.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      RepaintBoundary(child: CustomPaint(painter: _painter));
+}
+
+class _TwinklePainter extends CustomPainter {
+  _TwinklePainter(this.tick, String seed) : super(repaint: tick) {
+    var h = 0;
+    for (final c in seed.codeUnits) {
+      h = (h * 31 + c) & 0x7fffffff;
+    }
+    final rnd = math.Random(h);
+    final cells = [for (var i = 0; i < _n * _n; i++) i]..shuffle(rnd);
+    for (final c in cells.take(70)) {
+      final dur = 2.4 + rnd.nextDouble() * 2.4;
+      _px.add((c % _n, c ~/ _n, dur, rnd.nextDouble() * dur));
+    }
+  }
+
+  final ValueListenable<int> tick;
+  final _px = <(int, int, double, double)>[];
+
+  static const _n = 20; // cells per side
+  static const _peak = 0.32;
+
+  /// Up in four steps over 40 % of its cycle, lit to 60 %, down in four.
+  static double _level(double f) {
+    if (f < 0.4) return _peak * (f / 0.4 * 4).floor() / 4;
+    if (f < 0.6) return _peak;
+    return _peak * (1 - ((f - 0.6) / 0.4 * 4).floor() / 4);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cw = size.width / _n, ch = size.height / _n;
+    final side = math.min(cw, ch) * 0.3;
+    final dim = Paint()..color = DeckHud.workflow.withValues(alpha: 0.10);
+    for (var x = 0; x < _n; x++) {
+      for (var y = 0; y < _n; y++) {
+        canvas.drawRect(Rect.fromLTWH(x * cw, y * ch, side, side), dim);
+      }
+    }
+    final t = tick.value * 0.1;
+    final lit = Paint();
+    for (final (x, y, dur, phase) in _px) {
+      final o = _level(((t + phase) % dur) / dur);
+      if (o <= 0) continue;
+      lit.color = DeckHud.workflow.withValues(alpha: o);
+      canvas.drawRect(Rect.fromLTWH(x * cw, y * ch, side, side), lit);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_TwinklePainter old) => old._px != _px;
 }
 
 /// What follows the finger while a tile is dragged.

@@ -913,6 +913,28 @@ void main() {
     expect(find.byKey(const Key('agents-pager')), findsNothing);
   });
 
+  testWidgets('a running workflow twinkles; nothing else does', (tester) async {
+    final fixture = FakeAgentsSource.demo().toJson();
+    final agents = (fixture['agents'] as List).cast<Map<String, dynamic>>();
+    final running = agents.where((a) => a['status'] == 'running').toList();
+    running.first['workflow'] = {
+      'name': 'bughunt',
+      'phases': [
+        {'title': 'Find', 'running': 3, 'done': 0},
+      ],
+    };
+    await _pumpApp(tester, FakeAgentsSource.fromState(fixture));
+    expect(find.byKey(const Key('agent-tile-twinkle')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey('agent-tile-${running.first['id']}')),
+        matching: find.byKey(const Key('agent-tile-twinkle')),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the tool square shows only when asked for', (tester) async {
     final source = FakeAgentsSource.demo();
     await _pumpApp(tester, source);

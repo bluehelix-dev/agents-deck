@@ -48,6 +48,27 @@ void main() {
     );
   });
 
+  // A running workflow: its tile twinkles blue behind the critter.
+  testWidgets('agents workflow golden', skip: !autoUpdateGoldenFiles, (
+    tester,
+  ) async {
+    final fixture = FakeAgentsSource.demo().toJson();
+    final agents = (fixture['agents'] as List).cast<Map<String, dynamic>>();
+    agents.firstWhere((a) => a['status'] == 'running')['workflow'] = {
+      'name': 'bughunt',
+      'phases': [
+        {'title': 'Scout', 'running': 0, 'done': 1},
+        {'title': 'Find', 'running': 3, 'done': 1},
+        {'title': 'Verify', 'running': 0, 'done': 0},
+      ],
+    };
+    await pumpBoard(tester, FakeAgentsSource.fromState(fixture));
+    await expectLater(
+      find.byType(AgentsApp),
+      matchesGoldenFile('goldens/agents-workflow.png'),
+    );
+  });
+
   testWidgets('agents hat picker golden', skip: !autoUpdateGoldenFiles, (
     tester,
   ) async {
