@@ -1288,7 +1288,7 @@ static inline void drawSquare(Canvas& c, const SquareSpec& S, const Theme& T, co
         notice(c, S, T, n.problem ? Pose::Exit : Pose::Think, T.dim, n.title, n.line1, n.problem ? T.accent : T.dim,
                n.line2, T.dim, nullptr, T.dim, in.ms);
       } else {
-        notice(c, S, T, Pose::Think, T.dim, "connecting to the deck", "plugged into the Mac?", T.dim,
+        notice(c, S, T, Pose::Think, T.dim, "connecting to the deck", "plugged into the computer?", T.dim,
                "agentctl link add", T.ink, "/dev/cu.usbmodem\xE2\x80\xA6", T.dim, in.ms);
       }
       if (tu) toastPill(c, S, T, tu->toast, true);
@@ -1297,10 +1297,10 @@ static inline void drawSquare(Canvas& c, const SquareSpec& S, const Theme& T, co
     case LinkState::Unapproved:
       snprintf(buf, sizeof buf, "approve %s", name);
       if (textW(*S.body, buf) <= S.w - 2 * S.m)
-        notice(c, S, T, Pose::Wait, T.ink, "waiting for approval", "on the Mac:", T.dim, "agentctl devices", T.ink, buf,
+        notice(c, S, T, Pose::Wait, T.ink, "waiting for approval", "on the computer:", T.dim, "agentctl devices", T.ink, buf,
                T.accent, in.ms);
       else                                          // a long name gets a line of its own
-        notice(c, S, T, Pose::Wait, T.ink, "waiting for approval", "on the Mac:", T.dim, "agentctl devices approve",
+        notice(c, S, T, Pose::Wait, T.ink, "waiting for approval", "on the computer:", T.dim, "agentctl devices approve",
                T.ink, name, T.accent, in.ms);
       if (tu) toastPill(c, S, T, tu->toast, true);
       if (S.cornerR) cornerMask(c, S.cornerR);

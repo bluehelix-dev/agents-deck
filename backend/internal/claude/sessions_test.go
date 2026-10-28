@@ -130,7 +130,7 @@ func TestSubagents(t *testing.T) {
 	}
 	for name, body := range map[string]string{
 		"agent-w1.jsonl":     toolCall + "\n",
-		"agent-w1.meta.json": `{"agentType":"workflow-subagent","description":"find:auth","workflowPhase":"Suche","model":"sonnet"}`,
+		"agent-w1.meta.json": `{"agentType":"workflow-subagent","description":"find:auth","workflowPhase":"Search","model":"sonnet"}`,
 	} {
 		if err := os.WriteFile(filepath.Join(wfDir, name), []byte(body), 0o600); err != nil {
 			t.Fatal(err)
@@ -148,7 +148,7 @@ func TestSubagents(t *testing.T) {
 		}
 	}
 	for _, x := range subs {
-		if x.ID == "w1" && (x.Type != WorkflowAgent || x.Title != "find:auth · Suche" || x.Tool != "Grep") {
+		if x.ID == "w1" && (x.Type != WorkflowAgent || x.Title != "find:auth · Search" || x.Tool != "Grep") {
 			t.Fatalf("workflow agent: %+v", x)
 		}
 	}

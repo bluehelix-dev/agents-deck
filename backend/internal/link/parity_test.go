@@ -134,7 +134,7 @@ func TestAgentParity(t *testing.T) {
 		Context: model.Context{Used: 5, Window: 10}, CostUSD: 1.5, Turns: 2, Focused: true, Attached: true, Resumable: true,
 		Lost: true, Unseen: true, External: true, App: "orca", Hat: &model.Hat{Shape: "cap", Color: "teal", Auto: true}, Account: &model.Account{Name: "work", Color: "yellow"},
 		Subagents: []model.Subagent{{ID: "s", Title: "sub", Type: "Explore", Tool: "Grep"}}, StartedAt: now, UpdatedAt: now,
-		Workflow: &model.Workflow{Name: "hunt", Phases: []model.WorkflowPhase{{Title: "Scout", Done: 1}, {Title: "Suche", Running: 2}}}}
+		Workflow: &model.Workflow{Name: "hunt", Phases: []model.WorkflowPhase{{Title: "Scout", Done: 1}, {Title: "Search", Running: 2}}}}
 	p := toPB(full, 1|2|4|8).ProtoReflect()
 	var missing []string
 	for i := range desc.Fields().Len() {

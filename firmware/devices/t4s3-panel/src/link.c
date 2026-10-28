@@ -112,7 +112,7 @@ static void on_result(deck_link_t *ctx, uint32_t seq, uint32_t code, const char 
 	switch (code) {
 	case 200:
 	case 204: snprintf(msg, sizeof msg, "done"); break;
-	case 403: snprintf(msg, sizeof msg, "not allowed yet; on the Mac: agentctl devices scope %s act", s->device_name); break;
+	case 403: snprintf(msg, sizeof msg, "not allowed yet; on the computer: agentctl devices scope %s act", s->device_name); break;
 	case 409: snprintf(msg, sizeof msg, "the prompt changed"); break;
 	default: snprintf(msg, sizeof msg, "%s", error && error[0] ? error : "failed");
 	}

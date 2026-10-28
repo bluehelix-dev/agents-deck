@@ -617,7 +617,7 @@ void main() {
       },
       {
         'id': 'w2',
-        'title': 'find:auth · Suche',
+        'title': 'find:auth · Search',
         'type': 'workflow',
         'tool': 'Read',
       },
@@ -633,7 +633,7 @@ void main() {
     expect(find.text('workflow · 2 agents'), findsOneWidget);
     // In the crew list a workflow agent's phase is its kind.
     expect(find.text('find:auth'), findsOneWidget);
-    expect(find.text('Suche'), findsOneWidget);
+    expect(find.text('Search'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -718,13 +718,13 @@ void main() {
       'name': 'bughunt',
       'phases': [
         {'title': 'Scout', 'running': 0, 'done': 1},
-        {'title': 'Suche', 'running': 2, 'done': 3},
+        {'title': 'Search', 'running': 2, 'done': 3},
         {'title': 'Jury', 'running': 0, 'done': 0},
       ],
     };
     final a = Agent.fromJson(api);
     expect(a.workflow?.current, 1);
-    expect(a.workflow?.line, 'Suche 3/5 · 2 of 3');
+    expect(a.workflow?.line, 'Search 3/5 · 2 of 3');
     await _pumpApp(tester, FakeAgentsSource.fromState(j));
     expect(find.byKey(const Key('agent-tile-workflow')), findsOneWidget);
     // The segments have height: a bar, not a line of nothing.
@@ -734,7 +734,7 @@ void main() {
     );
     expect(seg, findsNWidgets(3));
     expect(tester.getSize(seg.first).height, greaterThan(0));
-    expect(find.text('Suche 3/5 · 2 of 3'), findsOneWidget);
+    expect(find.text('Search 3/5 · 2 of 3'), findsOneWidget);
     await _open(tester, 'checkout-api');
     expect(find.byKey(const Key('agent-workflow')), findsOneWidget);
     expect(find.text('Jury 0/0'), findsOneWidget);

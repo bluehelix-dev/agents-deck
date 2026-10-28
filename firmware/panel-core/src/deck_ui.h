@@ -76,7 +76,7 @@ static inline int wfCurrent(const Agent& a) {
   return -1;
 }
 
-// "Suche 5/5 · 2 of 6": the tile's line while the run is on (AgentWorkflow.line).
+// "Search 5/5 · 2 of 6": the tile's line while the run is on (AgentWorkflow.line).
 static inline void wfLine(const Agent& a, char* out, size_t cap) {
   const int i = wfCurrent(a);
   if (i < 0) { snprintf(out, cap, "workflow" DECK_DOT "starting"); return; }

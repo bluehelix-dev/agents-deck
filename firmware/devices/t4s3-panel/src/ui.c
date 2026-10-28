@@ -981,7 +981,7 @@ static void draw_note(const agents_t *s)
 	switch (s->link) {
 	case LINK_NOT_APPROVED:
 		lv_label_set_text(note_title, "not approved yet");
-		snprintf(b, sizeof b, "on the Mac, run:\n\nagentctl devices approve\n    %s\n\nand to answer from here:\n\nagentctl devices scope\n    %s act",
+		snprintf(b, sizeof b, "on the computer, run:\n\nagentctl devices approve\n    %s\n\nand to answer from here:\n\nagentctl devices scope\n    %s act",
 			 s->device_name, s->device_name);
 		break;
 	case LINK_OFFLINE:
@@ -990,7 +990,7 @@ static void draw_note(const agents_t *s)
 		break;
 	default:
 		lv_label_set_text(note_title, "waiting for the deck");
-		snprintf(b, sizeof b, "on the Mac, run:\n\nagentctl link add <port>\n\n(agentctl link ports lists it)");
+		snprintf(b, sizeof b, "on the computer, run:\n\nagentctl link add <port>\n\n(agentctl link ports lists it)");
 	}
 	lv_label_set_text(note_body, b);
 	lv_obj_align_to(note_body, note_title, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 24);

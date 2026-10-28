@@ -246,7 +246,7 @@ static int renderBig(const std::string& dir, const BigSpec& S, const char* devic
       Agent& a = wf.fleet.agents[i];
       snprintf(a.wfName, sizeof a.wfName, "bughunt");
       a.wfCount = 4;
-      const struct { const char* t; uint8_t run, done; } kPh[] = {{"Scout", 0, 3}, {"Suche", 3, 2}, {"Jury", 0, 0}, {"Bericht", 0, 0}};
+      const struct { const char* t; uint8_t run, done; } kPh[] = {{"Scout", 0, 3}, {"Search", 3, 2}, {"Jury", 0, 0}, {"Report", 0, 0}};
       for (int k = 0; k < 4; k++) {
         snprintf(a.wf[k].title, sizeof a.wf[k].title, "%s", kPh[k].t);
         a.wf[k].running = kPh[k].run;
@@ -257,7 +257,7 @@ static int renderBig(const std::string& dir, const BigSpec& S, const char* devic
       const char* kTools[] = {"Grep", "Read", "Bash", "Grep"};
       for (int k = 0; k < 4; k++) {
         Subagent& s = a.subs[k];
-        snprintf(s.title, sizeof s.title, "find:%s" DECK_DOT "Suche", k == 0 ? "auth" : k == 1 ? "billing" : k == 2 ? "queue" : "retry");
+        snprintf(s.title, sizeof s.title, "find:%s" DECK_DOT "Search", k == 0 ? "auth" : k == 1 ? "billing" : k == 2 ? "queue" : "retry");
         snprintf(s.type, sizeof s.type, "workflow");
         snprintf(s.tool, sizeof s.tool, "%s", kTools[k]);
         s.startedAt = now - 40 - 25 * k;

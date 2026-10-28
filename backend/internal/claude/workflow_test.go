@@ -21,9 +21,9 @@ func TestWorkflow(t *testing.T) {
   description: 'x',
   phases: [
     { title: 'Scout', detail: 'one' },
-    { title: 'Suche', detail: 'many' },
+    { title: 'Search', detail: 'many' },
     { title: 'Jury', detail: 'three each' },
-    { title: 'Kritiker' },
+    { title: 'Critic' },
   ],
 }
 const DIMENSIONS = [{ title: 'not a phase' }]
@@ -47,14 +47,14 @@ const DIMENSIONS = [{ title: 'not a phase' }]
 	write(`{"type":"launched"}`,
 		`{"type":"started","agentId":"a1","label":"scout","phase":"Scout"}`,
 		`{"type":"result","agentId":"a1","result":{}}`,
-		`{"type":"started","agentId":"b1","label":"find:x","phase":"Suche"}`,
-		`{"type":"started","agentId":"b2","label":"find:y","phase":"Suche"}`,
+		`{"type":"started","agentId":"b1","label":"find:x","phase":"Search"}`,
+		`{"type":"started","agentId":"b2","label":"find:y","phase":"Search"}`,
 		`{"type":"result","agentId":"b1","result":{}}`)
 	wf := Workflow(tr, time.Minute)
 	if wf == nil || wf.Name != "bughunt" {
 		t.Fatalf("workflow: %+v", wf)
 	}
-	want := []string{"Scout", "Suche", "Jury", "Kritiker"}
+	want := []string{"Scout", "Search", "Jury", "Critic"}
 	if len(wf.Phases) != len(want) {
 		t.Fatalf("phases: %+v", wf.Phases)
 	}
@@ -96,7 +96,7 @@ const DIMENSIONS = [{ title: 'not a phase' }]
 
 	// Agents "running" in a journal that hasn't moved for half an hour: the
 	// run died with the session; gone.
-	write(`{"type":"started","agentId":"z1","label":"stuck","phase":"Suche"}`)
+	write(`{"type":"started","agentId":"z1","label":"stuck","phase":"Search"}`)
 	stale := time.Now().Add(-40 * time.Minute)
 	if err := os.Chtimes(journal, stale, stale); err != nil {
 		t.Fatal(err)
@@ -112,9 +112,9 @@ const DIMENSIONS = [{ title: 'not a phase' }]
 	}
 	now := time.Now()
 	_ = os.Chtimes(journal, now, now)
-	write(`{"type":"started","agentId":"d1","label":"again","phase":"Suche"}`)
+	write(`{"type":"started","agentId":"d1","label":"again","phase":"Search"}`)
 	wf = Workflow(tr, time.Minute)
-	if wf == nil || wf.Name != "wf_1" || wf.Phases[0].Title != "Scout" || wf.Phases[1].Title != "Suche" || len(wf.Phases) != 3 {
+	if wf == nil || wf.Name != "wf_1" || wf.Phases[0].Title != "Scout" || wf.Phases[1].Title != "Search" || len(wf.Phases) != 3 {
 		t.Fatalf("without the script: %+v", wf)
 	}
 }
@@ -137,7 +137,7 @@ func TestWorkflowPhasesFromTheRunsScript(t *testing.T) {
 	}
 	src := `export const meta = {
   name: 'vier',
-  phases: [{ title: 'Scout' }, { title: 'Suche' }, { title: 'Prüfen' }, { title: 'Bericht' }],
+  phases: [{ title: 'Scout' }, { title: 'Search' }, { title: 'Verify' }, { title: 'Report' }],
 }
 `
 	if err := os.WriteFile(filepath.Join(scripts, "vier-wf_9.js"), []byte(src), 0o600); err != nil {
@@ -148,7 +148,7 @@ func TestWorkflowPhasesFromTheRunsScript(t *testing.T) {
 		t.Fatal(err)
 	}
 	wf := Workflow(tr, time.Minute)
-	if wf == nil || wf.Name != "vier" || len(wf.Phases) != 4 || wf.Phases[3].Title != "Bericht" {
+	if wf == nil || wf.Name != "vier" || len(wf.Phases) != 4 || wf.Phases[3].Title != "Report" {
 		t.Fatalf("phases from the run's script: %+v", wf)
 	}
 }

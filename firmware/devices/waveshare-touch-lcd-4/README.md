@@ -19,7 +19,7 @@ Flutter UI with every size times 2/3 (`layout_big.h`).
     "done · 12m") and the context along the border. Free cells stay dark.
   - Subagents at work climb the tile's right edge as small critters, the newest on top; four fit,
     "+N" counts the rest. Delegating, the critter conducts them with a baton.
-  - A running workflow shows its phases as a blue bar and "Suche 2/5 · 2 of 4", and the tile
+  - A running workflow shows its phases as a blue bar and "Search 2/5 · 2 of 4", and the tile
     twinkles blue.
   - Orange means it needs you; stripes and "ready" mean a finished turn you haven't looked at. The
     flag of a turn that just finished is waved in orange.

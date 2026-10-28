@@ -597,7 +597,7 @@ static inline void tile(Canvas& c, const BigSpec& S, const Theme& T, const Agent
   // above them counts the rest. The session steps left to make room.
   int ladder = 0;
   if (a.subagents) {
-    ladder = d(36 + 2);
+    ladder = 18 * S.subScale + d(2);                // the minis' own width: the title keeps its room
     const int s = S.subScale, n = a.subCount ? (a.subCount < 4 ? a.subCount : 4) : 1;
     const int more = a.subagents - n;
     const int x = r.x + r.w - d(2) - 18 * s;
@@ -629,7 +629,7 @@ static inline void tile(Canvas& c, const BigSpec& S, const Theme& T, const Agent
   // Title (mono 16) at 30 + 92 x 13/18 + 14; then the status line, or a
   // running workflow's bar and line in its blue.
   const int titleTop = oy + d(30 + 92.f * 13 / 18 + 14);
-  const int tw = cw - 2 * d(10);
+  const int tw = cw - 2 * (ladder ? d(4) : d(10));
   auto centred = [&](const Font& f, int top, const char* t, uint16_t col) {
     const int w = textW(f, t) < tw ? textW(f, t) : (tw / f.cellW) * f.cellW;
     textAt(c, f, cx - w / 2, top, t, col, tw);
@@ -642,6 +642,10 @@ static inline void tile(Canvas& c, const BigSpec& S, const Theme& T, const Agent
     workflowBar(c, T, a, cx - bw / 2, y, bw, bh, fill, cc(k.meta), d(3) < 1 ? 1 : d(3));
     y += bh + d(5);
     wfLine(a, meta, sizeof meta);
+    const int cur = wfCurrent(a);
+    if (textW(*S.tileMeta, meta) > tw && cur >= 0)   // too long: the phase alone; the bar shows where it is
+      snprintf(meta, sizeof meta, "%s %u/%u", a.wf[cur].title, (unsigned)a.wf[cur].done,
+               (unsigned)(a.wf[cur].done + a.wf[cur].running));
     centred(*S.tileMeta, y, meta, cc(T.workflow));
   } else {
     metaLine(a, now, meta, sizeof meta, true);
@@ -1131,14 +1135,14 @@ static inline void drawBig(Canvas& c, const BigSpec& S, const Theme& T, const Pa
         if (n.problem) notice(c, S, T, Pose::Exit, n.title, nullptr, n.line1, n.line2, in.ms);
         else notice(c, S, T, Pose::Think, n.title, n.line1, nullptr, n.line2, in.ms);
       } else {
-        notice(c, S, T, Pose::Think, "connecting to the deck", "plugged into the Mac?", "agentctl link add <port>",
+        notice(c, S, T, Pose::Think, "connecting to the deck", "plugged into the computer?", "agentctl link add <port>",
                nullptr, in.ms);
       }
       if (tu) toast(c, S, T, tu->toast, true);
       return;
     case LinkState::Unapproved:
       snprintf(buf, sizeof buf, "agentctl devices approve %s", in.device && in.device[0] ? in.device : "<name>");
-      notice(c, S, T, Pose::Wait, "waiting for approval", "on the Mac, run", buf, nullptr, in.ms);
+      notice(c, S, T, Pose::Wait, "waiting for approval", "on the computer, run", buf, nullptr, in.ms);
       if (tu) toast(c, S, T, tu->toast, true);
       return;
     default: break;

@@ -94,7 +94,7 @@ The full state is small (≤ a few KB per agent), so there are no deltas.
   "app": "orca",                  // omitted for agentctl's own: the app an external agent runs in: "orca" (the Orca app), "herdr" or "cmux";
                                   // focus switches to its terminal there, answer and interrupt work; dismiss hides it until it's active
   "workflow": { "name": "bughunt",   // omitted when none: the Workflow run it has going, phases in the script's order
-                "phases": [{ "title": "Scout", "running": 0, "done": 1 }, { "title": "Suche", "running": 5, "done": 0 }] },
+                "phases": [{ "title": "Scout", "running": 0, "done": 1 }, { "title": "Search", "running": 5, "done": 0 }] },
   "hat": { "shape": "propeller", "color": "blue", "auto": true }, // omitted when none: the pixel hat for its working folder;
                                   // shape: hard hat, cap, beanie, helmet, wizard, beret, chef, crown, headphones,
                                   // propeller, top hat, cowboy, bandana, pirate, viking, sombrero, fez, party hat,

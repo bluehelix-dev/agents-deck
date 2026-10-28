@@ -147,7 +147,7 @@ class AgentWorkflow {
     return i;
   }
 
-  /// "Suche 5/5 · 2 of 6": the tile's line while the run is on.
+  /// "Search 5/5 · 2 of 6": the tile's line while the run is on.
   String get line {
     final i = current;
     if (i < 0) return 'workflow · starting';
