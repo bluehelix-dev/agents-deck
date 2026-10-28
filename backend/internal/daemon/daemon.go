@@ -202,8 +202,10 @@ func (d *Daemon) enableFocusReports(list []tmux.Client) {
 	}
 }
 
-// subagents tracks the session's working subagents, and shows an idle agent
-// as running while any are left, back to idle once they are done or quiet.
+// subagents tracks the session's working subagents and the commands it has
+// running in the background (Bash in the background, a Monitor), and shows
+// an idle agent as running while any are left, back to idle once they are
+// done or quiet.
 func (d *Daemon) subagents(e *store.Entry) bool {
 	if e.A.Status != model.Running && e.A.Status != model.Waiting {
 		e.Background = false
@@ -215,19 +217,22 @@ func (d *Daemon) subagents(e *store.Entry) bool {
 		e.A.Workflow = wf
 		changed = true
 	}
+	tasks := claude.BackgroundTasks(e.Transcript, 2*time.Hour)
+	busy := len(subs) > 0 || len(tasks) > 0
 	switch {
-	case len(subs) > 0 && e.A.Status == model.Idle:
+	case busy && e.A.Status == model.Idle:
 		e.SetStatus(model.Running)
 		e.Background = true
 		changed = true
-	case len(subs) == 0 && e.Background:
+	case !busy && e.Background:
 		e.SetStatus(model.Idle)
 		e.Background = false
 		changed = true
 	}
 	// A session that runs for its subagents shows them; so does one running
-	// by Claude's own account with nothing of its own going on.
-	if e.Background || (e.A.Status == model.Running && len(subs) > 0 && (e.A.Activity == nil || subagentActivity(e.A.Activity))) {
+	// by Claude's own account with nothing of its own going on. One waiting
+	// on its background commands alone shows the command.
+	if e.Background || (e.A.Status == model.Running && busy && (e.A.Activity == nil || subagentActivity(e.A.Activity))) {
 		detail, tool := "1 subagent working", claude.SubagentTool
 		if len(subs) != 1 {
 			detail = fmt.Sprintf("%d subagents working", len(subs))
@@ -238,11 +243,14 @@ func (d *Daemon) subagents(e *store.Entry) bool {
 				detail += " · " + phase
 			}
 		}
+		if len(subs) == 0 && len(tasks) > 0 {
+			tool, detail = tasks[0].Tool, claude.TasksDetail(tasks)
+		}
 		if e.A.Activity == nil || e.A.Activity.Detail != detail {
 			e.A.Activity = &model.Activity{Tool: tool, Detail: detail}
 			changed = true
 		}
-	} else if len(subs) == 0 && subagentActivity(e.A.Activity) {
+	} else if !busy && subagentActivity(e.A.Activity) {
 		e.A.Activity = nil // they are done; the session goes on as Claude reports it
 		changed = true
 	}
@@ -250,9 +258,10 @@ func (d *Daemon) subagents(e *store.Entry) bool {
 }
 
 // subagentActivity tells the activity subagents sets ("N subagents working",
-// "workflow · …") from a tool call of the session's own.
+// "workflow · …", "in the background · …") from a tool call of the session's
+// own.
 func subagentActivity(a *model.Activity) bool {
-	return a != nil && (a.Tool == claude.SubagentTool || a.Tool == "Workflow") && strings.Contains(a.Detail, "working")
+	return a != nil && ((a.Tool == claude.SubagentTool || a.Tool == "Workflow") && strings.Contains(a.Detail, "working") || claude.IsTaskActivity(a))
 }
 
 func sameWorkflow(a, b *model.Workflow) bool {
