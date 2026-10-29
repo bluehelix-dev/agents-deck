@@ -376,6 +376,9 @@ class SubagentLadder extends StatelessWidget {
   /// The ladder's width on the tile's 170 px design: a 36 px mini.
   static const width = 36.0;
 
+  /// Its gap to the tile's right and bottom edge, clear of the context ring.
+  static const inset = 8.0;
+
   final List<AgentSubagent> subagents;
   final AgentHat? hat;
   final Color body;
@@ -561,8 +564,8 @@ class _AgentTileState extends State<AgentTile> {
                           children: [
                             if (a.subagents.isNotEmpty)
                               Positioned(
-                                right: 2,
-                                bottom: 8,
+                                right: SubagentLadder.inset,
+                                bottom: SubagentLadder.inset,
                                 child: SubagentLadder(
                                   subagents: a.subagents,
                                   hat: a.hat,
@@ -575,7 +578,8 @@ class _AgentTileState extends State<AgentTile> {
                               padding: EdgeInsets.only(
                                 right: a.subagents.isEmpty
                                     ? 0
-                                    : SubagentLadder.width + 2,
+                                    : SubagentLadder.width +
+                                          SubagentLadder.inset,
                               ),
                               child: Column(
                                 children: [
