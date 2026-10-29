@@ -86,6 +86,22 @@ const DIMENSIONS = [{ title: 'not a phase' }]
 	if wf := Workflow(tr, time.Minute); wf == nil {
 		t.Fatal("a run that just finished should still show")
 	}
+	// Its own notification doesn't end it; the user's next prompt does.
+	ts := func(d time.Duration) string { return time.Now().Add(d).UTC().Format(time.RFC3339Nano) }
+	addLine := func(line string) {
+		f, _ := os.OpenFile(tr, os.O_APPEND|os.O_WRONLY, 0o600)
+		_, _ = f.WriteString(line + "\n")
+		f.Close()
+	}
+	addLine(`{"type":"user","timestamp":"` + ts(time.Second) + `","message":{"content":"<task-notification><task-id>wf</task-id></task-notification>"}}`)
+	addLine(`{"type":"user","timestamp":"` + ts(time.Second) + `","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"done"}]}}`)
+	if wf := Workflow(tr, time.Minute); wf == nil {
+		t.Fatal("the run's notification ended it")
+	}
+	addLine(`{"type":"user","timestamp":"` + ts(2*time.Second) + `","message":{"content":"next task"}}`)
+	if wf := Workflow(tr, time.Minute); wf != nil {
+		t.Fatalf("a finished run after the next prompt: %+v", wf)
+	}
 	old := time.Now().Add(-5 * time.Minute)
 	if err := os.Chtimes(journal, old, old); err != nil {
 		t.Fatal(err)

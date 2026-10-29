@@ -18,8 +18,8 @@ import (
 // The run's journal (subagents/workflows/<run>/journal.jsonl) has every
 // agent's start and result with its phase; the phases still ahead come from
 // the script's meta, found through the Workflow call in the transcript. Nil
-// when there is no run, or the last one has been quiet for longer than
-// window with nothing running.
+// when there is no run, or the last one is over (nothing running) and has
+// been quiet for longer than window or the user has sent a prompt since.
 func Workflow(transcript string, window time.Duration) *model.Workflow {
 	if transcript == "" {
 		return nil
@@ -60,8 +60,8 @@ func Workflow(transcript string, window time.Duration) *model.Workflow {
 	for _, p := range wf.Phases {
 		running += p.Running
 	}
-	if running == 0 && time.Since(newest) > window {
-		return nil // over, and shown long enough
+	if running == 0 && (time.Since(newest) > window || promptSince(transcript, newest)) {
+		return nil // over, and shown long enough or on to the next task
 	}
 	return wf
 }
@@ -69,6 +69,58 @@ func Workflow(transcript string, window time.Duration) *model.Workflow {
 // abandoned: a run whose journal hasn't moved for this long is over, whatever
 // it last said (a session that died mid-run never writes its results).
 const abandoned = 30 * time.Minute
+
+// promptSince tells whether the user has sent a prompt after t: a user
+// message of their own in the transcript's tail, not a tool result, a
+// background task's notification or a message Claude Code adds itself.
+func promptSince(transcript string, t time.Time) bool {
+	buf := lastBytes(transcript, 256<<10)
+	lines := bytes.Split(buf, []byte("\n"))
+	var m struct {
+		Type      string `json:"type"`
+		IsMeta    bool   `json:"isMeta"`
+		Timestamp string `json:"timestamp"`
+		Message   *struct {
+			Content json.RawMessage `json:"content"`
+		} `json:"message"`
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !bytes.Contains(lines[i], []byte(`"user"`)) {
+			continue
+		}
+		m.Type, m.IsMeta, m.Timestamp, m.Message = "", false, "", nil
+		if json.Unmarshal(lines[i], &m) != nil || m.Type != "user" || m.IsMeta || m.Message == nil {
+			continue
+		}
+		at, err := time.Parse(time.RFC3339Nano, m.Timestamp)
+		if err != nil {
+			continue
+		}
+		if !at.After(t) {
+			return false // older lines are older still
+		}
+		var text string
+		if json.Unmarshal(m.Message.Content, &text) != nil {
+			var blocks []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			}
+			if json.Unmarshal(m.Message.Content, &blocks) != nil {
+				continue
+			}
+			for _, b := range blocks {
+				if b.Type == "text" {
+					text += b.Text
+				}
+			}
+		}
+		text = strings.TrimSpace(text)
+		if text != "" && !strings.HasPrefix(text, "<task-notification>") && !strings.HasPrefix(text, "<system-reminder>") {
+			return true
+		}
+	}
+	return false
+}
 
 type phaseCount struct{ running, done int }
 

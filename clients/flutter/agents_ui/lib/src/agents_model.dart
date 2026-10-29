@@ -147,12 +147,12 @@ class AgentWorkflow {
     return i;
   }
 
-  /// "Search 5/5 · 2 of 6": the tile's line while the run is on.
+  /// "Search 5/5": the tile's line while the run is on.
   String get line {
     final i = current;
     if (i < 0) return 'workflow · starting';
     final p = phases[i];
-    return '${p.title} ${p.done}/${p.done + p.running} · ${i + 1} of ${phases.length}';
+    return '${p.title} ${p.done}/${p.done + p.running}';
   }
 }
 

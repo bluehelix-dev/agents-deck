@@ -76,13 +76,12 @@ static inline int wfCurrent(const Agent& a) {
   return -1;
 }
 
-// "Search 5/5 · 2 of 6": the tile's line while the run is on (AgentWorkflow.line).
+// "Search 5/5": the tile's line while the run is on (AgentWorkflow.line).
 static inline void wfLine(const Agent& a, char* out, size_t cap) {
   const int i = wfCurrent(a);
   if (i < 0) { snprintf(out, cap, "workflow" DECK_DOT "starting"); return; }
   const WorkflowPhase& p = a.wf[i];
-  snprintf(out, cap, "%s %u/%u" DECK_DOT "%d of %u", p.title, (unsigned)p.done, (unsigned)(p.done + p.running), i + 1,
-           (unsigned)a.wfCount);
+  snprintf(out, cap, "%s %u/%u", p.title, (unsigned)p.done, (unsigned)(p.done + p.running));
 }
 
 static inline Look lookOf(const Theme& t, const Agent& a) {

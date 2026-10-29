@@ -173,7 +173,7 @@ int main() {
     assert(wfCurrent(a) == 1);
     char line[48];
     wfLine(a, line, sizeof line);
-    assert(!strcmp(line, "phase 1 0/3" DECK_DOT "2 of 6"));
+    assert(!strcmp(line, "phase 1 0/3"));
     assert(!strcmp(kHatShapes[a.hat - 1], "propeller") && !strcmp(kHatColors[a.hatColor], "blue"));
 
     // No hat, an unknown shape, an unknown colour; a Claude agent with nothing else.

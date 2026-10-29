@@ -123,7 +123,7 @@ function workflowLine(w) {
   const i = workflowPhase(w);
   if (i < 0) return 'workflow · starting';
   const p = ps[i];
-  return `${p.title} ${p.done}/${p.done + p.running} · ${i + 1} of ${ps.length}`;
+  return `${p.title} ${p.done}/${p.done + p.running}`;
 }
 // The tile's bar: one segment per phase, done ones dimmed, the running one lit.
 function workflowBar(t, w) {

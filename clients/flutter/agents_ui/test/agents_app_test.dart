@@ -796,7 +796,7 @@ void main() {
     };
     final a = Agent.fromJson(api);
     expect(a.workflow?.current, 1);
-    expect(a.workflow?.line, 'Search 3/5 · 2 of 3');
+    expect(a.workflow?.line, 'Search 3/5');
     await _pumpApp(tester, FakeAgentsSource.fromState(j));
     expect(find.byKey(const Key('agent-tile-workflow')), findsOneWidget);
     // The segments have height: a bar, not a line of nothing.
@@ -806,14 +806,20 @@ void main() {
     );
     expect(seg, findsNWidgets(3));
     expect(tester.getSize(seg.first).height, greaterThan(0));
-    expect(find.text('Search 3/5 · 2 of 3'), findsOneWidget);
+    expect(find.text('Search 3/5'), findsOneWidget);
     await _open(tester, 'checkout-api');
     // The card on the 720 px panel, with three other subagents sharing the
     // room: the phases on one line, the running one in blue, a phase to
     // come without a count.
     expect(find.byKey(const Key('agent-workflow')), findsOneWidget);
     expect(find.byKey(const Key('agent-workflow-line')), findsOneWidget);
-    expect(find.text('Search 3/5'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('agent-workflow')),
+        matching: find.text('Search 3/5'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Jury'), findsOneWidget);
     expect(find.text('Jury 0/0'), findsNothing);
     expect(tester.takeException(), isNull);
