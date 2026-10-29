@@ -2,6 +2,7 @@ package link
 
 import (
 	"encoding/hex"
+	"errors"
 	"log"
 	"net/http"
 	"strings"
@@ -56,7 +57,20 @@ func (d ServerDeck) AutoApprove(dev devices.Device, port string) (devices.Device
 // Pair issues the board's Wi-Fi certificate (server.PairBoard) and says
 // where to use it: the network listener's names and addresses, its port and
 // its certificate's fingerprint, and the deck's CA.
+//
+// A board that already has a certificate, or whose scope is above what a new
+// board would get over USB, is refused unless you opened pairing for it
+// (devices.Registry.CanPair): over USB the board is only the id it claims. The
+// refusal is audited, since it may be another device posing as the board.
 func (d ServerDeck) Pair(dev devices.Device, csr []byte) (*linkpb.CertIssued, int, string) {
+	if d.S.CA != nil && d.S.Devices != nil {
+		if err := d.S.Devices.CanPair(dev.Name); errors.Is(err, devices.ErrPaired) || errors.Is(err, devices.ErrPairNeedsOK) {
+			d.S.Audit.Log(devices.AuditEntry{Device: dev.Name, Action: "pair (deck link)", Status: http.StatusForbidden,
+				Detail: "refused over USB: " + err.Error()})
+			log.Printf("link: %s asked for a Wi-Fi certificate over USB: refused (%v)", dev.Name, err)
+			return nil, http.StatusForbidden, err.Error()
+		}
+	}
 	cert, serial, code, err := d.S.PairBoard(dev, csr)
 	if err != nil {
 		return nil, code, err.Error()

@@ -83,7 +83,10 @@ board                                   deck
 ```
 
 - **Hello** must be the board's first frame and is sent again after every reset. A second `Hello`
-  starts the conversation over (new `Welcome`, the board subscribes again).
+  starts the conversation over (new `Welcome`, the board subscribes again). A `board_id` longer than
+  39 bytes or with control characters is ignored. The deck drops control characters (line breaks,
+  escape sequences) from `type` and `firmware`, and from `NetStatus.ssid` and `ip`, and cuts them to
+  their sizes in `link.options` before it logs, stores or shows them.
 - **Approval.** A new board on a registered USB port (`agentctl link add`) is approved at once, scope
   `act`: physical USB on a port you registered is treated as your consent. The audit log says
   `approved automatically over USB on <port>`. It never happens over Wi-Fi or for `agentctl link sim`, a
@@ -122,7 +125,7 @@ the request's `seq`: `Result` (the web API's status code and error text) or a ty
 | `GetState` | `GET /v1/state` | view | the snapshot again, then `Result 204` |
 | `ListHats` | `GET /v1/hats` | view | `HatList` |
 | `ListAccounts` | `GET /v1/accounts` | view | `AccountList` |
-| `Answer {agent_id, prompt_id, key}` | `POST /v1/agents/{id}/answer` | act | `Result`: 204; 409 if the prompt changed; 400 if `key` isn't an option |
+| `Answer {agent_id, prompt_id, key}` | `POST /v1/agents/{id}/answer` | act | `Result`: 204; 409 if the prompt changed; 400 if `key` isn't an option; 403 if the prompt was too long to show on the board ([Limits](#limits)) |
 | `Focus`, `Interrupt` `{agent_id}` | `POST /v1/agents/{id}/focus`, `…/interrupt` | act | `Result` |
 | `Move {agent_id, slot}` | `POST /v1/agents/{id}/move` | act | `Result` |
 | `Order {agent_ids}` | `POST /v1/order` | act | `Result` |
@@ -156,9 +159,19 @@ board                                   deck
 - The board makes an EC P-256 key **on the chip** (it never leaves it) and sends a certificate signing
   request for it, `CertRequest.csr` (DER, or PEM; at most 600 bytes).
 - Only an approved board gets a certificate, and only over USB serial: anything else gets a `Result`
-  (403 not approved or not on USB, 400 a bad request, 503 the network listener is off). The deck signs
-  it with its CA (the one in the Keychain, [protocol.md](../protocol.md#devices-and-security)) and
-  records it on the board's own entry in `devices.json`.
+  (403 not approved, not on USB or not allowed to pair, 400 a bad request, 503 the network listener is
+  off). The deck signs it with its CA (the one in the Keychain,
+  [protocol.md](../protocol.md#devices-and-security)) and records it on the board's own entry in
+  `devices.json`.
+- Over USB a board is only the `board_id` it says it is, so the deck never lets a USB connection
+  replace a certificate: a board that already has one gets 403 "already paired" until you run
+  `agentctl link pair <board>`, and the refusal goes to the audit log (it may be another device
+  claiming the board's id). A board without a certificate pairs at once if a new board plugged in
+  would get the same scope anyway (USB auto-approve on, its scope no higher). Otherwise (scope
+  `admin`, or auto-approve off) it pairs only within 10 minutes of you approving it
+  (`agentctl devices approve`) or running `agentctl link pair <board>`; after that it gets 403
+  "pairing needs your OK". A board that lost its certificate (erased or reflashed) also needs
+  `agentctl link pair <board>`.
 - `CertIssued` says where to use it: `hosts` are the Mac's `.local` name, then its LAN addresses (at
   most 4); `port` is the network listener's (7341); `server_fingerprint` is the SHA-256 of the
   listener's certificate (32 bytes); `ca` is the deck's CA (DER). The board keeps all of it with the
@@ -166,7 +179,7 @@ board                                   deck
 - `Welcome.cert_serial` is the certificate the deck holds for the board (`""` for none). A board whose
   stored certificate has the same serial doesn't ask again; one with none or another asks, with a
   new key. `agentctl link pair <board>` makes the deck forget it: the board pairs again the next time it
-  is on USB. Revoking a board (`agentctl devices revoke`) also drops its certificate for good;
+  is on USB (within 10 minutes when its scope needs your OK, see above). Revoking a board (`agentctl devices revoke`) also drops its certificate for good;
   approved again, it pairs again over USB.
 - The board's key and certificate live in its flash (NVS on an ESP32). NVS isn't encrypted unless you
   enable flash encryption (and NVS encryption): someone holding the board can read them, and the Wi-Fi
@@ -209,7 +222,8 @@ agentctl link wifi --forget-default                   # boards keep what they ha
 The daemon keeps the default's password in the OS secret store (the macOS login Keychain, service
 `dev.agents-deck`, item `wifi-default`; a 0600 file under the data folder's `keys/` elsewhere), never in
 `config.json`, a log or the audit log (`wifi default set` / `wifi default cleared`, nothing more).
-When an approved board on a registered USB port has paired (`NetStatus.has_cert`) and reports no
+When an approved board on a registered USB port has paired (the deck holds a certificate for it, and
+the board says so with `NetStatus.has_cert`) and reports no
 network (`WIFI_NOT_SET`) or another one than the default (`NetStatus.ssid`), the deck sends it
 `WifiConfig` with the default, as above:
 
@@ -253,8 +267,11 @@ From then on the connection carries the same binary frames as USB (Hello, Welcom
 
 - The certificate is the board's identity: its `Hello.board_id` must be the board id of the device the
   certificate belongs to (otherwise `Result 403` and the connection closes), and the session ends as
-  soon as the device is revoked or pairs again. A revoked board fails the TLS handshake; the board
-  shows "certificate rejected · pair again over USB".
+  soon as the device is revoked or pairs again. The deck refuses a revoked board's certificate right
+  after the TLS handshake; the board shows "certificate rejected · pair again over USB" and asks the
+  deck again only every 10 minutes until it is paired again over USB. An alert that arrives during
+  the handshake, before the deck has proved who it is, is not a refusal: anyone on the network can
+  send one, so the board counts it as a failed connection, tries the next host and retries as usual.
 - `CertRequest` and `WifiConfig` are refused over Wi-Fi: pairing and credentials go over USB only.
 - The deck pings every 5 s as usual and closes a Wi-Fi session that has been silent for 30 s.
 - `hosts` are tried in order: the `.local` name (mDNS on the board), then the addresses.
@@ -288,6 +305,10 @@ and checks these are documented here.
 
 The deck clips text to the sizes in `link.options` (on a UTF-8 boundary, ending in "…") and sends at
 most the number of list items given there (for example 6 prompt options, 6 subagents). Firmware built
-with nanopb from the same file can therefore use fixed buffers and never sees a field it can't hold. A
+with nanopb from the same file can therefore use fixed buffers and never sees a field it can't hold.
+A prompt's `detail` that doesn't fit (512 bytes, or less for a board with small frames) ends in
+"… (too long to show here: answer on the phone or at the terminal)" instead, and the deck refuses an
+`Answer` to that prompt from the board (`Result 403`): what it would allow may be in the part the
+board never showed. Answer it on the phone, the web dashboard or the terminal. A
 CI test fails if the Go limits and `link.options` disagree, and another if any web API endpoint or
 Agent field has no Deck Link counterpart.

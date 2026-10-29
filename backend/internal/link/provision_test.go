@@ -3,6 +3,7 @@ package link
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http/httptest"
@@ -23,17 +24,19 @@ import (
 const testPort = "/dev/cu.usbmodem-test"
 
 // usbBoard is a fake round board on a registered USB port, as the firmware
-// behaves: once approved it pairs (CertRequest), then reports its network
+// behaves: once approved it pairs (CertRequest) unless the deck's Welcome
+// names the certificate it already holds, then reports its network
 // (NetStatus); given Wi-Fi credentials it answers 204, tries them and reports
-// how it went (try).
+// how it went (try). It keeps its certificate when unplugged (kept).
 type usbBoard struct {
 	*Board
-	t    *testing.T
-	mu   sync.Mutex
-	cert bool
-	ssid string
-	got  []*linkpb.WifiConfig
-	try  func(w *linkpb.WifiConfig) linkpb.WifiState // the outcome of trying a network
+	t      *testing.T
+	mu     sync.Mutex
+	cert   bool
+	serial string // the certificate it holds
+	ssid   string
+	got    []*linkpb.WifiConfig
+	try    func(w *linkpb.WifiConfig) linkpb.WifiState // the outcome of trying a network
 }
 
 func (b *usbBoard) status(w linkpb.WifiState, ip string) {
@@ -75,7 +78,11 @@ func plugIn(t *testing.T, m *Manager, boardID string, startSSID string, try func
 	s.RecheckEvery, s.Debounce = 50*time.Millisecond, 20*time.Millisecond
 	done := make(chan struct{})
 	go func() { _ = s.Run(ctx); close(done) }()
+	keep := fmt.Sprintf("%p|%s", m, boardID)
 	b := &usbBoard{t: t, ssid: startSSID, try: try}
+	if v, ok := kept.Load(keep); ok {
+		b.serial = v.(string)
+	}
 	b.Board = NewBoard(boardEnd, &linkpb.Hello{Protocol: 1, BoardId: boardID, Type: "waveshare-touch-lcd-21", Firmware: "1"}, 1)
 	b.Wifi = func(w *linkpb.WifiConfig) (uint32, string) {
 		b.mu.Lock()
@@ -87,15 +94,22 @@ func plugIn(t *testing.T, m *Manager, boardID string, startSSID string, try func
 	b.Event = func(f *linkpb.Frame) {
 		switch x := f.Body.(type) {
 		case *linkpb.Frame_Welcome:
-			if x.Welcome.Approved && !b.welcomed() {
+			b.mu.Lock()
+			current := b.serial != "" && b.serial == x.Welcome.CertSerial
+			if current {
+				b.cert = true
+			}
+			b.mu.Unlock()
+			if x.Welcome.Approved && !current {
 				_, csr := csrFor(t)
 				b.Send(certReq(0, csr))
 			}
 			b.status(b.resting(), "")
 		case *linkpb.Frame_CertIssued:
 			b.mu.Lock()
-			b.cert = true
+			b.cert, b.serial = true, x.CertIssued.CertSerial
 			b.mu.Unlock()
+			kept.Store(keep, x.CertIssued.CertSerial)
 			b.status(b.resting(), "")
 		case *linkpb.Frame_WifiConfig: // the Result has gone: now it tries the network
 			go func() {
@@ -112,6 +126,9 @@ func plugIn(t *testing.T, m *Manager, boardID string, startSSID string, try func
 	go func() { _ = b.Run() }()
 	return b, func() { cancel(); deckEnd.Close(); boardEnd.Close(); <-done }
 }
+
+// kept is each fake board's certificate serial across plug-ins (its flash).
+var kept sync.Map
 
 func works(*linkpb.WifiConfig) linkpb.WifiState { return linkpb.WifiState_WIFI_IDLE }
 

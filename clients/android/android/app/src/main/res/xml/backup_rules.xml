@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and older: the pairing bundle (it holds the phone's private key) stays out of backup. -->
+<full-backup-content>
+    <exclude domain="file" path="agents.json"/>
+</full-backup-content>

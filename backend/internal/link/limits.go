@@ -2,6 +2,7 @@ package link
 
 import (
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -83,6 +84,28 @@ func clipMessage(m protoreflect.Message) {
 	})
 }
 
+// promptCut ends a prompt's detail that had to be cut for the board. The
+// board refuses nothing by itself, so the deck refuses an Answer from Deck
+// Link to such a prompt (Session.command): what it would allow may be in the
+// part the board never showed.
+const promptCut = "… (too long to show here: answer on the phone or at the terminal)"
+
+// clipDetail fits a prompt's detail in size bytes (NUL included), ending a
+// cut one in promptCut; with no room for any text, only the note is left.
+func clipDetail(s string, size int) string {
+	if len(s) <= size-1 {
+		return s
+	}
+	cut := size - 1 - len(promptCut)
+	if cut <= 0 {
+		return strings.TrimPrefix(promptCut, "… ")
+	}
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return strings.TrimRight(s[:cut], " ") + promptCut
+}
+
 // clipString fits s in a buffer of size bytes (NUL included), cutting on a
 // rune boundary and ending in "…".
 func clipString(s string, size int) string {
@@ -99,4 +122,44 @@ func clipString(s string, size int) string {
 		cut--
 	}
 	return strings.TrimRight(s[:cut], " ") + ell
+}
+
+// cleanString makes a string a board sent safe to log, store and print: no
+// control characters (C0 and C1, CR, LF, ESC, DEL), no direction marks or
+// overrides and no invisible characters (unsafeRune), cut to its link.options size like the board's own buffer.
+func cleanString(s string, size int) string {
+	if strings.IndexFunc(s, unsafeRune) >= 0 {
+		s = strings.Map(func(r rune) rune {
+			if unsafeRune(r) {
+				return -1
+			}
+			return r
+		}, s)
+	}
+	return clipString(s, size)
+}
+
+// unsafeRune: what cleanString drops. It covers at least what agentctl's
+// printable escapes (cmd/agentctl/sanitize.go), plus invisible characters.
+func unsafeRune(r rune) bool {
+	if unicode.IsControl(r) || r == utf8.RuneError { // C0, DEL, C1, bad UTF-8
+		return true
+	}
+	switch {
+	case r == 0x061c, r >= 0x200b && r <= 0x200f, // direction marks, zero-width characters
+		r >= 0x202a && r <= 0x202e, // embeddings and overrides
+		r >= 0x2066 && r <= 0x2069, // isolates
+		r == 0x2028, r == 0x2029,   // line and paragraph separators
+		r == 0xfeff,                  // zero-width no-break space
+		r >= 0xe0000 && r <= 0xe007f: // tags
+		return true
+	}
+	return false
+}
+
+// validBoardID: a board id is the board's name in the registry, so it is
+// refused rather than cleaned (two ids must never become one): it fits
+// Hello.board_id and has no control characters.
+func validBoardID(id string) bool {
+	return id != "" && len(id) < limits["Hello.board_id"].size && utf8.ValidString(id) && strings.IndexFunc(id, unsafeRune) < 0
 }

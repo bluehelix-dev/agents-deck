@@ -41,7 +41,7 @@ Tap a tile for its card:
 | | |
 |---|---|
 | **Menu bar** | A critter icon that turns orange when an agent needs you; the deck drops down in the top-right corner. Esc, the ‹ button or a click elsewhere hides it; right-click opens the web dashboard. |
-| **Browser** | `agentctl web` opens the dashboard with a one-time login link. It has a grid view and a panel view that mirrors the 720×720 desk panel. |
+| **Browser** | `agentctl web` opens the dashboard with a one-time login link. On Linux the link goes through a short-lived private page, so the login code never shows on a command line, and the link is printed too in case the browser can't open that page. It has a grid view and a panel view that mirrors the 720×720 desk panel. |
 | **Wall panel** | A 4″ 720×720 touch panel ([Wall Panel](https://github.com/dotstartech/wall-panel): Raspberry Pi CM4, Flutter) talking to the daemon over Wi-Fi: TLS 1.3 with its own client certificate (`agentctl pair desk-panel --bundle -`). Cards close with an edge swipe. |
 | **Serial boards** | ESP32 boards on USB with Deck Link: see below. |
 | **Terminal** | `agentctl ls`, `sessions`, `resume`… Agent terminals are tmux sessions you attach to with `agentctl attach`, or jump to with **focus terminal**. |
@@ -160,7 +160,7 @@ Added sessions are **watched**: status (working, idle, ready when a turn finishe
 ## Agent terminals
 
 - **Focus.** iTerm's local API selects the agent's tab and pane, then iTerm's `StealFocus` escape brings the window forward, including a hidden hotkey window. `agentctl set term tmux` switches your last-used tab to the agent instead; `window` only raises its window.
-- **Mouse.** tmux mouse mode is on, so the wheel scrolls the agent's history. A drag selection stays highlighted and goes to the clipboard; double-click selects a word, path or URL, triple-click a line; typing afterwards goes to the agent. A click on a link opens it (http, https and file links only). `agentctl set mouse native` hands the mouse to iTerm instead.
+- **Mouse.** tmux mouse mode is on, so the wheel scrolls the agent's history. A drag selection stays highlighted and goes to the clipboard; double-click selects a word, path or URL, triple-click a line; typing afterwards goes to the agent. A click on a web link (http or https) opens it in the browser. A click on a file link only shows the file in Finder (on Linux, opens the folder that holds it): it never opens or runs the file. `agentctl set mouse native` hands the mouse to iTerm instead.
 - **Tab names** follow the name Claude Code gives the session.
 - **Header.** Each agent terminal has a band at the top: the agent's critter (Claude Code's logo, in quarter blocks) in its hat, its name, status and how long it has been in it, folder, branch, model and effort, the context bar, tokens, cost and turns, what it is doing or asking, and its subagents. `agentctl set header off` removes it.
 - **After an iTerm crash** the agents keep running in tmux; `agentctl reopen` opens a tab for each one again.

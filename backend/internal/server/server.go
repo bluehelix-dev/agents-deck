@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -83,7 +84,7 @@ type Server struct {
 	Store      *store.Store
 	Ctl        Controller
 	Static     fs.FS
-	WebSession string
+	WebSession string // shared web cookie from before per-login sessions; still accepted, no longer handed out
 	LocalAddr  string // e.g. 127.0.0.1:7340
 	// Hats holds the per-folder hat overrides (nil: hats can't be changed).
 	Hats *hats.Book
@@ -341,6 +342,8 @@ func (s *Server) act(w http.ResponseWriter, err error) {
 }
 
 // events streams full snapshots: one on connect, one per change (debounced), pings every 15s.
+// A device's stream ends at the next snapshot or ping after it is revoked,
+// removed or paired again (those touch the store, so that is at once).
 func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	fl, ok := w.(http.Flusher)
 	if !ok {
@@ -355,6 +358,9 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	defer unsub()
 	rc := http.NewResponseController(w)
 	send := func() bool {
+		if !s.stillPaired(r) {
+			return false
+		}
 		b, _ := json.Marshal(s.Store.Snapshot())
 		_ = rc.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		if _, err := fmt.Fprintf(w, "event: state\ndata: %s\n\n", b); err != nil {
@@ -382,6 +388,9 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		case <-ping.C:
+			if !s.stillPaired(r) {
+				return
+			}
 			_ = rc.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if _, err := io.WriteString(w, ": ping\n\n"); err != nil {
 				return
@@ -422,13 +431,21 @@ func (s *Server) webHandler(hostOK func(*http.Request) bool, pre func(http.Respo
 			return
 		}
 		if r.URL.Path == "/login" {
-			if s.logins.redeem(r.URL.Query().Get("code")) {
-				http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: s.WebSession, Path: "/",
-					HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: 30 * 24 * 3600})
+			switch token, res := s.logins.redeem(r.URL.Query().Get("code")); res {
+			case loginOK:
+				http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: token, Path: "/",
+					HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: int(webSessionTTL / time.Second)})
 				http.Redirect(w, r, "/", http.StatusSeeOther)
-				return
+			case loginReused:
+				log.Printf("web: a login link was used twice; the session it gave out has been ended")
+				if s.Audit != nil {
+					s.Audit.Log(devices.AuditEntry{Device: "web", Action: "login link used twice", Status: http.StatusUnauthorized,
+						Detail: "its session was ended"})
+				}
+				writeErr(w, http.StatusUnauthorized, "this login link was already used, so that login has been ended — run `agentctl web` again")
+			default:
+				writeErr(w, http.StatusUnauthorized, "login link expired — run `agentctl web` again")
 			}
-			writeErr(w, http.StatusUnauthorized, "login link expired — run `agentctl web` again")
 			return
 		}
 		if !strings.HasPrefix(r.URL.Path, "/v1/") {
@@ -440,7 +457,9 @@ func (s *Server) webHandler(hostOK func(*http.Request) bool, pre func(http.Respo
 			return
 		}
 		c, err := r.Cookie(sessionCookie)
-		if err != nil || !equal(c.Value, s.WebSession) {
+		// A login's own session; or the old shared secret, which logins
+		// before per-login sessions were given and which is still honoured.
+		if err != nil || !(s.logins.session(c.Value) || equal(c.Value, s.WebSession)) {
 			writeErr(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}

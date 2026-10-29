@@ -34,9 +34,18 @@ func run(args ...string) (string, error) {
 	return strings.TrimRight(string(out), "\n"), err
 }
 
+// Escape makes s literal where tmux expands formats: in the arguments of
+// -c (start directory), -n (window name) and -s (session name), and in
+// run-shell commands and status lines. There "#(cmd)" runs cmd through the
+// shell and "#{...}" is replaced, so a folder or title holding them could
+// run commands; tmux turns "##" back into one literal "#".
+func Escape(s string) string { return strings.ReplaceAll(s, "#", "##") }
+
 // NewSession starts a detached session running argv in dir with extra env.
+// dir may be any folder an agent was started in, so it is escaped: tmux
+// expands formats in -c.
 func NewSession(name, dir string, env []string, argv []string) error {
-	args := []string{"new-session", "-d", "-s", name, "-c", dir, "-x", "200", "-y", "50"}
+	args := []string{"new-session", "-d", "-s", Escape(name), "-c", Escape(dir), "-x", "200", "-y", "50"}
 	for _, e := range env {
 		args = append(args, "-e", e)
 	}
@@ -109,7 +118,7 @@ func ServerDefaults() {
 		// Words end at spaces, quotes and brackets: a URL or a path is one
 		// word (double-click selects it whole, a click on it opens it).
 		{"set-option", "-g", "word-separators", ` "'()<>[]{}|` + "`"},
-		{"bind-key", "-n", "MouseUp1Pane", `if-shell -F "#{mouse_any_flag}" { send-keys -M } { run-shell -b "'` + self + `' open-link --link=#{q:mouse_hyperlink} --word=#{q:mouse_word}" }`},
+		{"bind-key", "-n", "MouseUp1Pane", `if-shell -F "#{mouse_any_flag}" { send-keys -M } { run-shell -b "'` + Escape(self) + `' open-link --link=#{q:mouse_hyperlink} --word=#{q:mouse_word}" }`},
 		screen,
 		// The terminal tab shows the agent's name as Claude Code sets it,
 		// not just "tmux", without its leading status glyph ("✳ CMM server"

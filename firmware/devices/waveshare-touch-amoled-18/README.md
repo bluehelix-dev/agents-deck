@@ -92,7 +92,7 @@ Home on Wi-Fi with its mark, joining, a wrong password, a refused certificate. T
 | Wi-Fi failed · wrong password | set it again with `agentctl link wifi` (on USB); retried every minute |
 | Wi-Fi failed · network not found | out of range or the name is wrong; retried every 15 s |
 | deck not reachable · over Wi-Fi | the Mac is asleep, or the daemon isn't running; retried with a growing pause |
-| certificate · rejected · pair again over USB | the board was revoked or paired again: plug it into the Mac |
+| certificate · rejected · pair again over USB | the board was revoked or its certificate was dropped: `agentctl devices approve <board>` if it was revoked, or `agentctl link pair <board>`, then plug it into the Mac within 10 minutes and it pairs again by itself |
 
 On Wi-Fi a small Wi-Fi mark sits after "agents" in the home header; on USB there is none. The key, the certificate and the
 Wi-Fi password are kept in the board's flash (NVS), not encrypted unless you turn on flash encryption:

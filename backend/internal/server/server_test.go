@@ -175,6 +175,64 @@ func TestLoginCodeOneTime(t *testing.T) {
 	}
 }
 
+// sessionFrom is the session cookie a /login response sets ("" for none).
+func sessionFrom(w *httptest.ResponseRecorder) string {
+	for _, c := range w.Result().Cookies() {
+		if c.Name == sessionCookie {
+			return c.Value
+		}
+	}
+	return ""
+}
+
+// Each login gets its own session, not the shared secret; a login link used
+// twice ends the session it gave out the first time.
+func TestLoginSessions(t *testing.T) {
+	s, _ := newTestServer()
+	h := s.LocalHandler()
+	state := func(token string) int {
+		return do(h, "GET", "/v1/state", "", map[string]string{"Cookie": sessionCookie + "=" + token}).Code
+	}
+	login := func(code string) *httptest.ResponseRecorder { return do(h, "GET", "/login?code="+code, "", nil) }
+
+	first, second := s.logins.issue(), s.logins.issue()
+	a, b := sessionFrom(login(first)), sessionFrom(login(second))
+	if a == "" || b == "" || a == b || a == s.WebSession || b == s.WebSession || len(a) < 32 {
+		t.Fatalf("sessions: %q %q", a, b)
+	}
+	if state(a) != 200 || state(b) != 200 {
+		t.Fatalf("new sessions refused: %d %d", state(a), state(b))
+	}
+	if state(s.WebSession) != 200 {
+		t.Error("the shared secret from earlier logins no longer works")
+	}
+	if state("not-a-session") != 401 {
+		t.Error("made-up session accepted")
+	}
+
+	// The first link comes back: someone else used it first. That session ends;
+	// the other login is untouched.
+	w := login(first)
+	if w.Code != 401 || sessionFrom(w) != "" || !strings.Contains(w.Body.String(), "already used") {
+		t.Fatalf("reused link: %d %q %s", w.Code, sessionFrom(w), w.Body)
+	}
+	if state(a) != 401 {
+		t.Error("session from a reused link still works")
+	}
+	if state(b) != 200 {
+		t.Error("another login's session was ended")
+	}
+
+	// An expired code gives nothing and ends nothing.
+	old := s.logins.issueFor(-time.Second)
+	if w := login(old); w.Code != 401 || strings.Contains(w.Body.String(), "already used") {
+		t.Errorf("expired code: %d %s", w.Code, w.Body)
+	}
+	if state(b) != 200 {
+		t.Error("an expired code ended a session")
+	}
+}
+
 func TestEventsStream(t *testing.T) {
 	s, _ := newTestServer()
 	srv, client := tlsServer(t, s, "panel")
@@ -208,6 +266,52 @@ func TestEventsStream(t *testing.T) {
 	s.Store.Update("a1", func(e *store.Entry) bool { e.A.Title = "renamed"; return true })
 	if next := readEvent(); !strings.Contains(next, `"title":"renamed"`) {
 		t.Fatalf("change event: %s", next)
+	}
+}
+
+// An open event stream ends as soon as its device is revoked, removed or
+// paired again (agentctl devices ... over the unix socket), with no more state.
+func TestEventsStreamEndsWhenDeviceGoes(t *testing.T) {
+	for _, action := range []string{"revoke", "remove", "provision"} {
+		t.Run(action, func(t *testing.T) {
+			s, _ := newTestServer()
+			srv, client := tlsServer(t, s, "panel")
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/v1/events", nil)
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			rd := bufio.NewReader(resp.Body)
+			for line := ""; line != "\n"; {
+				if line, err = rd.ReadString('\n'); err != nil {
+					t.Fatalf("first event: %v", err)
+				}
+			}
+			path, body := "/local/devices/panel/"+action, ""
+			if action == "provision" {
+				path, body = "/local/devices/provision", `{"name":"panel","scope":"act"}`
+			}
+			if w := do(s.UnixHandler(nil), "POST", path, body, nil); w.Code >= 300 {
+				t.Fatalf("%s: %d %s", action, w.Code, w.Body)
+			}
+			// Another change on the deck must not reach the device either.
+			s.Store.Update("a1", func(e *store.Entry) bool { e.A.Title = "secret"; return true })
+			for {
+				line, err := rd.ReadString('\n')
+				if strings.HasPrefix(line, "data: ") {
+					t.Fatalf("state after %s: %s", action, line)
+				}
+				if err != nil {
+					if ctx.Err() != nil {
+						t.Fatalf("stream still open after %s", action)
+					}
+					return // the server ended the stream
+				}
+			}
+		})
 	}
 }
 

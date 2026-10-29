@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 and newer: the pairing bundle (it holds the phone's private key) stays out of cloud backup and phone-to-phone transfer. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="agents.json"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="agents.json"/>
+    </device-transfer>
+</data-extraction-rules>

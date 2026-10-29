@@ -92,6 +92,7 @@ type Session struct {
 
 	sub  *linkpb.Subscribe
 	sent map[string][]byte // agent id -> the AgentChanged it last got
+	cut  map[string]string // agent id -> its prompt, if the board got the prompt's detail cut short
 	ping uint32
 
 	board atomic.Pointer[string] // the board's device name, for status (any goroutine)
@@ -208,10 +209,14 @@ func (s *Session) Run(ctx context.Context) error {
 		for {
 			n, err := s.rw.Read(buf)
 			for _, f := range d.Feed(buf[:n]) {
-				frames <- f
+				select {
+				case frames <- f:
+				case <-s.done: // Run has returned: nobody reads frames any more
+					return
+				}
 			}
 			if err != nil {
-				readErr <- err
+				readErr <- err // buffered: never blocks
 				return
 			}
 		}
@@ -332,7 +337,10 @@ func (s *Session) handle(in Decoded) error {
 		ch := s.pending[f.Seq]
 		s.pmu.Unlock()
 		if ch != nil {
-			ch <- f
+			select {
+			case ch <- f:
+			default: // a second Result for the same request: the first one counts
+			}
 		}
 		return nil
 	}
@@ -360,10 +368,14 @@ func (s *Session) handle(in Decoded) error {
 }
 
 func (s *Session) onHello(seq uint32, h *linkpb.Hello, mode Mode) error {
-	if h.Protocol != 1 || h.BoardId == "" {
-		log.Printf("link %s: hello with protocol %d, board id %q: ignored", s.Name, h.Protocol, h.BoardId)
+	if h.Protocol != 1 || !validBoardID(h.BoardId) {
+		log.Printf("link %s: hello with protocol %d, board id %q: ignored", s.Name, h.Protocol, clipString(h.BoardId, 64))
 		return nil
 	}
+	// What the board says about itself is logged, stored and printed: no
+	// control characters, and no longer than its own buffers.
+	h.Type = cleanString(h.Type, limits["Hello.type"].size)
+	h.Firmware = cleanString(h.Firmware, limits["Hello.firmware"].size)
 	if s.Peer != nil && h.BoardId != s.Peer.BoardID {
 		// A certificate is one board's: it can't speak for another.
 		log.Printf("link %s: %s's certificate said Hello as board %q: refused", s.Name, s.Peer.Name, h.BoardId)
@@ -383,7 +395,7 @@ func (s *Session) onHello(seq uint32, h *linkpb.Hello, mode Mode) error {
 		if !d.Active() {
 			state = "waiting for approval: agentctl devices approve " + d.Name
 		}
-		log.Printf("link %s: %s (%s %s) over %s, %s", s.Name, d.Name, h.Type, h.Firmware, s.Transport, state)
+		log.Printf("link %s: %s (%q %q) over %s, %s", s.Name, d.Name, h.Type, h.Firmware, s.Transport, state)
 	}
 	s.hello, s.mode, s.sub, s.sent = h, mode, nil, nil
 	s.setDevice(d)
@@ -395,7 +407,10 @@ func (s *Session) onHello(seq uint32, h *linkpb.Hello, mode Mode) error {
 }
 
 // onCertRequest pairs the board for Wi-Fi: over USB serial only, approved
-// boards only. The certificate goes on the board's own registry entry.
+// boards only. The certificate goes on the board's own registry entry. A
+// certificate the entry already has is never replaced from here: over USB the
+// board is only the id it claims, so pairing again takes `agentctl link
+// pair` (Deck.Pair, devices.Registry.CanPair).
 func (s *Session) onCertRequest(seq uint32, req *linkpb.CertRequest) error {
 	if s.Transport != OverSerial {
 		return s.result(seq, http.StatusForbidden, "pair over USB: plug the board into the Mac")
@@ -425,11 +440,13 @@ func (s *Session) onCertRequest(seq uint32, req *linkpb.CertRequest) error {
 // onNetStatus keeps what the board says about its network, for `agentctl
 // link` (never its password: the board doesn't send it).
 func (s *Session) onNetStatus(n *linkpb.NetStatus) {
+	n.Ssid = cleanString(n.Ssid, limits["NetStatus.ssid"].size)
+	n.Ip = cleanString(n.Ip, limits["NetStatus.ip"].size)
 	old := s.net.Swap(n)
 	if old == nil || old.Wifi != n.Wifi || old.Ip != n.Ip {
 		line := WifiStateName(n.Wifi)
 		if n.Ip != "" {
-			line += " " + n.Ip
+			line += fmt.Sprintf(" %q", n.Ip)
 		}
 		log.Printf("link %s: %s Wi-Fi %s", s.Name, s.dev.Name, line)
 	}
@@ -437,7 +454,8 @@ func (s *Session) onNetStatus(n *linkpb.NetStatus) {
 }
 
 // defaultWifi gives an approved board on a registered USB port the deck's
-// default Wi-Fi network once it is paired (NetStatus.has_cert) and lacks it,
+// default Wi-Fi network once it is paired (its entry holds a certificate, and
+// it says so in NetStatus.has_cert) and lacks it,
 // at most once per session; and notes how the board's test of it went.
 func (s *Session) defaultWifi(n *linkpb.NetStatus) {
 	if s.Wifi == nil || s.USBPort == "" || s.Transport != OverSerial || !s.active() {
@@ -453,6 +471,11 @@ func (s *Session) defaultWifi(n *linkpb.NetStatus) {
 		return
 	}
 	if s.wifiTried || s.dev.WifiOwn {
+		return
+	}
+	// Paired is the deck's fact, not the board's: NetStatus.has_cert is only
+	// what the board says.
+	if d, ok := s.Deck.Device(name); !ok || d.CertSerial == "" {
 		return
 	}
 	c, gen, ok := s.Wifi.wanted(name, n)
@@ -520,6 +543,7 @@ func (s *Session) push(full bool) error {
 		if err := s.sendAgent(p); err != nil {
 			return err
 		}
+		s.noteCut(a, p)
 	}
 	for id := range s.sent {
 		if _, ok := next[id]; !ok {
@@ -535,6 +559,33 @@ func (s *Session) push(full bool) error {
 	return nil
 }
 
+// noteCut remembers whether the board got an agent's prompt in full (p as
+// sent; skipped when it didn't fit at all, it counts as cut).
+func (s *Session) noteCut(a model.Agent, p *linkpb.Agent) {
+	if s.cut == nil {
+		s.cut = map[string]string{}
+	}
+	delete(s.cut, a.ID)
+	if a.Waiting != nil && p.Waiting != nil && p.Waiting.Detail != a.Waiting.Detail {
+		s.cut[a.ID] = a.Waiting.ID
+	}
+}
+
+// answerCut: the prompt an Answer is for was too long to show on the board
+// (cut for Deck Link, or for this board's frames), so the board may not
+// answer it.
+func (s *Session) answerCut(agentID, promptID string) bool {
+	if id, ok := s.cut[agentID]; ok && id == promptID {
+		return true
+	}
+	for _, a := range s.Deck.Snapshot().Agents {
+		if a.ID == agentID && a.Waiting != nil && a.Waiting.ID == promptID {
+			return len(a.Waiting.Detail) > limits["Prompt.detail"].size-1
+		}
+	}
+	return false
+}
+
 // sendAgent sends one agent, trimming its biggest parts when the board's
 // frames are too small for it.
 func (s *Session) sendAgent(p *linkpb.Agent) error {
@@ -544,12 +595,12 @@ func (s *Session) sendAgent(p *linkpb.Agent) error {
 		func() { p.LastPrompt, p.AiTitle, p.Cwd = "", "", "" },
 		func() {
 			if p.Waiting != nil {
-				p.Waiting.Detail = clipString(p.Waiting.Detail, 128)
+				p.Waiting.Detail = clipDetail(p.Waiting.Detail, 128)
 			}
 		},
 		func() {
 			if p.Waiting != nil {
-				p.Waiting.Detail, p.Waiting.Context = "", ""
+				p.Waiting.Detail, p.Waiting.Context = clipDetail(p.Waiting.Detail, 1), ""
 				for _, o := range p.Waiting.Options {
 					o.Label = clipString(o.Label, 24)
 				}
@@ -691,6 +742,9 @@ func (s *Session) command(f *linkpb.Frame) error {
 		}
 		return s.sendReply(f.Seq, &linkpb.Frame{Body: &linkpb.Frame_RestoreResult{RestoreResult: rr}})
 	case *linkpb.Frame_Answer:
+		if s.answerCut(b.Answer.AgentId, b.Answer.PromptId) {
+			return s.result(f.Seq, http.StatusForbidden, "too long to show on the board: answer on the phone or at the terminal")
+		}
 		method, path, body = http.MethodPost, agentPath(b.Answer.AgentId, "answer"), map[string]string{"promptId": b.Answer.PromptId, "key": b.Answer.Key}
 	case *linkpb.Frame_Focus:
 		method, path = http.MethodPost, agentPath(b.Focus.AgentId, "focus")

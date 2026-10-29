@@ -116,7 +116,8 @@ esptool --chip esp32s3 --port /dev/cu.usbmodem1101 write-flash 0x0 agents-deck-w
 
 The image goes at `0x0`: it holds the bootloader, the partition table and the app. It leaves the rest
 of the flash alone, so the board keeps its name, certificate and Wi-Fi network; `esptool --chip
-esp32s3 --port … erase-flash` first starts it from nothing (the deck then pairs it again over USB).
+esp32s3 --port … erase-flash` first starts it from nothing. The deck still holds the old certificate then, so run
+`agentctl link pair <board>` and plug the board in within 10 minutes: it pairs again over USB by itself.
 [releasing.md](releasing.md) says how the images are built.
 
 ## Troubleshooting
@@ -132,7 +133,7 @@ esp32s3 --port … erase-flash` first starts it from nothing (the deck then pair
 | "waiting for approval" | Auto-approval is off: run the `agentctl devices approve …` command shown on the screen. |
 | "Wi-Fi failed · wrong password" or "network not found" | Plug it into the Mac and set the network again with `agentctl link wifi --default --ssid "…"`. Boards use 2.4 GHz Wi-Fi only. |
 | "deck not reachable · over Wi-Fi" | The Mac is asleep, the daemon isn't running, the Mac is on another network, or the macOS firewall blocks `agentctl`: allow it in System Settings → Network → Firewall → Options. |
-| "certificate rejected · pair again over USB" | The board was revoked or re-paired: plug it into the Mac and it pairs again by itself. |
+| "certificate rejected · pair again over USB" | The board was revoked, or its certificate was dropped with `agentctl link pair <board>`. If it was revoked, run `agentctl devices approve <board>`. Then plug it into the Mac within 10 minutes of that command and it pairs again by itself (a board with scope `act` or lower, while USB auto-approval is on, pairs whenever it is plugged in). Too late: run `agentctl link pair <board>` again. Until it is paired again it asks the deck every 10 minutes. |
 | `agentctl link wifi` is an unknown command | Your `agentctl` is older than Wi-Fi for boards: update it, or install from the clone with `./install.sh --source`. |
 
 The SCons fix, once:

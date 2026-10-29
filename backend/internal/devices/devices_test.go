@@ -1,10 +1,13 @@
 package devices
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestRegistry(t *testing.T) {
@@ -111,10 +114,25 @@ func TestBoardCert(t *testing.T) {
 	if got, ok := r.ByCertSerial("c1"); !ok || got.Name != d.Name || got.Kind != Serial || got.BoardID != d.BoardID {
 		t.Fatalf("by serial: %+v %v", got, ok)
 	}
-	// Pairing again replaces it.
-	_ = r.SetBoardCert(d.Name, "c2", "sha256:02")
+	// A board that has a certificate doesn't get another one…
+	if err := r.SetBoardCert(d.Name, "c2", "sha256:02"); !errors.Is(err, ErrPaired) {
+		t.Fatalf("a paired board's certificate was replaced: %v", err)
+	}
+	if _, ok := r.ByCertSerial("c1"); !ok {
+		t.Error("the refused request cost the board its certificate")
+	}
+	// …until you clear it (agentctl link pair): then pairing replaces it.
+	if err := r.ClearBoardCert(d.Name); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetBoardCert(d.Name, "c2", "sha256:02"); err != nil {
+		t.Fatal(err)
+	}
 	if _, ok := r.ByCertSerial("c1"); ok {
 		t.Error("the old certificate still works")
+	}
+	if got, _ := r.Get(d.Name); !got.PairUntil.IsZero() {
+		t.Error("pairing left the window open")
 	}
 	if err := r.Revoke(d.Name); err != nil {
 		t.Fatal(err)
@@ -134,6 +152,53 @@ func TestBoardCert(t *testing.T) {
 	}
 	if err := r.SetBoardCert("panel", "x", "y"); err == nil {
 		t.Error("a network device paired as a board")
+	}
+}
+
+// Over USB a board is only the id it claims. Without a certificate it pairs
+// when a new board plugged in would get its scope anyway; above that (admin
+// given by hand, or USB auto-approve off) only within the window approving it
+// or `agentctl link pair` opens.
+func TestCanPair(t *testing.T) {
+	r := &Registry{Path: filepath.Join(t.TempDir(), "devices.json")}
+	d, _ := r.Board("AA:BB:CC:00:00:02", "round", "1")
+	if err := r.CanPair(d.Name); err == nil {
+		t.Fatal("an unapproved board may pair")
+	}
+	if _, ok, _ := r.AutoApproveUSB(d.Name); !ok {
+		t.Fatal("not approved automatically")
+	}
+	if err := r.CanPair(d.Name); err != nil {
+		t.Fatalf("a new board approved over USB can't pair: %v", err)
+	}
+	// Admin, given by hand, and no window: a claim of this id can't pair.
+	_ = r.SetScope(d.Name, Admin)
+	if err := r.CanPair(d.Name); !errors.Is(err, ErrPairNeedsOK) || !strings.Contains(err.Error(), "agentctl link pair "+d.Name) {
+		t.Fatalf("an admin board paired without your OK: %v", err)
+	}
+	// agentctl link pair opens the window; it closes in PairWindow.
+	_ = r.ClearBoardCert(d.Name)
+	if err := r.CanPair(d.Name); err != nil {
+		t.Fatalf("after repair: %v", err)
+	}
+	_ = r.update(d.Name, func(x *Device) error { x.PairUntil = time.Now().Add(-time.Second); return nil })
+	if err := r.CanPair(d.Name); !errors.Is(err, ErrPairNeedsOK) {
+		t.Fatalf("the window didn't close: %v", err)
+	}
+	// Approving by hand opens it too (USB auto-approve off: act is above nothing).
+	_ = r.SetAutoApprove(false, Act)
+	_ = r.SetScope(d.Name, Act)
+	if err := r.CanPair(d.Name); !errors.Is(err, ErrPairNeedsOK) {
+		t.Fatalf("auto-approve off, no window: %v", err)
+	}
+	_ = r.Approve(d.Name)
+	if err := r.CanPair(d.Name); err != nil {
+		t.Fatalf("after approve: %v", err)
+	}
+	// Revoking closes it.
+	_ = r.Revoke(d.Name)
+	if got, _ := r.Get(d.Name); !got.PairUntil.IsZero() || r.CanPair(d.Name) == nil {
+		t.Fatalf("revoked: %+v", got)
 	}
 }
 

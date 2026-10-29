@@ -81,15 +81,64 @@ static void retries() {
   assert(last == p.retryDeckMaxMs);
   netDeckUp(p);
   assert(p.deckBackoff == 0);
-  // A refused certificate: no retries over Wi-Fi; USB fixes it (pairing again).
+  // A refused certificate: USB fixes it (pairing again).
   netDeckFailed(p, t, true);
   assert(p.view.phase == NetPhase::CertRejected);
-  assert(netStep(p, t + 3600000, false, true) == NetAction::None);
-  assert(netStep(p, t + 3600001, true, true) == NetAction::BackToUsb && p.view.phase == NetPhase::Off);
+  assert(netStep(p, t + 1000, false, true) == NetAction::None);
+  assert(netStep(p, t + 1001, true, true) == NetAction::BackToUsb && p.view.phase == NetPhase::Off);
   // New credentials (over USB) clear a wrong password.
   p.view.phase = NetPhase::WrongPassword;
   netSetSsid(p, "other-net");
   assert(p.view.phase == NetPhase::Off && strcmp(p.view.ssid, "other-net") == 0);
+}
+
+// A refused certificate doesn't park the board for good: it asks the deck
+// again after the long wait, and only then, while the screen keeps saying
+// "pair again over USB". A forged alert during the handshake isn't a refusal
+// (deck_tls.c reports it as a failed handshake): the usual short retries.
+static void certRejectedRetries() {
+  NetPlan p;
+  netBegin(p, 0, true, "lab-net");
+  assert(netStep(p, 5000, false, true) == NetAction::StartWifi);
+  assert(netJoined(p) == NetAction::ConnectDeck);
+
+  // The handshake failed (anything before the deck is authenticated).
+  netDeckFailed(p, 6000, false);
+  assert(p.view.phase == NetPhase::DeckUnreachable && p.nextTryAt == 6000 + p.retryDeckMinMs);
+  assert(netStep(p, p.nextTryAt, false, true) == NetAction::ConnectDeck);
+
+  // The deck itself refuses the certificate.
+  uint32_t t = 20000;
+  netDeckFailed(p, t, true);
+  assert(p.view.phase == NetPhase::CertRejected);
+  assert(p.retryCertRejectedMs >= 5 * p.retryDeckMaxMs);   // much longer than any other retry
+  for (uint32_t at = t; at < t + p.retryCertRejectedMs; at += 1000)
+    assert(netStep(p, at, false, true) == NetAction::None);
+  // Due: one attempt, no rejoin, and the notice stays until the deck answers.
+  t += p.retryCertRejectedMs;
+  assert(netStep(p, t, false, true) == NetAction::ConnectDeck);
+  assert(p.view.phase == NetPhase::CertRejected && !strcmp(netNotice(p.view).line2, "pair again over USB"));
+  assert(netStep(p, t + 1, false, true) == NetAction::None);   // started once
+  assert(netStep(p, t + p.retryCertRejectedMs - 1, false, true) == NetAction::None);
+
+  // Still revoked: wait the whole long interval again.
+  netDeckFailed(p, t + 2000, true);
+  assert(p.view.phase == NetPhase::CertRejected && p.nextTryAt == t + 2000 + p.retryCertRejectedMs);
+  assert(netStep(p, t + 2000 + p.retryCertRejectedMs - 1, false, true) == NetAction::None);
+  t = t + 2000 + p.retryCertRejectedMs;
+  assert(netStep(p, t, false, true) == NetAction::ConnectDeck);
+
+  // This time the deck takes it: online.
+  netDeckUp(p);
+  assert(p.view.phase == NetPhase::Online && p.deckBackoff == 0);
+  assert(netStep(p, t + 10 * p.retryCertRejectedMs, false, true) == NetAction::None);
+
+  // Or the retry finds the deck unreachable: the short retries take over.
+  netDeckFailed(p, t, true);
+  t += p.retryCertRejectedMs;
+  assert(netStep(p, t, false, true) == NetAction::ConnectDeck);
+  netDeckFailed(p, t + 6000, false);
+  assert(p.view.phase == NetPhase::DeckUnreachable && p.nextTryAt - (t + 6000) <= p.retryDeckMaxMs);
 }
 
 static void words() {
@@ -190,6 +239,7 @@ int main() {
   bootChoice();
   usbWinsLater();
   retries();
+  certRejectedRetries();
   words();
   drawing();
   return 0;

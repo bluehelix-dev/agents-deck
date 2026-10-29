@@ -141,7 +141,8 @@ static deck_tls_err_t fail(deck_tls_t *t, deck_tls_err_t e, int mbed)
 	return e;
 }
 
-/* A fatal alert from the deck: what it was. */
+/* A fatal alert from the deck: what it was. Only for alerts that arrive after
+ * the handshake, when the server is known to be the deck. */
 static deck_tls_err_t alert_error(deck_tls_t *t, int rc)
 {
 	if (rc == MBEDTLS_ERR_SSL_FATAL_ALERT_MESSAGE && t->ssl.in_msg)
@@ -273,7 +274,12 @@ deck_tls_err_t deck_tls_open(deck_tls_t *t, const deck_cert_t *c, const char *ho
 			t->mbedtls_error = rc;
 			if (rc == MBEDTLS_ERR_X509_CERT_VERIFY_FAILED)
 				return DECK_TLS_SERVER_UNTRUSTED;
-			return alert_error(t, rc) == DECK_TLS_CERT_REJECTED ? DECK_TLS_CERT_REJECTED : DECK_TLS_HANDSHAKE;
+			/* An alert here comes from a server we haven't authenticated
+			 * yet: anyone on the network can send one. It is noted for
+			 * the logs but never counts as the deck refusing us, only as
+			 * a failed handshake that is tried again. */
+			(void)alert_error(t, rc);
+			return DECK_TLS_HANDSHAKE;
 		}
 		if ((uint32_t)(now_ms() - start) >= timeout_ms)
 			return DECK_TLS_HANDSHAKE;
@@ -281,7 +287,9 @@ deck_tls_err_t deck_tls_open(deck_tls_t *t, const deck_cert_t *c, const char *ho
 	}
 
 	/* In TLS 1.3 the deck checks our certificate after the handshake: a
-	 * revoked one shows up as an alert on the first read. */
+	 * revoked one shows up as an alert on the first read. From here on the
+	 * server is authenticated, so a certificate alert (or a 401/403 to the
+	 * upgrade) is the deck's own answer: DECK_TLS_CERT_REJECTED. */
 	char req[160];
 	int n = snprintf(req, sizeof req,
 			 "GET /v1/link HTTP/1.1\r\nHost: %s\r\nUpgrade: deck-link\r\nConnection: Upgrade\r\n\r\n", host);

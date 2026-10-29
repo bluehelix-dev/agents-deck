@@ -21,6 +21,88 @@ const _cardRadius = 26.0;
 /// How long the "sent" invert holds before the card closes itself.
 const _sentHold = Duration(milliseconds: 600);
 
+/// The text a permission prompt asks you to approve, shown in full: it grows
+/// to six lines, then scrolls, so no part of a long command is cut off.
+/// Characters that hide or reorder text show as visible escapes (see
+/// [showControlChars]).
+class _PromptDetail extends StatefulWidget {
+  const _PromptDetail({super.key, required this.text, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  State<_PromptDetail> createState() => _PromptDetailState();
+}
+
+class _PromptDetailState extends State<_PromptDetail> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lineHeight =
+        (widget.style.fontSize ?? 17) * (widget.style.height ?? 1);
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: lineHeight * 6),
+      child: ScrollbarTheme(
+        data: ScrollbarThemeData(
+          thumbColor: WidgetStatePropertyAll(DeckHud.ink),
+        ),
+        child: Scrollbar(
+          controller: _scroll,
+          thumbVisibility: true,
+          // Only the scrollbar above: desktop would add a second one.
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(
+              context,
+            ).copyWith(scrollbars: false),
+            child: SingleChildScrollView(
+              controller: _scroll,
+              child: Text(showControlChars(widget.text), style: widget.style),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// [s] with every control character except newline and tab, and every
+/// character that reorders or hides text (bidi marks and overrides,
+/// zero-width characters, line and paragraph separators), written out as
+/// `\uXXXX`, so what you approve is what runs.
+String showControlChars(String s) {
+  final out = StringBuffer();
+  for (final c in s.runes) {
+    final hidden =
+        (c < 0x20 && c != 0x0A && c != 0x09) ||
+        (c >= 0x7F && c <= 0x9F) ||
+        c == 0x061C ||
+        (c >= 0x200B && c <= 0x200F) ||
+        (c >= 0x2028 && c <= 0x202E) ||
+        (c >= 0x2060 && c <= 0x2069) ||
+        c == 0xFEFF ||
+        c == 0x180E ||
+        c == 0x115F ||
+        c == 0x1160 ||
+        c == 0x3164 ||
+        (c >= 0xFFF9 && c <= 0xFFFB) ||
+        (c >= 0xE0000 && c <= 0xE007F);
+    if (hidden) {
+      out.write('\\u${c.toRadixString(16).toUpperCase().padLeft(4, '0')}');
+    } else {
+      out.writeCharCode(c);
+    }
+  }
+  return out.toString();
+}
+
 /// Feedback on the button that was pressed last.
 enum _Flash { sent, error }
 
@@ -1095,7 +1177,7 @@ class _AgentDetailState extends State<AgentDetail> {
           ),
           const SizedBox(height: 22),
           Text(
-            p.title.isEmpty ? 'allow this?' : p.title,
+            p.title.isEmpty ? 'allow this?' : showControlChars(p.title),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: DeckHud.rm(
@@ -1112,10 +1194,9 @@ class _AgentDetailState extends State<AgentDetail> {
                 color: DeckHud.bg,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(
-                p.detail,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
+              child: _PromptDetail(
+                key: const Key('agent-prompt-detail'),
+                text: p.detail,
                 style: DeckHud.rm(17, DeckHud.ink).copyWith(height: 1.45),
               ),
             ),

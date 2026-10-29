@@ -50,6 +50,10 @@ private folder, which no other app can read, like the desk panel's. A copied bac
 data could impersonate the phone until `agentctl devices revoke phone`; moving TLS into native
 code with a Keystore-held key would close that, and is the natural next step.
 
+The file that holds the key (`agents.json`) is kept out of Android's cloud backup and out of
+phone-to-phone transfer, so setting up a new phone from an old one does not copy it. The new phone
+has to be paired again. Only that file is excluded; the app's settings are still backed up.
+
 The server's address isn't checked against its certificate during pairing: the pinned CA is private
 to one deck and signs only that deck's listener, so the CA fingerprint is the identity. Afterwards
 the app connects the way the panel does: it verifies the server against the CA and, when the

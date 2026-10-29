@@ -174,7 +174,7 @@ certificate):
 | Wi-Fi failed · wrong password | set it again with `agentctl link wifi` (on USB); retried every minute |
 | Wi-Fi failed · network not found | out of range or the name is wrong; retried every 15 s |
 | deck not reachable · over Wi-Fi | the Mac is asleep, or the daemon isn't running; retried with a growing pause |
-| certificate rejected · pair again over USB | the board was revoked or paired again: plug it into the Mac |
+| certificate rejected · pair again over USB | the board was revoked or its certificate was dropped: `agentctl devices approve <board>` if it was revoked, or `agentctl link pair <board>`, then plug it into the Mac within 10 minutes and it pairs again by itself |
 
 On Wi-Fi a small Wi-Fi mark sits under the context bar of the home screen; on USB there is none. Plugged
 into the Mac again, the board switches to USB at once (USB always wins, so pairing and recovery work
@@ -182,7 +182,7 @@ over the cable), and a board on USB whose deck goes quiet for 30 s tries Wi-Fi m
 
 ```bash
 agentctl link                       # every board: via usb or wifi, its address and signal
-agentctl link pair waveshare-touch-lcd-21-<id>           # a new certificate (it pairs again over USB)
+agentctl link pair waveshare-touch-lcd-21-<id>           # a new certificate: plug it in over USB within 10 minutes and it pairs again
 agentctl devices revoke waveshare-touch-lcd-21-<id>      # cut it off on USB and Wi-Fi
 ```
 

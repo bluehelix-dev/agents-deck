@@ -63,7 +63,7 @@ func linkCmd(args []string) error {
 		if err := call("POST", "/local/devices/"+args[1]+"/repair", nil, nil); err != nil {
 			return err
 		}
-		fmt.Printf("%s: its certificate no longer works. On USB and approved, it pairs again by itself (a new key and certificate).\n", args[1])
+		fmt.Printf("%s: its certificate no longer works. Plug it in over USB within 10 minutes: approved, it pairs again by itself (a new key and certificate).\n", args[1])
 		return nil
 	}
 	return errors.New("usage: agentctl link [status | ports | add <port> [--baud N] | rm <port> | sim | check <port> | wifi <board> | pair <board>]")
@@ -87,9 +87,9 @@ func linkStatus() error {
 			via := map[string]string{link.OverSerial: "usb", link.OverWifi: "wifi"}[b.Transport]
 			wifi := netLine(b.Net)
 			if b.DefaultWifi != "" {
-				wifi += " · " + b.DefaultWifi
+				wifi += " · " + printable(b.DefaultWifi)
 			}
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", b.Board, via, b.Where, link.Ago(b.Since), wifi)
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", printable(b.Board), via, printable(b.Where), link.Ago(b.Since), wifi)
 		}
 		_ = tw.Flush()
 		fmt.Println()
@@ -115,7 +115,7 @@ func linkStatus() error {
 		if !p.Since.IsZero() {
 			since = link.Ago(p.Since)
 		}
-		fmt.Fprintf(tw, "%s\t%d\t%s\t%s\t%s\n", p.Path, p.Baud, state, p.Board, since)
+		fmt.Fprintf(tw, "%s\t%d\t%s\t%s\t%s\n", p.Path, p.Baud, printable(state), printable(p.Board), since)
 	}
 	return tw.Flush()
 }
@@ -373,9 +373,10 @@ func netLine(n *link.NetInfo) string {
 	if n == nil {
 		return "-"
 	}
-	parts := []string{n.Wifi}
+	// The board reports these: print them through printable.
+	parts := []string{printable(n.Wifi)}
 	if n.IP != "" {
-		parts = append(parts, n.IP)
+		parts = append(parts, printable(n.IP))
 	}
 	if n.RSSI != 0 {
 		parts = append(parts, fmt.Sprintf("%d dBm", n.RSSI))
@@ -424,7 +425,7 @@ func linkWifi(args []string) error {
 		if err := call("POST", "/local/link/wifi", map[string]any{"device": board, "useDefault": true}, &res); err != nil {
 			return err
 		}
-		fmt.Printf("%s follows the default network again: %s.\n", board, res.Message)
+		fmt.Printf("%s follows the default network again: %s.\n", board, printable(res.Message))
 		return nil
 	}
 	if *def && board != "" {
@@ -496,7 +497,7 @@ func linkWifi(args []string) error {
 				return nil
 			case "wrong password", "network not found", "failed":
 				fmt.Println()
-				return fmt.Errorf("the board couldn't join %s: %s. Run agentctl link wifi again", *ssid, b.Net.Wifi)
+				return fmt.Errorf("the board couldn't join %s: %s. Run agentctl link wifi again", *ssid, printable(b.Net.Wifi))
 			}
 		}
 	}
@@ -504,7 +505,7 @@ func linkWifi(args []string) error {
 	if last == "" {
 		fmt.Println("the board didn't report back; `agentctl link` shows its Wi-Fi state once it does.")
 	} else {
-		fmt.Printf("still %s; `agentctl link` shows the outcome.\n", last)
+		fmt.Printf("still %s; `agentctl link` shows the outcome.\n", printable(last))
 	}
 	return nil
 }

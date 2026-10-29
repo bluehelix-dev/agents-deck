@@ -49,6 +49,10 @@ struct NetPlan {
   uint32_t retryNoNetworkMs = 15000;
   uint32_t retryWrongPasswordMs = 60000;
   uint32_t retryDeckMinMs = 3000, retryDeckMaxMs = 60000;
+  // A refused certificate: only pairing again over USB really fixes it, but
+  // the board still asks the deck now and then, so it never stays off Wi-Fi
+  // for good (a deck restored from a backup, a refusal that wasn't real).
+  uint32_t retryCertRejectedMs = 600000;
 
   NetView view;
   uint32_t bootAt = 0;
@@ -106,18 +110,22 @@ static inline NetAction netStep(NetPlan& p, uint32_t now, bool usbLive, bool can
     p.view.phase = NetPhase::Joining;
     return NetAction::StartWifi;
   }
-  // On Wi-Fi: retry after a failure, except a refused certificate (only USB fixes that).
+  // On Wi-Fi: retry after a failure.
   if (!canWifi) {
     p.view.via = NetVia::Usb;
     p.view.phase = NetPhase::Off;
     return NetAction::BackToUsb;
   }
-  if (netFailed(p.view.phase) && p.view.phase != NetPhase::CertRejected && (int32_t)(now - p.nextTryAt) >= 0) {
-    const bool rejoin = p.view.phase != NetPhase::DeckUnreachable;
-    p.view.phase = rejoin ? NetPhase::Joining : NetPhase::Connecting;
-    return rejoin ? NetAction::StartWifi : NetAction::ConnectDeck;
+  if (!netFailed(p.view.phase) || (int32_t)(now - p.nextTryAt) < 0) return NetAction::None;
+  if (p.view.phase == NetPhase::CertRejected) {
+    // Ask the deck again after the long wait. The screen keeps saying "pair
+    // again over USB" meanwhile; netDeckUp or netDeckFailed settle it.
+    p.nextTryAt = now + p.retryCertRejectedMs;
+    return NetAction::ConnectDeck;
   }
-  return NetAction::None;
+  const bool rejoin = p.view.phase != NetPhase::DeckUnreachable;
+  p.view.phase = rejoin ? NetPhase::Joining : NetPhase::Connecting;
+  return rejoin ? NetAction::StartWifi : NetAction::ConnectDeck;
 }
 
 // The network is joined: reach the deck.
@@ -144,7 +152,9 @@ static inline void netDeckUp(NetPlan& p) {
 static inline void netDeckFailed(NetPlan& p, uint32_t now, bool certRejected) {
   if (p.view.via != NetVia::Wifi) return;
   if (certRejected) {
+    // Only the authenticated deck says this (deck_tls.c): wait long before asking again.
     p.view.phase = NetPhase::CertRejected;
+    p.nextTryAt = now + p.retryCertRejectedMs;
     return;
   }
   p.view.phase = NetPhase::DeckUnreachable;

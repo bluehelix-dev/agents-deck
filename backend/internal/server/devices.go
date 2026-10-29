@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"encoding/pem"
@@ -71,6 +72,9 @@ func (s *Server) DeviceHandler() http.Handler {
 			return
 		}
 		s.Devices.Seen(d.Name)
+		// The certificate serial rides along, so long-lived handlers
+		// (GET /v1/events) can check the device again while they run.
+		r = r.WithContext(context.WithValue(r.Context(), deviceKey{}, pki.SerialHex(r.TLS.VerifiedChains[0][0])))
 		s.audited(d.Name, api).ServeHTTP(w, r)
 	}))
 }
@@ -81,6 +85,21 @@ func (s *Server) deviceOf(r *http.Request) (devices.Device, bool) {
 		return devices.Device{}, false
 	}
 	return s.Devices.ByCertSerial(pki.SerialHex(r.TLS.VerifiedChains[0][0]))
+}
+
+// stillPaired: the device that made this request is still active, that is,
+// not revoked, removed or paired again with a new certificate since. A request
+// without a device certificate (the unix socket, the web dashboard) always is.
+func (s *Server) stillPaired(r *http.Request) bool {
+	serial, ok := r.Context().Value(deviceKey{}).(string)
+	if !ok {
+		return true
+	}
+	if s.Devices == nil {
+		return false
+	}
+	_, ok = s.Devices.ByCertSerial(serial)
+	return ok
 }
 
 // TLSConfig: TLS 1.3 only; a client certificate is optional at the handshake
@@ -146,6 +165,7 @@ func (s *Server) pair(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Audit.Log(devices.AuditEntry{Device: name, Action: "pair", Status: http.StatusOK, Detail: "scope " + string(scope)})
 	log.Printf("paired %s (%s)", name, scope)
+	s.Store.Touch() // open event streams check their device again: the name's old certificate is gone
 	writeJSON(w, http.StatusOK, map[string]string{"name": name, "cert": string(certPEM), "ca": string(s.CA.PEM)})
 }
 
@@ -310,6 +330,7 @@ func (s *Server) localDevices(mux *http.ServeMux) {
 			return
 		}
 		s.Audit.Log(devices.AuditEntry{Device: "local", Action: "provision " + name, Status: http.StatusOK, Detail: "scope " + string(sc)})
+		s.Store.Touch() // open event streams check their device again: the name's old certificate is gone
 		writeJSON(w, http.StatusOK, Bundle{Name: name, URL: s.DeviceURL, CA: string(s.CA.PEM), Fingerprint: s.ServerFingerprint,
 			Cert: string(certPEM), Key: string(keyPEM)})
 	})

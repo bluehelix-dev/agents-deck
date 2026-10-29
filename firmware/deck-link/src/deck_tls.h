@@ -41,9 +41,9 @@ typedef enum {
 	DECK_TLS_BAD_CONFIG,      /* no usable certificate, key or CA */
 	DECK_TLS_RESOLVE,         /* the host name didn't resolve */
 	DECK_TLS_CONNECT,         /* no TCP connection (deck off, wrong address, firewall) */
-	DECK_TLS_HANDSHAKE,       /* TLS failed (timeout, protocol) */
+	DECK_TLS_HANDSHAKE,       /* TLS failed (timeout, protocol, any alert before the deck is authenticated) */
 	DECK_TLS_SERVER_UNTRUSTED,/* the server isn't this deck (CA and fingerprint don't match) */
-	DECK_TLS_CERT_REJECTED,   /* the deck refused our certificate: revoked or replaced, pair again */
+	DECK_TLS_CERT_REJECTED,   /* the authenticated deck refused our certificate: revoked or replaced, pair again */
 	DECK_TLS_UPGRADE,         /* the deck didn't switch to Deck Link */
 	DECK_TLS_CLOSED,          /* the connection ended */
 } deck_tls_err_t;

@@ -76,6 +76,11 @@ type Device struct {
 	// <board> --ssid`, or told to forget it): the deck's default network
 	// doesn't replace it. `--use-default` clears it. No password is kept.
 	WifiOwn bool `json:"wifiOwn,omitempty"`
+	// PairUntil: until then the board may get a Wi-Fi certificate over USB
+	// whatever its scope (see CanPair). You open it by approving the board or
+	// with `agentctl link pair`; issuing a certificate or revoking the
+	// board closes it.
+	PairUntil time.Time `json:"pairUntil,omitzero"`
 }
 
 // Active: may connect right now.
@@ -290,30 +295,78 @@ func (r *Registry) ByCertSerial(serial string) (Device, bool) {
 	return Device{}, false
 }
 
+// PairWindow is how long a board may pair over USB after you approve it or
+// run `agentctl link pair`, whatever its scope.
+const PairWindow = 10 * time.Minute
+
+// canPair says whether a serial board may get a Wi-Fi certificate over USB.
+// Over USB a board is only the board id it claims, so the deck never lets a
+// claim replace a certificate (that would hand the board's network identity
+// to whatever is on the cable): a board that already has one pairs again only
+// after `agentctl link pair`. A board without one pairs when a new board
+// plugged in would get the same scope anyway (USB auto-approve on, its scope
+// no higher), or while the window you opened by approving it or with
+// `agentctl link pair` lasts.
+func (r *Registry) canPair(d *Device, now time.Time) error {
+	if d.Kind != Serial {
+		return fmt.Errorf("%s is a %s device: only serial boards pair over Deck Link", d.Name, d.Kind)
+	}
+	if !d.Active() {
+		return fmt.Errorf("%s isn't approved: agentctl devices approve %s", d.Name, d.Name)
+	}
+	if d.CertSerial != "" {
+		return fmt.Errorf("%w: to pair again, run agentctl link pair %s", ErrPaired, d.Name)
+	}
+	auto := r.set.AutoApprove
+	if now.Before(d.PairUntil) || auto.USB && d.Scope.rank() <= auto.Scope.rank() {
+		return nil
+	}
+	return fmt.Errorf("%w: agentctl link pair %s", ErrPairNeedsOK, d.Name)
+}
+
+// Why canPair refuses a board that is approved.
+var (
+	ErrPaired      = errors.New("already paired")
+	ErrPairNeedsOK = errors.New("pairing needs your OK")
+)
+
+// CanPair says whether a board may get a Wi-Fi certificate over USB now (see
+// canPair); SetBoardCert checks the same.
+func (r *Registry) CanPair(name string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.load()
+	d, ok := r.devices[name]
+	if !ok {
+		return ErrUnknown
+	}
+	return r.canPair(d, time.Now())
+}
+
 // SetBoardCert records a serial board's new client certificate, for Wi-Fi.
-// The board must be approved; its previous certificate stops working.
+// The board must be approved and allowed to pair (CanPair): a certificate it
+// already has is never replaced here.
 func (r *Registry) SetBoardCert(name, certSerial, certFingerprint string) error {
 	return r.update(name, func(d *Device) error {
-		if d.Kind != Serial {
-			return fmt.Errorf("%s is a %s device: only serial boards pair over Deck Link", name, d.Kind)
+		if err := r.canPair(d, time.Now()); err != nil {
+			return err
 		}
-		if !d.Active() {
-			return fmt.Errorf("%s isn't approved: agentctl devices approve %s", name, name)
-		}
-		d.CertSerial, d.CertFingerprint = certSerial, certFingerprint
+		d.CertSerial, d.CertFingerprint, d.PairUntil = certSerial, certFingerprint, time.Time{}
 		return nil
 	})
 }
 
-// ClearBoardCert forgets a serial board's certificate: it can't connect over
-// Wi-Fi until it pairs again over USB (which it does by itself when it's
-// plugged in and approved).
+// ClearBoardCert forgets a serial board's certificate (`agentctl link
+// pair`): it can't connect over Wi-Fi until it pairs again over USB, which
+// it does by itself when it's plugged in and approved, within PairWindow
+// when its scope needs your OK (canPair).
 func (r *Registry) ClearBoardCert(name string) error {
 	return r.update(name, func(d *Device) error {
 		if d.Kind != Serial {
 			return fmt.Errorf("%s is a %s device: pair it again with agentctl pair", name, d.Kind)
 		}
 		d.CertSerial, d.CertFingerprint = "", ""
+		d.PairUntil = time.Now().UTC().Add(PairWindow)
 		return nil
 	})
 }
@@ -378,13 +431,17 @@ func boardName(typ, id string) string {
 	return t + "-" + i
 }
 
-// Approve lets a serial board connect.
+// Approve lets a serial board connect. A board without a Wi-Fi certificate
+// may then pair over USB for PairWindow.
 func (r *Registry) Approve(name string) error {
 	return r.update(name, func(d *Device) error {
 		if d.Kind != Serial {
 			return fmt.Errorf("%s is a %s device: only serial boards need approval", name, d.Kind)
 		}
 		d.Approved, d.Revoked = true, false
+		if d.CertSerial == "" {
+			d.PairUntil = time.Now().UTC().Add(PairWindow)
+		}
 		return nil
 	})
 }
@@ -396,7 +453,7 @@ func (r *Registry) Revoke(name string) error {
 	return r.update(name, func(d *Device) error {
 		d.Revoked = true
 		if d.Kind == Serial {
-			d.CertSerial, d.CertFingerprint = "", ""
+			d.CertSerial, d.CertFingerprint, d.PairUntil = "", "", time.Time{}
 		}
 		return nil
 	})

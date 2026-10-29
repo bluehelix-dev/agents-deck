@@ -5,7 +5,7 @@ One Go daemon (`agentctl serve`) owns all agent state. Clients:
 | client | transport | auth |
 |---|---|---|
 | desk panel (Flutter, 720×720), later a phone app | HTTPS on the network, `:7341`, **TLS 1.3 only** | a **client certificate per device**, signed by the deck's CA; scope view, act or admin |
-| web UI (served by the daemon) | HTTP on `127.0.0.1:7340` only | HttpOnly SameSite=Strict cookie set by a one-time login URL from `agentctl web` |
+| web UI (served by the daemon) | HTTP on `127.0.0.1:7340` only | HttpOnly SameSite=Strict cookie set by a one-time login URL from `agentctl web`: each login gets its own session for 30 days, kept in memory (log in again after the daemon restarts). If the URL is opened a second time, the login it made ends and the second visit is refused, so a link someone else used first can't stay logged in |
 | menu bar app, Claude Code hooks, `agentctl` CLI | unix socket `~/.local/share/agents-terminal/agentd.sock` (0600) | filesystem permissions: your macOS user |
 | ESP32 boards (Deck Link) | USB serial, see [link/protocol.md](link/protocol.md) | approved once per board (at once when plugged into a registered USB port, unless turned off); scope view, act or admin |
 | ESP32 boards on Wi-Fi | `GET /v1/link` with `Upgrade: deck-link` on the network listener (`:7341`, TLS 1.3): the connection becomes a Deck Link stream ([pairing and Wi-Fi](link/protocol.md#pairing-and-wi-fi)) | the board's client certificate, issued over USB to an approved board; the same device, scope and audit log as on USB |
@@ -146,7 +146,9 @@ reissued when the Mac's names or addresses change) and every device's certificat
 
 **The listener** (`:7341`) accepts TLS 1.3 only. A connection may come without a client certificate,
 but then the only thing it can do is pair. With one, the certificate must chain to the deck's CA and
-belong to an active device in `devices.json`; a revoked device fails the handshake.
+belong to an active device in `devices.json`; a revoked device fails the handshake. Every request is
+checked again, and an open `GET /v1/events` stream ends at once when its device is revoked, removed or
+paired again.
 
 **Scopes.** Each device has one:
 
@@ -176,12 +178,22 @@ deck-link`), a transport rather than an API call: the connection carries Deck Li
 commands go through the same scope check and audit log under the board's name, its `Hello` must carry
 the board id the certificate was issued to, and revoking the board ends the session and fails its
 next handshake (the certificate is dropped for good; approved again, the board pairs again over USB).
+Over USB a board is only the board id it says it is: the deck has no way to check it. So a USB
+connection never replaces a board's certificate (it gets `403 already paired`, audited as a refused
+`pair (deck link)`); to pair a board again, run `agentctl link pair <board>` first. A board without a
+certificate pairs over USB at once only when a new board plugged in would get its scope anyway (USB
+auto-approve on, its scope no higher); for `admin`, or with auto-approve off, pairing works for 10
+minutes after `agentctl devices approve` or `agentctl link pair <board>`. What this doesn't cover: a
+device on a registered USB port that sends an approved board's id acts with that board's scope for as
+long as it stays plugged in, and gets the default Wi-Fi network if that board is paired. Only a
+board proving it holds its key (a change to Deck Link and the firmware) would close that; until then,
+register only ports nobody else can plug into, and give `admin` sparingly.
 Wi-Fi passwords never go through `/v1`: `agentctl link wifi` hands them to the daemon on the unix
 socket (`POST /local/link/wifi`), which passes them to a board connected over USB right now and keeps
 nothing. The one exception is the default network (`agentctl link wifi --default --ssid NAME`, `POST
 /local/link/wifi-default`): its password is kept in the macOS Keychain (`dev.agents-deck`, item
 `wifi-default`; a 0600 file under `keys/` elsewhere), and the deck sends it, over USB only, to every
-approved board that is paired and lacks it, once per connection, unless the board was given its own
+approved board that the deck has paired (it holds a certificate for it) and that lacks it, once per connection, unless the board was given its own
 network. It is never logged or audited (`"action": "wifi default set"` without the network or password).
 
 **Pairing.** Two ways:
@@ -203,7 +215,8 @@ network. It is never logged or audited (`"action": "wifi default set"` without t
   `{"name", "cert", "ca"}`. Its private key never leaves it. The listener sends the CA in its
   certificate chain, so a device that knows only the fingerprint can check it before it sends the code.
 
-Pairing a name again replaces its certificate. `agentctl devices` lists everything paired, and how
+Pairing a name again replaces its certificate (a Deck Link board only after `agentctl link pair
+<board>`, see above). `agentctl devices` lists everything paired, and how
 each board is connected right now (USB or Wi-Fi);
 `agentctl devices revoke|approve|remove <name>` and `agentctl devices scope <name> <scope>` manage them.
 

@@ -64,8 +64,8 @@ func certReq(seq uint32, csr []byte) *linkpb.Frame {
 }
 
 // Pairing over USB serial: only an approved board gets a certificate, it is
-// the deck CA's, it lands on the board's own registry entry, and pairing
-// again replaces it.
+// the deck CA's, it lands on the board's own registry entry, and it is
+// replaced only after `agentctl link pair`.
 func TestPairOverSerial(t *testing.T) {
 	srv, _ := testDeck(t)
 	srvCert := withCA(t, srv)
@@ -121,9 +121,29 @@ func TestPairOverSerial(t *testing.T) {
 		t.Fatalf("audit: %s", audit)
 	}
 
-	// Pairing again (PEM this time) replaces the certificate.
+	// Asking again over USB is refused and audited: over USB the board is only
+	// the id it claims, and the certificate it holds keeps working.
 	_, csr2 := csrFor(t)
-	b.send(certReq(5, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csr2})))
+	b.send(certReq(5, csr2))
+	if r := b.next(); r.Seq != 5 || r.GetResult().GetCode() != 403 || !strings.Contains(r.GetResult().GetError(), "agentctl link pair "+name) {
+		t.Fatalf("pairing a paired board again: %v", r)
+	}
+	if got, ok := srv.Devices.ByCertSerial(ci.CertSerial); !ok || got.Name != name {
+		t.Fatal("a refused request cost the board its certificate")
+	}
+	audit, _ = os.ReadFile(srv.Audit.Path)
+	if !strings.Contains(string(audit), `"action":"pair (deck link)","status":403,"detail":"refused over USB: already paired`) {
+		t.Fatalf("the refusal isn't audited: %s", audit)
+	}
+	// After `agentctl link pair` it pairs again (PEM this time), and the
+	// old certificate stops working.
+	if err := srv.Devices.ClearBoardCert(name); err != nil {
+		t.Fatal(err)
+	}
+	if w := b.next().GetWelcome(); w.GetCertSerial() != "" {
+		t.Fatalf("welcome after repair: %v", w)
+	}
+	b.send(certReq(7, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csr2})))
 	ci2 := b.next().GetCertIssued()
 	if ci2 == nil || ci2.CertSerial == ci.CertSerial {
 		t.Fatalf("second pairing: %v", ci2)

@@ -396,7 +396,9 @@ func attach(args []string) error {
 	argv := tmux.AttachArgv("a-" + a.ID)
 	if os.Getenv("TMUX") != "" {
 		// Inside tmux already: open in a new window of the outer tmux instead of nesting.
-		return exec.Command("tmux", "new-window", "-n", a.Title, strings.Join(argv, " ")).Run()
+		// tmux expands formats in the window name, and the title can come
+		// from a folder name or the transcript: escape it.
+		return exec.Command("tmux", "new-window", "-n", tmux.Escape(a.Title), strings.Join(argv, " ")).Run()
 	}
 	return execAttach(argv)
 }
@@ -875,16 +877,26 @@ func openWeb(args []string) error {
 		return err
 	}
 	url := "http://" + cfg.LocalAddr + "/login?code=" + res.Code
-	if err := openBrowser(url); err != nil {
-		// No browser opener (e.g. headless Linux): print the link instead.
-		fmt.Println("open this in your browser:", url)
+	if runtime.GOOS != "linux" {
+		// macOS and Windows keep a process's arguments from other users.
+		if err := openBrowser(url); err != nil {
+			fmt.Println("open this in your browser:", url)
+		}
+		return nil
 	}
+	// On Linux every user can read every process's arguments, so the code
+	// stays off the browser's command line: the browser opens a private page
+	// that forwards it to the login URL. A browser installed as a snap can't
+	// read that page (it lives in a hidden folder) while xdg-open still
+	// reports success, so the link is always printed too (stdout is private).
+	fmt.Println("if the browser shows an error, open this link:", url)
+	_ = openLoginURL(paths.Data(), url, openBrowser)
 	return nil
 }
 
-// openBrowser opens url in the default browser: `open` on macOS, `xdg-open`
-// elsewhere (Linux). The one-time login code expires quickly, so callers
-// should mint it immediately before calling this.
+// openBrowser opens url, or a local page's path, in the default browser:
+// `open` on macOS, `xdg-open` elsewhere (Linux). Its argument is visible to
+// other users of the machine, so it must never hold a secret.
 func openBrowser(url string) error {
 	switch runtime.GOOS {
 	case "darwin":
@@ -1093,7 +1105,8 @@ func devicesCmd(args []string) error {
 		}
 		detail := ""
 		if d.Kind == devices.Serial {
-			detail = strings.TrimSpace(d.Type + " " + d.Firmware + " · " + d.BoardID)
+			// What the board reported about itself: never trusted to be printable.
+			detail = strings.TrimSpace(printable(d.Type) + " " + printable(d.Firmware) + " · " + printable(d.BoardID))
 			if d.CertSerial != "" {
 				detail += " · Wi-Fi certificate"
 			}
@@ -1101,14 +1114,14 @@ func devicesCmd(args []string) error {
 				detail += " · its own Wi-Fi network"
 			}
 			if dw := defWifi[d.Name]; dw != "" {
-				detail += " · " + dw
+				detail += " · " + printable(dw)
 			}
 		}
 		on := strings.Join(via[d.Name], ", ")
 		if on == "" {
 			on = "-"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", d.Name, d.Kind, d.Scope, state, on, seen, detail)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", printable(d.Name), d.Kind, d.Scope, state, printable(on), seen, detail)
 	}
 	return tw.Flush()
 }
@@ -1387,7 +1400,9 @@ func getCmd(args []string) error {
 
 // openLink opens the link a click in an agent terminal landed on: the
 // hyperlink under the mouse, else a URL-looking word. Only http, https and
-// file links go to macOS open, like ⌘-click in iTerm.
+// file links count. Web links open in the browser; a file link is only shown
+// in Finder (or the folder that holds it), never opened, because opening
+// would launch an app or a script the agent pointed at.
 func openLink(args []string) {
 	var link, word string
 	for _, a := range args {
@@ -1397,8 +1412,8 @@ func openLink(args []string) {
 			word = v
 		}
 	}
-	if u := linkTarget(link, word); u != "" {
-		_ = exec.Command("/usr/bin/open", u).Run()
+	if argv := linkCommand(runtime.GOOS, linkTarget(link, word), isDir); argv != nil {
+		_ = exec.Command(argv[0], argv[1:]...).Run()
 	}
 }
 
@@ -1418,7 +1433,7 @@ func linkTarget(link, word string) string {
 			return ""
 		}
 	case "file":
-		if u.Path == "" {
+		if u.Path == "" || (u.Host != "" && u.Host != "localhost") {
 			return ""
 		}
 	default:

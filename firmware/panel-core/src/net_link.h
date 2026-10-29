@@ -246,6 +246,9 @@ static void connectTask(void*) {
       break;
     }
     deck_tls_close(&tls);
+    // Only the deck itself, after its certificate checked out, can refuse ours:
+    // deck_tls_open never reports an alert during the handshake as
+    // DECK_TLS_CERT_REJECTED, so a forged one only moves on to the next host.
     if (e == DECK_TLS_CERT_REJECTED) break;
   }
   connErr = e;
