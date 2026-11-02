@@ -538,10 +538,16 @@ void main() {
     test(
       'device certificate: streams state, posts answers, maps 409',
       () async {
-        final c = HttpAgentsClient(loadConfig: () => (cfg(), null));
+        final seen = <String>[];
+        final c = HttpAgentsClient(
+          loadConfig: () => (cfg(), null),
+          onServerCertificate: (der) => seen.add(fingerprintOf(der)),
+        );
         addTearDown(c.dispose);
         final s = await until(c, (s) => s.link == AgentsLink.connected);
         expect(s.state!.agents, hasLength(11));
+        // The pairing had no pin: the verified listener certificate is one.
+        expect(seen, [serverFp]);
 
         answerStatus = 204;
         expect((await c.answer('h0m3l4', 'p17', '1')).isOk, isTrue);

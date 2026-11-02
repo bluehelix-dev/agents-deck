@@ -63,6 +63,8 @@ The server's address isn't checked against its certificate during pairing: the p
 to one deck and signs only that deck's listener, so the CA fingerprint is the identity. Afterwards
 the app connects the way the panel does: it verifies the server against the CA and, when the
 address isn't one the certificate covers, accepts exactly the listener certificate it paired with.
+When a connection the CA verified presents a newer listener certificate (the deck reissues it as
+the computer's addresses change), the app keeps that one as the pin.
 
 ## Pairing with a bundle
 

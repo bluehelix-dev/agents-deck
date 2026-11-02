@@ -1310,11 +1310,17 @@ func serve(args []string) error {
 		_, port, _ := net.SplitHostPort(cfg.DeviceAddr)
 		srv.CA, srv.DeviceURL = ca, "https://"+host+":"+port
 		// Where a board on Wi-Fi finds the deck: the .local name, then the addresses.
-		srv.DeviceHosts = append([]string{host}, lanIPs()...)
+		srv.SetServerCert(cert, append([]string{host}, lanIPs()...))
 		srv.DevicePort, _ = strconv.Atoi(port)
 		srv.DeviceLink = link.DeviceUpgradeHandler(link.ServerDeck{S: srv}, hub)
-		srv.ServerFingerprint = pki.Fingerprint(cert.Certificate[0])
 		deviceTLS = srv.TLSConfig(cert)
+		// The computer's addresses change while the daemon runs (a VPN comes
+		// up, another Wi-Fi): the certificate follows them.
+		go srv.WatchServerCert(context.Background(), paths.ServerCert(), paths.ServerKey(),
+			func() (certHosts, boardHosts []string) {
+				ips := lanIPs()
+				return append([]string{host, "localhost", "127.0.0.1"}, ips...), append([]string{host}, ips...)
+			}, 30*time.Second, log.Printf)
 		for _, old := range []string{"device-token", "tls-cert.pem", "tls-key.pem"} { // before per-device certificates
 			_ = os.Remove(filepath.Join(paths.Data(), old))
 		}
@@ -1339,7 +1345,7 @@ func serve(args []string) error {
 			// Paired devices on the same network find the listener by asking.
 			go discover.Serve(context.Background(), discover.Info{
 				Name: strings.TrimSuffix(host, ".local"), Port: srv.DevicePort,
-				CA: srv.CA.Fingerprint(), Server: srv.ServerFingerprint, Version: version,
+				CA: srv.CA.Fingerprint(), Server: srv.ServerFP, Version: version,
 			}, log.Printf)
 		}
 	}

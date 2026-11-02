@@ -222,6 +222,10 @@ List<int>? caFingerprint(String pem) {
   }
 }
 
+/// The fingerprint of a certificate's DER bytes, in the canonical form.
+String fingerprintOf(List<int> der) =>
+    formatFingerprint(sha256.convert(der).bytes);
+
 /// True when SHA-256(der) equals [expected]. Constant-time over the digest.
 bool fingerprintMatches(List<int> der, List<int> expected) {
   final got = sha256.convert(der).bytes;

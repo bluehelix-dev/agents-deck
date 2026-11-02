@@ -14,7 +14,7 @@ func TestAnswersTheQuery(t *testing.T) {
 	}
 	defer c.Close()
 	r := &responder{
-		info:  Info{Name: "deck-pc", Port: 7341, CA: "sha256:AA", Server: "sha256:BB", Version: "0.0.0-test"},
+		info:  Info{Name: "deck-pc", Port: 7341, CA: "sha256:AA", Server: func() string { return "sha256:BB" }, Version: "0.0.0-test"},
 		logf:  t.Logf,
 		conns: map[string]*net.UDPConn{},
 		told:  map[string]bool{},

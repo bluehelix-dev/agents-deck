@@ -75,12 +75,12 @@ func (d ServerDeck) Pair(dev devices.Device, csr []byte) (*linkpb.CertIssued, in
 	if err != nil {
 		return nil, code, err.Error()
 	}
-	hosts := d.S.DeviceHosts
+	hosts := d.S.Hosts()
 	if len(hosts) > limits["CertIssued.hosts"].count {
 		hosts = hosts[:limits["CertIssued.hosts"].count]
 	}
 	return &linkpb.CertIssued{Cert: cert, Ca: d.S.CA.Cert.Raw, Hosts: hosts, Port: uint32(d.S.DevicePort),
-		ServerFingerprint: fingerprintBytes(d.S.ServerFingerprint), DeviceName: dev.Name, CertSerial: serial}, http.StatusOK, ""
+		ServerFingerprint: fingerprintBytes(d.S.ServerFP()), DeviceName: dev.Name, CertSerial: serial}, http.StatusOK, ""
 }
 
 // fingerprintBytes turns "sha256:AB:CD:…" into its 32 bytes (nil if malformed).

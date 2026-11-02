@@ -6,6 +6,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/brushknight/agents-deck/backend/internal/accounts"
@@ -96,11 +98,16 @@ type Server struct {
 	// DeviceURL is how devices reach the network listener (https://host:port).
 	DeviceURL string
 	// ServerFingerprint is the network listener's certificate SHA-256.
+	// While the listener runs, SetServerCert changes it with the
+	// certificate; read it through ServerFP.
 	ServerFingerprint string
 	// DeviceHosts and DevicePort are where boards reach the network listener
 	// over Wi-Fi: the Mac's .local name first, then its LAN addresses.
+	// DeviceHosts follows the certificate too; read it through Hosts.
 	DeviceHosts []string
 	DevicePort  int
+	certMu      sync.RWMutex
+	serverCert  atomic.Pointer[tls.Certificate]
 	// DeviceLink serves GET /v1/link on the network listener: a paired
 	// board's Deck Link session over TLS (link.DeviceUpgradeHandler).
 	DeviceLink func(w http.ResponseWriter, r *http.Request, d devices.Device)

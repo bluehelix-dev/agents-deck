@@ -106,7 +106,8 @@ func (s *Server) stillPaired(r *http.Request) bool {
 // (so a new device can pair) but must be signed by the deck's CA and belong
 // to an active device when given; revoked devices fail the handshake.
 func (s *Server) TLSConfig(cert tls.Certificate) *tls.Config {
-	return &tls.Config{
+	s.serverCert.Store(&cert)
+	cfg := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
 		ClientAuth:   tls.VerifyClientCertIfGiven,
@@ -121,6 +122,85 @@ func (s *Server) TLSConfig(cert tls.Certificate) *tls.Config {
 			return nil
 		},
 	}
+	// Each handshake takes the certificate SetServerCert installed last: it
+	// follows the computer's addresses while the listener runs. (Through
+	// GetConfigForClient, not GetCertificate: devices connect by address,
+	// without a server name, and GetCertificate is skipped then.)
+	cfg.GetConfigForClient = func(*tls.ClientHelloInfo) (*tls.Config, error) {
+		c := cfg.Clone()
+		c.Certificates = []tls.Certificate{*s.serverCert.Load()}
+		c.GetConfigForClient = nil
+		return c, nil
+	}
+	return cfg
+}
+
+// SetServerCert installs the network listener's certificate: what the
+// listener presents from now on, its fingerprint for boards and bundles, and
+// hosts, where boards on Wi-Fi reach it (the computer's name, then its
+// addresses).
+func (s *Server) SetServerCert(cert tls.Certificate, hosts []string) {
+	s.certMu.Lock()
+	defer s.certMu.Unlock()
+	s.serverCert.Store(&cert)
+	s.ServerFingerprint = pki.Fingerprint(cert.Certificate[0])
+	s.DeviceHosts = hosts
+}
+
+// ServerFP is the listener certificate's fingerprint, "sha256:…".
+func (s *Server) ServerFP() string {
+	s.certMu.RLock()
+	defer s.certMu.RUnlock()
+	return s.ServerFingerprint
+}
+
+// Hosts is where boards reach the listener: the computer's name, then its
+// addresses.
+func (s *Server) Hosts() []string {
+	s.certMu.RLock()
+	defer s.certMu.RUnlock()
+	return s.DeviceHosts
+}
+
+// WatchServerCert keeps the listener's certificate covering the computer's
+// addresses: every `every` it runs RefreshServerCert with what hosts() says
+// now. A VPN that comes up after the daemon, another Wi-Fi: a device that
+// connects by the new address then verifies the certificate against the
+// CA, instead of falling back to the certificate it paired with (which a
+// reissue since would have changed).
+func (s *Server) WatchServerCert(ctx context.Context, certPath, keyPath string,
+	hosts func() (certHosts, boardHosts []string), every time.Duration, logf func(string, ...any)) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		certHosts, boardHosts := hosts()
+		s.RefreshServerCert(certPath, keyPath, certHosts, boardHosts, logf)
+	}
+}
+
+// RefreshServerCert is one round of WatchServerCert: the certificate on
+// disk when it still covers certHosts, a new one from the CA otherwise,
+// installed when it differs from the one served now. An address that went
+// away changes nothing; one that appeared means a new certificate.
+func (s *Server) RefreshServerCert(certPath, keyPath string, certHosts, boardHosts []string, logf func(string, ...any)) {
+	cert, err := s.CA.ServerCert(certPath, keyPath, certHosts)
+	if err != nil {
+		logf("server certificate: %v", err)
+		return
+	}
+	if cur := s.serverCert.Load(); cur != nil && bytes.Equal(cur.Certificate[0], cert.Certificate[0]) {
+		s.certMu.Lock()
+		s.DeviceHosts = boardHosts
+		s.certMu.Unlock()
+		return
+	}
+	s.SetServerCert(cert, boardHosts)
+	logf("server certificate reissued: it covers %d names and addresses now", len(certHosts))
 }
 
 // ServeDevice runs the network listener.
@@ -331,7 +411,7 @@ func (s *Server) localDevices(mux *http.ServeMux) {
 		}
 		s.Audit.Log(devices.AuditEntry{Device: "local", Action: "provision " + name, Status: http.StatusOK, Detail: "scope " + string(sc)})
 		s.Store.Touch() // open event streams check their device again: the name's old certificate is gone
-		writeJSON(w, http.StatusOK, Bundle{Name: name, URL: s.DeviceURL, CA: string(s.CA.PEM), Fingerprint: s.ServerFingerprint,
+		writeJSON(w, http.StatusOK, Bundle{Name: name, URL: s.DeviceURL, CA: string(s.CA.PEM), Fingerprint: s.ServerFP(),
 			Cert: string(certPEM), Key: string(keyPEM)})
 	})
 	mux.HandleFunc("POST /local/devices/{name}/{action}", func(w http.ResponseWriter, r *http.Request) {

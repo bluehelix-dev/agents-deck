@@ -275,11 +275,19 @@ class HttpAgentsClient implements AgentsSource {
     this.unconfiguredPoll = const Duration(seconds: 5),
     Backoff? backoff,
     Future<List<Uri>> Function(AgentsConfig)? discover,
+    this.onServerCertificate,
   }) : _loadConfig = loadConfig ?? AgentsConfig.load,
        _backoff = backoff ?? Backoff(),
        _discover = discover ?? discoverDeck {
     unawaited(_run());
   }
+
+  /// Called with the listener certificate (DER) of a connection the deck's
+  /// CA verified, when it isn't the one the pairing pins: the host can keep
+  /// it as the pin, so a listener certificate reissued since the pairing
+  /// (the computer's addresses changed) still gets in by an address the
+  /// certificate doesn't name.
+  final void Function(List<int> der)? onServerCertificate;
 
   final (AgentsConfig?, String?) Function() _loadConfig;
   final Future<List<Uri>> Function(AgentsConfig) _discover;
@@ -458,6 +466,12 @@ class HttpAgentsClient implements AgentsSource {
       final body = await _readBody(res);
       throw _Problem(_httpProblem(res.statusCode, body));
     }
+    if (res.certificate case final cert? when !_pinMismatch) {
+      final fp = cfg.fingerprint;
+      if (fp == null || !fingerprintMatches(cert.der, fp)) {
+        onServerCertificate?.call(cert.der);
+      }
+    }
     final parser = SseParser();
     final done = _streamDone = Completer<void>();
     Timer? watchdog;
@@ -532,7 +546,7 @@ class HttpAgentsClient implements AgentsSource {
   }
 
   static String _httpProblem(int code, String body) {
-    if (code == 401) return 'not paired: run agentctl pair on the mac';
+    if (code == 401) return 'not paired: run agentctl pair on the computer';
     if (code == 403) return _errorField(body) ?? 'not allowed for this device';
     return _errorField(body) ?? 'http $code';
   }
@@ -542,7 +556,7 @@ class HttpAgentsClient implements AgentsSource {
     if (_pinMismatch) return 'certificate mismatch';
     if (e is TimeoutException) return 'timed out';
     if (e is HandshakeException || e is TlsException) {
-      return 'tls handshake failed: revoked, or paired with another mac?';
+      return 'tls handshake failed: revoked, or paired with another deck?';
     }
     if (e is SocketException) {
       final m = e.osError?.message ?? e.message;

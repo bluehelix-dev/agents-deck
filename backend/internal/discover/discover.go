@@ -39,8 +39,8 @@ const (
 type Info struct {
 	Name    string // the deck's name, the computer's
 	Port    int    // the listener's port
-	CA      string // sha256:… of the deck's CA certificate
-	Server  string // sha256:… of the listener's certificate
+	CA      string        // sha256:… of the deck's CA certificate
+	Server  func() string // sha256:… of the listener's certificate, as it is now
 	Version string
 }
 
@@ -187,7 +187,7 @@ func (r *responder) reply(ips, others []string) []byte {
 		seen[ip] = true
 		urls = append(urls, "https://"+net.JoinHostPort(ip, strconv.Itoa(r.info.Port)))
 	}
-	b, _ := json.Marshal(Reply{Deck: r.info.Name, URLs: urls, CA: r.info.CA, Server: r.info.Server, Version: r.info.Version})
+	b, _ := json.Marshal(Reply{Deck: r.info.Name, URLs: urls, CA: r.info.CA, Server: r.info.Server(), Version: r.info.Version})
 	return b
 }
 

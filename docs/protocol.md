@@ -142,7 +142,8 @@ Status meanings (what the tiles show):
 **The CA.** On first start the daemon creates its own certificate authority: `ca.pem` in the data
 folder (public), its EC P-256 key in the macOS Keychain (`dev.agents-deck`, item `ca-key`; a 0600 file
 under `keys/` on Linux and Windows). It signs the network listener's certificate (`server-cert.pem`,
-reissued when the Mac's names or addresses change) and every device's certificate.
+reissued when the Mac's names or addresses change, at start and every 30 s while it runs, so a VPN
+that comes up later is covered too) and every device's certificate.
 
 **The listener** (`:7341`) accepts TLS 1.3 only. A connection may come without a client certificate,
 but then the only thing it can do is pair. With one, the certificate must chain to the deck's CA and
