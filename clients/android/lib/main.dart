@@ -152,6 +152,11 @@ class Phone {
   /// Codex, …). Off by default: with one tool it says nothing.
   final toolSquare = ValueNotifier<bool>(false);
 
+  /// Whether the critters move, the stripes slide and cards grow out of
+  /// their tiles. Null until you choose: then the system's animation setting
+  /// decides (Android's "remove animations" holds them still).
+  final animations = ValueNotifier<bool?>(null);
+
   (AgentsConfig?, String?) loadConfig() =>
       AgentsConfig.load(paths: [bundlePath]);
 
@@ -172,6 +177,9 @@ class Phone {
       }
       if (j is Map && j['toolSquare'] is bool) {
         toolSquare.value = j['toolSquare'] as bool;
+      }
+      if (j is Map && j['animations'] is bool) {
+        animations.value = j['animations'] as bool;
       }
     } catch (_) {
       // No settings yet, or unreadable: the defaults.
@@ -216,6 +224,11 @@ class Phone {
     _saveSettings();
   }
 
+  void setAnimations(bool on) {
+    animations.value = on;
+    _saveSettings();
+  }
+
   void _saveSettings() {
     try {
       File(settingsPath).writeAsStringSync(
@@ -223,6 +236,7 @@ class Phone {
           'keepScreenOn': keepScreenOn.value,
           'alerts': alerts.value,
           'toolSquare': toolSquare.value,
+          'animations': ?animations.value,
         }),
       );
     } on FileSystemException {
@@ -491,43 +505,63 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
                               OverlayEntry(
                                 builder: (context) => ValueListenableBuilder<bool>(
                                   valueListenable: widget.phone.toolSquare,
-                                  // The cards are a fixed composition
-                                  // on the board's area: they follow
-                                  // the system's text size up to 150 %,
-                                  // past which they would clip.
                                   builder: (context, square, _) =>
-                                      MediaQuery.withClampedTextScaling(
-                                        maxScaleFactor: 1.5,
-                                        child: AgentsApp(
-                                          toolSquare: square,
-                                          source: widget.source,
-                                          animate: widget.animate,
-                                          columns: columns,
-                                          backButton:
-                                              true, // no edge swipe on a phone
-                                          cardHost: (board) => CardMorph(
-                                            key: _stage,
-                                            child: board,
-                                          ),
-                                          openCard:
-                                              (
-                                                tileContext,
-                                                tileKey, {
-                                                required id,
-                                                required fill,
-                                                required builder,
-                                              }) => _stage.currentState?.open(
-                                                tileKey,
-                                                fill: fill,
-                                                builder: builder,
+                                      ValueListenableBuilder<bool?>(
+                                        valueListenable:
+                                            widget.phone.animations,
+                                        builder: (context, animations, _) {
+                                          final mq = MediaQuery.of(context);
+                                          // The deck holds still when the system
+                                          // asks for less motion, unless you
+                                          // chose here.
+                                          final still =
+                                              !(animations ??
+                                                  !mq.disableAnimations);
+                                          // The cards are a fixed composition on
+                                          // the board's area: they follow the
+                                          // system's text size up to 150 %, past
+                                          // which they would clip.
+                                          return MediaQuery(
+                                            data: mq.copyWith(
+                                              disableAnimations: still,
+                                            ),
+                                            child: MediaQuery.withClampedTextScaling(
+                                              maxScaleFactor: 1.5,
+                                              child: AgentsApp(
+                                                toolSquare: square,
+                                                source: widget.source,
+                                                animate: widget.animate,
+                                                columns: columns,
+                                                backButton:
+                                                    true, // no edge swipe on a phone
+                                                cardHost: (board) => CardMorph(
+                                                  key: _stage,
+                                                  child: board,
+                                                ),
+                                                openCard:
+                                                    (
+                                                      tileContext,
+                                                      tileKey, {
+                                                      required id,
+                                                      required fill,
+                                                      required builder,
+                                                    }) => _stage.currentState
+                                                        ?.open(
+                                                          tileKey,
+                                                          fill: fill,
+                                                          builder: builder,
+                                                        ),
+                                                pairingCard: (problem) =>
+                                                    PairingCard(
+                                                      problem: problem,
+                                                      device: device,
+                                                      ways: _ways,
+                                                      onSettings: _openSettings,
+                                                    ),
                                               ),
-                                          pairingCard: (problem) => PairingCard(
-                                            problem: problem,
-                                            device: device,
-                                            ways: _ways,
-                                            onSettings: _openSettings,
-                                          ),
-                                        ),
+                                            ),
+                                          );
+                                        },
                                       ),
                                 ),
                               ),
@@ -1332,6 +1366,49 @@ class _SettingsCardState extends State<SettingsCard>
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 22),
+        ValueListenableBuilder<bool?>(
+          valueListenable: widget.phone.animations,
+          builder: (context, chosen, _) {
+            final system = !MediaQuery.disableAnimationsOf(context);
+            final on = chosen ?? system;
+            return MergeSemantics(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'moving critters',
+                          style: DeckHud.rm(20, DeckHud.ink),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          chosen == null
+                              ? (system
+                                    ? 'the critters move and the stripes slide; '
+                                          'the system\'s animation setting decides '
+                                          'until you choose'
+                                    : 'off: the system asks for less motion; '
+                                          'turn them on here anyway')
+                              : 'the critters move, the stripes slide and a '
+                                    'card grows out of its tile',
+                          style: DeckHud.mono(size: 15, color: DeckHud.dim),
+                        ),
+                      ],
+                    ),
+                  ),
+                  DeckToggle(
+                    key: const Key('animations'),
+                    on: on,
+                    onChanged: widget.phone.setAnimations,
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         const SizedBox(height: 40),
         Wrap(

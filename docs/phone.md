@@ -98,7 +98,9 @@ The switch **tool colour on tiles** puts a small square in each tile's corner in
 The settings open with a long press on the board; before the phone is paired, the gear in the corner
 of the first screen opens them. With Android's **Remove animations** on, the critters hold their
 pose, the stripes and the workflow twinkle stand still, and a card fades in where it ends up instead
-of growing out of its tile; the colours and words say the same as the motion did. The tiles keep
+of growing out of its tile; the colours and words say the same as the motion did. The switch
+**moving critters** in the settings overrides that either way: until you touch it, the system's
+setting decides. The tiles keep
 their own text size (each is one picture, scaled to the screen); the cards follow the system's font
 size up to 150 %, the settings all the way, and a screen reader hears tiles, free slots, buttons
 and switches as such.

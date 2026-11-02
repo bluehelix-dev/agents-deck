@@ -255,6 +255,33 @@ void main() {
       expect(again.keepScreenOn.value, isFalse);
     });
 
+    testWidgets('moving critters: the system decides until you choose', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await phone.start();
+      await pumpPhone(tester, const Size(1080, 2340));
+      // The system asks for less motion and nothing was chosen: still.
+      final board = find.byType(AgentsApp);
+      expect(MediaQuery.disableAnimationsOf(tester.element(board)), isTrue);
+      await tester.longPressAt(boardBackground(tester));
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('animations')));
+      await tester.tap(find.byKey(const Key('animations')));
+      await tester.pump();
+      expect(phone.animations.value, isTrue);
+      expect(MediaQuery.disableAnimationsOf(tester.element(board)), isFalse);
+      final saved = jsonDecode(File(phone.settingsPath).readAsStringSync());
+      expect(saved['animations'], isTrue);
+      final again = Phone(dir: dir.path, host: FakeHost());
+      await again.start();
+      expect(again.animations.value, isTrue);
+    });
+
     testWidgets('buzz when an agent needs you: on by default, persists', (
       tester,
     ) async {
