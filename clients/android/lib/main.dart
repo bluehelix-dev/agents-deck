@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:convert';
 import 'dart:io';
 
@@ -473,39 +474,47 @@ class PhoneDeckState extends State<PhoneDeck> with WidgetsBindingObserver {
                           child: Overlay(
                             initialEntries: [
                               OverlayEntry(
-                                builder: (context) =>
-                                    ValueListenableBuilder<bool>(
-                                      valueListenable: widget.phone.toolSquare,
-                                      builder: (context, square, _) => AgentsApp(
-                                        toolSquare: square,
-                                        source: widget.source,
-                                        animate: widget.animate,
-                                        columns: columns,
-                                        backButton:
-                                            true, // no edge swipe on a phone
-                                        cardHost: (board) => CardMorph(
-                                          key: _stage,
-                                          child: board,
-                                        ),
-                                        openCard:
-                                            (
-                                              tileContext,
-                                              tileKey, {
-                                              required id,
-                                              required fill,
-                                              required builder,
-                                            }) => _stage.currentState?.open(
-                                              tileKey,
-                                              fill: fill,
-                                              builder: builder,
-                                            ),
-                                        pairingCard: (problem) => PairingCard(
-                                          problem: problem,
-                                          device: device,
-                                          ways: _ways,
+                                builder: (context) => ValueListenableBuilder<bool>(
+                                  valueListenable: widget.phone.toolSquare,
+                                  // The cards are a fixed composition
+                                  // on the board's area: they follow
+                                  // the system's text size up to 150 %,
+                                  // past which they would clip.
+                                  builder: (context, square, _) =>
+                                      MediaQuery.withClampedTextScaling(
+                                        maxScaleFactor: 1.5,
+                                        child: AgentsApp(
+                                          toolSquare: square,
+                                          source: widget.source,
+                                          animate: widget.animate,
+                                          columns: columns,
+                                          backButton:
+                                              true, // no edge swipe on a phone
+                                          cardHost: (board) => CardMorph(
+                                            key: _stage,
+                                            child: board,
+                                          ),
+                                          openCard:
+                                              (
+                                                tileContext,
+                                                tileKey, {
+                                                required id,
+                                                required fill,
+                                                required builder,
+                                              }) => _stage.currentState?.open(
+                                                tileKey,
+                                                fill: fill,
+                                                builder: builder,
+                                              ),
+                                          pairingCard: (problem) => PairingCard(
+                                            problem: problem,
+                                            device: device,
+                                            ways: _ways,
+                                            onSettings: _openSettings,
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                ),
                               ),
                             ],
                           ),
@@ -609,26 +618,90 @@ class DeckButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final off = onTap == null;
     final line = off ? DeckHud.dim : DeckHud.accent;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    // Pressed = the deck's ink invert, like a tile.
+    return Pressable(
       onTap: onTap,
-      child: Container(
+      builder: (context, pressed) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
         decoration: BoxDecoration(
-          color: filled && !off ? DeckHud.accent : DeckHud.panel,
-          border: Border.all(color: line, width: 2),
+          color: pressed
+              ? DeckHud.ink
+              : filled && !off
+              ? DeckHud.accent
+              : DeckHud.panel,
+          border: Border.all(color: pressed ? DeckHud.ink : line, width: 2),
         ),
         child: Text(
           label,
           style: DeckHud.rm(
             20,
-            filled && !off ? DeckHud.bg : line,
+            pressed || (filled && !off) ? DeckHud.bg : line,
             weight: 700,
           ),
         ),
       ),
     );
   }
+}
+
+/// A square outlined button with a gear in it: opens the settings.
+class GearButton extends StatelessWidget {
+  const GearButton({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'settings',
+      child: Pressable(
+        onTap: onTap,
+        builder: (context, pressed) => Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: pressed ? DeckHud.ink : DeckHud.panel,
+            border: Border.all(
+              color: pressed ? DeckHud.ink : DeckHud.dim,
+              width: 2,
+            ),
+          ),
+          child: CustomPaint(
+            painter: _GearPainter(pressed ? DeckHud.bg : DeckHud.dim),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A gear in the deck's pixel manner: a thick ring with eight square teeth.
+class _GearPainter extends CustomPainter {
+  const _GearPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide * 0.26;
+    final ring = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.55
+      ..isAntiAlias = false;
+    canvas.drawCircle(c, r, ring);
+    final tooth = Paint()..color = color;
+    final t = r * 0.42;
+    for (var i = 0; i < 8; i++) {
+      final a = i * math.pi / 4;
+      final p = c + Offset(math.cos(a), math.sin(a)) * (r + r * 0.45);
+      canvas.drawRect(Rect.fromCenter(center: p, width: t, height: t), tooth);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GearPainter old) => old.color != color;
 }
 
 /// A deck-style switch: a square knob that slides to the accent side.
@@ -640,28 +713,32 @@ class DeckToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => onChanged(!on),
-      child: Container(
-        width: 60,
-        height: 32,
-        decoration: BoxDecoration(
-          color: on ? DeckHud.accent : DeckHud.panel,
-          border: Border.all(
-            color: on ? DeckHud.accent : DeckHud.dim,
-            width: 2,
+    return Semantics(
+      toggled: on,
+      button: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onChanged(!on),
+        child: Container(
+          width: 60,
+          height: 32,
+          decoration: BoxDecoration(
+            color: on ? DeckHud.accent : DeckHud.panel,
+            border: Border.all(
+              color: on ? DeckHud.accent : DeckHud.dim,
+              width: 2,
+            ),
           ),
-        ),
-        child: AnimatedAlign(
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOut,
-          alignment: on ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            margin: const EdgeInsets.all(4),
-            width: 20,
-            height: 20,
-            color: on ? DeckHud.bg : DeckHud.dim,
+          child: AnimatedAlign(
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOut,
+            alignment: on ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.all(4),
+              width: 20,
+              height: 20,
+              color: on ? DeckHud.bg : DeckHud.dim,
+            ),
           ),
         ),
       ),
@@ -779,6 +856,7 @@ class PairingCard extends StatefulWidget {
     this.problem,
     required this.device,
     required this.ways,
+    this.onSettings,
   });
 
   /// Why the saved bundle wasn't usable (from the client), if any.
@@ -787,6 +865,10 @@ class PairingCard extends StatefulWidget {
   /// "phone" or "tablet": what this device is called in the text.
   final String device;
   final PairingWays ways;
+
+  /// Opens the settings: a gear in the card's corner, since there is no
+  /// board to long-press yet.
+  final VoidCallback? onSettings;
 
   @override
   State<PairingCard> createState() => _PairingCardState();
@@ -822,11 +904,23 @@ class _PairingCardState extends State<PairingCard>
     return _Card(
       key: const Key('phone-pairing'),
       children: [
-        const CritterSprite(
-          pose: CritterPose.wait,
-          width: 90,
-          body: DeckHud.ink,
-          cut: DeckHud.panel,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Expanded(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: CritterSprite(
+                  pose: CritterPose.wait,
+                  width: 90,
+                  body: DeckHud.ink,
+                  cut: DeckHud.panel,
+                ),
+              ),
+            ),
+            if (widget.onSettings case final open?)
+              GearButton(key: const Key('pairing-settings'), onTap: open),
+          ],
         ),
         const SizedBox(height: 22),
         _title('pair with your computer'),
@@ -1125,89 +1219,95 @@ class _SettingsCardState extends State<SettingsCard>
         const SizedBox(height: 6),
         ValueListenableBuilder<bool>(
           valueListenable: widget.phone.keepScreenOn,
-          builder: (context, on, _) => Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'keep the screen on',
-                      style: DeckHud.rm(20, DeckHud.ink),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'while the deck is in front, like the panel',
-                      style: DeckHud.mono(size: 15, color: DeckHud.dim),
-                    ),
-                  ],
+          builder: (context, on, _) => MergeSemantics(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'keep the screen on',
+                        style: DeckHud.rm(20, DeckHud.ink),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'while the deck is in front, like the panel',
+                        style: DeckHud.mono(size: 15, color: DeckHud.dim),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              DeckToggle(
-                key: const Key('keep-screen-on'),
-                on: on,
-                onChanged: widget.phone.setKeepScreenOn,
-              ),
-            ],
+                DeckToggle(
+                  key: const Key('keep-screen-on'),
+                  on: on,
+                  onChanged: widget.phone.setKeepScreenOn,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 22),
         ValueListenableBuilder<bool>(
           valueListenable: widget.phone.alerts,
-          builder: (context, on, _) => Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'buzz when an agent needs you',
-                      style: DeckHud.rm(20, DeckHud.ink),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'a vibration and a notification for a permission '
-                      'prompt or a question',
-                      style: DeckHud.mono(size: 15, color: DeckHud.dim),
-                    ),
-                  ],
+          builder: (context, on, _) => MergeSemantics(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'buzz when an agent needs you',
+                        style: DeckHud.rm(20, DeckHud.ink),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'a vibration and a notification for a permission '
+                        'prompt or a question',
+                        style: DeckHud.mono(size: 15, color: DeckHud.dim),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              DeckToggle(
-                key: const Key('alerts'),
-                on: on,
-                onChanged: widget.phone.setAlerts,
-              ),
-            ],
+                DeckToggle(
+                  key: const Key('alerts'),
+                  on: on,
+                  onChanged: widget.phone.setAlerts,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 22),
         ValueListenableBuilder<bool>(
           valueListenable: widget.phone.toolSquare,
-          builder: (context, on, _) => Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'tool colour on tiles',
-                      style: DeckHud.rm(20, DeckHud.ink),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'a small square in the corner: Claude, Codex or Gemini',
-                      style: DeckHud.mono(size: 15, color: DeckHud.dim),
-                    ),
-                  ],
+          builder: (context, on, _) => MergeSemantics(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'tool colour on tiles',
+                        style: DeckHud.rm(20, DeckHud.ink),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'a small square in the corner: Claude, Codex or Gemini',
+                        style: DeckHud.mono(size: 15, color: DeckHud.dim),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              DeckToggle(
-                key: const Key('tool-square'),
-                on: on,
-                onChanged: widget.phone.setToolSquare,
-              ),
-            ],
+                DeckToggle(
+                  key: const Key('tool-square'),
+                  on: on,
+                  onChanged: widget.phone.setToolSquare,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 40),

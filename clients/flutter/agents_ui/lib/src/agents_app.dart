@@ -110,8 +110,13 @@ class _AgentsAppState extends State<AgentsApp> {
     _syncClocks();
   }
 
+  /// The system asks for less motion (Android's "remove animations", the
+  /// Mac's "reduce motion"): the critters hold their frame, the stripes and
+  /// the workflow's twinkle stand still. Colour and text carry the status.
+  bool _still = false;
+
   void _syncClocks() {
-    final seen = widget.visible?.value ?? true;
+    final seen = (widget.visible?.value ?? true) && !_still;
     _gridClock.running = seen && !_cardShown;
     _cardClock.running = seen && _cardShown;
   }
@@ -157,6 +162,11 @@ class _AgentsAppState extends State<AgentsApp> {
 
   @override
   Widget build(BuildContext context) {
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (still != _still) {
+      _still = still;
+      _syncClocks();
+    }
     return CritterScope(
       clock: _gridClock,
       child: (widget.cardHost ?? (board) => CardMorph(child: board))(
@@ -552,95 +562,100 @@ class _AgentTileState extends State<AgentTile> {
                     ),
                   // Laid out on the deck's 170 px cell and scaled to the
                   // real one, so any grid size keeps the same composition.
+                  // The system's text size doesn't apply inside it: the
+                  // tile is one picture, and its card carries the text at
+                  // the size the system asks for.
                   // With subagents out, the session steps left to make room
                   // for their ladder up the right edge.
                   Positioned.fill(
-                    child: FittedBox(
-                      child: SizedBox.square(
-                        dimension: _tileDesign,
-                        child: Stack(
-                          // The column keeps the cell's width: centred.
-                          fit: StackFit.expand,
-                          children: [
-                            if (a.subagents.isNotEmpty)
-                              Positioned(
-                                right: SubagentLadder.inset,
-                                bottom: SubagentLadder.inset,
-                                child: SubagentLadder(
-                                  subagents: a.subagents,
-                                  hat: a.hat,
-                                  body: c(look.body),
-                                  cut: fill,
-                                  dim: c(look.meta),
-                                ),
-                              ),
-                            Padding(
-                              padding: EdgeInsets.only(
-                                right: a.subagents.isEmpty
-                                    ? 0
-                                    : SubagentLadder.width +
-                                          SubagentLadder.inset,
-                              ),
-                              child: Column(
-                                children: [
-                                  const SizedBox(height: 30),
-                                  CritterSprite(
-                                    pose: critterPoseOf(
-                                      a,
-                                      inStatus: widget.state.inStatus(a),
-                                    ),
-                                    celebrateUntil: DateTime.now().add(
-                                      critterCelebration -
-                                          widget.state.inStatus(a),
-                                    ),
-                                    afterCelebrate: a.unseen
-                                        ? CritterPose.hungry
-                                        : CritterPose.idle,
-                                    species: critterSpeciesFor(a.tool),
+                    child: MediaQuery.withNoTextScaling(
+                      child: FittedBox(
+                        child: SizedBox.square(
+                          dimension: _tileDesign,
+                          child: Stack(
+                            // The column keeps the cell's width: centred.
+                            fit: StackFit.expand,
+                            children: [
+                              if (a.subagents.isNotEmpty)
+                                Positioned(
+                                  right: SubagentLadder.inset,
+                                  bottom: SubagentLadder.inset,
+                                  child: SubagentLadder(
+                                    subagents: a.subagents,
                                     hat: a.hat,
-                                    centerBody: true,
-                                    width: 92,
                                     body: c(look.body),
-                                    celebrateBody: c(DeckHud.accent),
-                                    bubble: look.bubble == null
-                                        ? null
-                                        : c(look.bubble!),
                                     cut: fill,
+                                    dim: c(look.meta),
                                   ),
-                                  const SizedBox(height: 14),
-                                  _line(
-                                    a.title,
-                                    DeckHud.mono(
-                                      size: 16,
-                                      color: c(look.label),
+                                ),
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  right: a.subagents.isEmpty
+                                      ? 0
+                                      : SubagentLadder.width +
+                                            SubagentLadder.inset,
+                                ),
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 30),
+                                    CritterSprite(
+                                      pose: critterPoseOf(
+                                        a,
+                                        inStatus: widget.state.inStatus(a),
+                                      ),
+                                      celebrateUntil: DateTime.now().add(
+                                        critterCelebration -
+                                            widget.state.inStatus(a),
+                                      ),
+                                      afterCelebrate: a.unseen
+                                          ? CritterPose.hungry
+                                          : CritterPose.idle,
+                                      species: critterSpeciesFor(a.tool),
+                                      hat: a.hat,
+                                      centerBody: true,
+                                      width: 92,
+                                      body: c(look.body),
+                                      celebrateBody: c(DeckHud.accent),
+                                      bubble: look.bubble == null
+                                          ? null
+                                          : c(look.bubble!),
+                                      cut: fill,
                                     ),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  if (a.workflow case final wf?) ...[
-                                    WorkflowBar(
-                                      workflow: wf,
-                                      dim: c(look.meta),
+                                    const SizedBox(height: 14),
+                                    _line(
+                                      a.title,
+                                      DeckHud.mono(
+                                        size: 16,
+                                        color: c(look.label),
+                                      ),
                                     ),
                                     const SizedBox(height: 5),
-                                    _line(
-                                      wf.line,
-                                      DeckHud.mono(
-                                        size: 12.5,
-                                        color: DeckHud.workflow,
-                                      ).copyWith(letterSpacing: 0.4),
-                                    ),
-                                  ] else
-                                    _line(
-                                      agentMetaLine(a, widget.state),
-                                      DeckHud.mono(
-                                        size: 12.5,
-                                        color: c(look.meta),
-                                      ).copyWith(letterSpacing: 0.4),
-                                    ),
-                                ],
+                                    if (a.workflow case final wf?) ...[
+                                      WorkflowBar(
+                                        workflow: wf,
+                                        dim: c(look.meta),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      _line(
+                                        wf.line,
+                                        DeckHud.mono(
+                                          size: 12.5,
+                                          color: DeckHud.workflow,
+                                        ).copyWith(letterSpacing: 0.4),
+                                      ),
+                                    ] else
+                                      _line(
+                                        agentMetaLine(a, widget.state),
+                                        DeckHud.mono(
+                                          size: 12.5,
+                                          color: c(look.meta),
+                                        ).copyWith(letterSpacing: 0.4),
+                                      ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -754,11 +769,15 @@ class _FreeCellState extends State<_FreeCell> {
   final _key = GlobalKey();
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    key: _key,
-    behavior: HitTestBehavior.opaque,
-    onTap: () => widget.onOpen(context, _key),
-    child: const AgentsEmptyTile(),
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'free slot: add a session',
+    child: GestureDetector(
+      key: _key,
+      behavior: HitTestBehavior.opaque,
+      onTap: () => widget.onOpen(context, _key),
+      child: const AgentsEmptyTile(),
+    ),
   );
 }
 

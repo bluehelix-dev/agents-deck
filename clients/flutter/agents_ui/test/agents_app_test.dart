@@ -1114,6 +1114,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('tiles and free slots are buttons to a screen reader', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pumpApp(tester, FakeAgentsSource.demo());
+    final tile = tester.getSemantics(
+      find.byKey(const ValueKey('agent-tile-k3f9a2')),
+    );
+    expect(tile.flagsCollection.isButton, isTrue);
+    expect(tile.label, contains('checkout-api'));
+    final free = tester.getSemantics(find.byType(AgentsEmptyTile).first);
+    expect(free.flagsCollection.isButton, isTrue);
+    expect(free.label, 'free slot: add a session');
+    handle.dispose();
+  });
+
+  testWidgets('with animations removed, the card appears in place', (
+    tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await _pumpApp(tester, FakeAgentsSource.demo());
+    await tester.tap(find.byKey(const ValueKey('agent-tile-k3f9a2')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    // One frame in: full size already, only fading in; no flight from the tile.
+    expect(
+      tester.getRect(find.byType(AgentDetail)),
+      tester.getRect(find.byType(AgentsApp)),
+    );
+  });
+
   testWidgets('the tool square shows only when asked for', (tester) async {
     final source = FakeAgentsSource.demo();
     await _pumpApp(tester, source);

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show Tristate;
 
 import 'package:agents_deck_android/main.dart';
 import 'package:agents_deck_android/updates.dart';
@@ -488,6 +489,36 @@ void main() {
   });
 
   group('pairing', () {
+    testWidgets('the gear on the pairing card opens the settings', (
+      tester,
+    ) async {
+      final source = unpairedClient();
+      await pumpPhone(tester, const Size(1080, 2340), source: source);
+      expect(find.byKey(const Key('phone-pairing')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('pairing-settings')));
+      await tester.pump();
+      expect(find.byKey(const Key('settings-card')), findsOneWidget);
+      // Back closes it again, to the pairing card.
+      expect(await shell(tester).didPopRoute(), isTrue);
+      await tester.pump();
+      expect(find.byKey(const Key('settings-card')), findsNothing);
+      source.dispose();
+      await tester.pump();
+    });
+
+    testWidgets('a switch tells a screen reader its name and state', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await pumpPhone(tester, const Size(1080, 2340));
+      await tester.longPressAt(boardBackground(tester));
+      await tester.pump();
+      final row = tester.getSemantics(find.byKey(const Key('keep-screen-on')));
+      expect(row.flagsCollection.isToggled, Tristate.isTrue);
+      expect(row.label, contains('keep the screen on'));
+      handle.dispose();
+    });
+
     testWidgets('no bundle: the pairing card imports one', (tester) async {
       final source = unpairedClient();
       host.nextPick = 'nonsense';

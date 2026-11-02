@@ -34,14 +34,23 @@ class _PressableState extends State<Pressable> {
   @override
   Widget build(BuildContext context) {
     final tap = widget.onTap;
-    if (tap == null) return widget.builder(context, false);
-    return GestureDetector(
-      behavior: widget.behavior,
-      onTapDown: (_) => _press(true),
-      onTapUp: (_) => _press(false),
-      onTapCancel: () => _press(false),
-      onTap: tap,
-      child: widget.builder(context, _down),
+    if (tap == null) {
+      return Semantics(
+        button: true,
+        enabled: false,
+        child: widget.builder(context, false),
+      );
+    }
+    return Semantics(
+      button: true,
+      child: GestureDetector(
+        behavior: widget.behavior,
+        onTapDown: (_) => _press(true),
+        onTapUp: (_) => _press(false),
+        onTapCancel: () => _press(false),
+        onTap: tap,
+        child: widget.builder(context, _down),
+      ),
     );
   }
 }
@@ -311,6 +320,10 @@ class CardMorphState extends State<CardMorph>
   @override
   Widget build(BuildContext context) {
     final card = _card;
+    // The system asks for less motion: the card fades in where it ends up
+    // instead of growing out of its tile.
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    _t.duration = Duration(milliseconds: still ? 150 : 260);
     return LayoutBuilder(
       key: _area,
       builder: (context, box) {
@@ -324,7 +337,9 @@ class CardMorphState extends State<CardMorph>
                 animation: _t,
                 builder: (context, child) {
                   if (_t.isDismissed) return const SizedBox.shrink(); // closed
-                  final v = Curves.easeOutCubic.transform(_t.value);
+                  final v = still
+                      ? 1.0
+                      : Curves.easeOutCubic.transform(_t.value);
                   final r = Rect.lerp(_from ?? full.deflate(40), full, v)!;
                   return Positioned.fromRect(
                     rect: r,
@@ -333,7 +348,9 @@ class CardMorphState extends State<CardMorph>
                       child: ColoredBox(
                         color: _fill,
                         child: Opacity(
-                          opacity: ((v - 0.35) / 0.65).clamp(0.0, 1.0),
+                          opacity: still
+                              ? _t.value
+                              : ((v - 0.35) / 0.65).clamp(0.0, 1.0),
                           child: child,
                         ),
                       ),

@@ -146,6 +146,8 @@ class AgentDetail extends StatefulWidget {
 }
 
 class _AgentDetailState extends State<AgentDetail> {
+  final _optionsScroll = ScrollController();
+
   /// Prompt the per-prompt UI state (selection, notes) belongs to.
   String? _promptId;
   String? _selected;
@@ -197,6 +199,7 @@ class _AgentDetailState extends State<AgentDetail> {
 
   @override
   void dispose() {
+    _optionsScroll.dispose();
     _timer?.cancel();
     _confirmTimer?.cancel();
     widget.onVisible?.call(false);
@@ -631,6 +634,7 @@ class _AgentDetailState extends State<AgentDetail> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
+          flex: 3,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -668,9 +672,14 @@ class _AgentDetailState extends State<AgentDetail> {
               const SizedBox(height: 10),
               Text(
                 a.title,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: DeckHud.rm(30, ink, weight: 700, spacing: -0.3),
+                style: DeckHud.rm(
+                  30,
+                  ink,
+                  weight: 700,
+                  spacing: -0.3,
+                ).copyWith(height: 1.1),
               ),
             ],
           ),
@@ -678,75 +687,81 @@ class _AgentDetailState extends State<AgentDetail> {
         const SizedBox(width: 16),
         // The same rhythm as the left column: the clock sits level with the
         // critter's body (its top rows are headroom for bubbles), the pill
-        // level with the title.
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            SizedBox(
-              height: _mascotHeight,
-              child: Align(
-                alignment: Alignment.bottomRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 3),
-                  child: HudClock(color: ink, size: 22),
+        // level with the title. With large system text the pill gives way
+        // to the title (two fifths at most) instead of pushing it out.
+        Flexible(
+          flex: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              SizedBox(
+                height: _mascotHeight,
+                child: Align(
+                  alignment: Alignment.bottomRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: HudClock(color: ink, size: 22),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: _titleHeight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (a.account case final acc?) ...[
-                    ConstrainedBox(
-                      key: const Key('agent-account'),
-                      constraints: const BoxConstraints(maxWidth: 120),
-                      child: Text(
-                        acc.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: DeckHud.mono(size: 15, color: ink),
+              const SizedBox(height: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: _titleHeight),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (a.account case final acc?) ...[
+                      ConstrainedBox(
+                        key: const Key('agent-account'),
+                        constraints: const BoxConstraints(maxWidth: 120),
+                        child: Text(
+                          acc.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: DeckHud.mono(size: 15, color: ink),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                    ],
+                    // Its Claude account's colour, or (when asked for) the
+                    // tool's.
+                    if (a.account != null || widget.toolSquare) ...[
+                      Container(
+                        width: 8,
+                        height: 8,
+                        color: a.account == null
+                            ? agentToolColor(a.tool)
+                            : hatColor(a.account!.color).$1,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Flexible(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 300),
+                        child: Container(
+                          key: const Key('agent-pill'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: pillFill,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            agentPillLabel(a, state),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: DeckHud.mono(size: 15, color: pillInk),
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 14),
                   ],
-                  // Its Claude account's colour, or (when asked for) the
-                  // tool's.
-                  if (a.account != null || widget.toolSquare) ...[
-                    Container(
-                      width: 8,
-                      height: 8,
-                      color: a.account == null
-                          ? agentToolColor(a.tool)
-                          : hatColor(a.account!.color).$1,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 300),
-                    child: Container(
-                      key: const Key('agent-pill'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: pillFill,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        agentPillLabel(a, state),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: DeckHud.mono(size: 15, color: pillInk),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -1212,9 +1227,11 @@ class _AgentDetailState extends State<AgentDetail> {
           ],
           const SizedBox(height: 22),
           Expanded(
-            child: _options([
-              for (final o in p.options) _permissionButton(a, p, o),
-            ], bottom: true),
+            child: _options(
+              [for (final o in p.options) _permissionButton(a, p, o)],
+              bottom: true,
+              thumb: DeckHud.bg,
+            ),
           ),
           const SizedBox(height: 22),
           Row(
@@ -1270,7 +1287,11 @@ class _AgentDetailState extends State<AgentDetail> {
 
   /// Option stack: natural height, scrolls only if a prompt brings more
   /// options than fit.
-  Widget _options(List<Widget> children, {bool bottom = false}) {
+  Widget _options(
+    List<Widget> children, {
+    bool bottom = false,
+    Color thumb = DeckHud.dim,
+  }) {
     final column = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1281,14 +1302,25 @@ class _AgentDetailState extends State<AgentDetail> {
         ],
       ],
     );
+    // When more options than fit (a short card on a tablet on its side), a
+    // bar at the right edge says so; it stays away while they all fit.
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        physics: const ClampingScrollPhysics(),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Align(
-            alignment: bottom ? Alignment.bottomCenter : Alignment.topCenter,
-            child: column,
+      builder: (context, constraints) => RawScrollbar(
+        controller: _optionsScroll,
+        thumbVisibility: true,
+        thumbColor: thumb,
+        thickness: 6,
+        radius: Radius.zero,
+        child: SingleChildScrollView(
+          controller: _optionsScroll,
+          physics: const ClampingScrollPhysics(),
+          padding: const EdgeInsets.only(right: 12),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Align(
+              alignment: bottom ? Alignment.bottomCenter : Alignment.topCenter,
+              child: column,
+            ),
           ),
         ),
       ),
@@ -1818,8 +1850,9 @@ class SubagentList extends StatelessWidget {
 
   static const max = 4;
 
-  /// Heights: the label, one line with its gap, the "+N more" line.
-  static const _labelH = 21.0, _lineH = 36.0, _moreH = 29.0;
+  /// Heights at the design's text size: the label, one line with its gap,
+  /// a two-line task with its gap, the "+N more" line.
+  static const _labelH = 21.0, _lineH = 36.0, _lineH2 = 57.0, _moreH = 29.0;
 
   final List<AgentSubagent> subagents;
 
@@ -1856,11 +1889,16 @@ class SubagentList extends StatelessWidget {
         // On a phone in portrait the kind column makes way for the task.
         final kinds = !box.maxWidth.isFinite || box.maxWidth >= 420;
         var fit = n.clamp(0, max);
+        // A task gets two lines (what the agent was sent to do is only
+        // shown here) while every line still fits; else one, then fewer.
+        var lines = 2;
         if (box.maxHeight.isFinite) {
-          // The label, a line per subagent, and the count of the rest.
-          bool fits(int k) =>
-              _labelH + k * _lineH + (k < n ? _moreH : 0) <= box.maxHeight;
-          while (fit > 0 && !fits(fit)) {
+          final k = MediaQuery.textScalerOf(context).scale(17) / 17;
+          bool fits(int shown, double lineH) =>
+              k * (_labelH + shown * lineH + (shown < n ? _moreH : 0)) <=
+              box.maxHeight;
+          if (!fits(fit, _lineH2)) lines = 1;
+          while (fit > 0 && !fits(fit, _lineH)) {
             fit--;
           }
         }
@@ -1882,6 +1920,7 @@ class SubagentList extends StatelessWidget {
                 body: body,
                 cut: cut,
                 now: now,
+                lines: lines,
               ),
             ],
             if (more > 0 && shown.isNotEmpty) ...[
@@ -1909,12 +1948,16 @@ class SubagentLine extends StatelessWidget {
     this.hat,
     this.now,
     this.showKind = true,
+    this.lines = 1,
   });
 
   final AgentSubagent subagent;
 
   /// Whether there is room for the kind column (not on a phone upright).
   final bool kinds;
+
+  /// How many lines the task may take before it loses its end.
+  final int lines;
   final TextStyle meta;
   final AgentHat? hat;
   final Color body;
@@ -1949,9 +1992,9 @@ class SubagentLine extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              maxLines: 1,
+              maxLines: lines,
               overflow: TextOverflow.ellipsis,
-              style: DeckHud.rm(17, DeckHud.ink),
+              style: DeckHud.rm(17, DeckHud.ink).copyWith(height: 1.25),
             ),
           ),
           if (showKind && kinds && kind.isNotEmpty) ...[

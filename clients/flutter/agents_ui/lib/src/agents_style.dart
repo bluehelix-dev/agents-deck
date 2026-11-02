@@ -184,26 +184,26 @@ class AgentButton extends StatelessWidget {
     return Pressable(
       onTap: onTap,
       builder: (context, pressed) => Container(
-        height: height,
+        constraints: BoxConstraints(minHeight: height),
         alignment: alignLeft ? Alignment.centerLeft : Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 22),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
         decoration: BoxDecoration(
           color: pressed ? pressedFill : fill,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: pressed ? pressedFill : outline, width: 2),
         ),
-        // A label longer than the button (a phone's narrow card) shrinks
-        // rather than losing its end.
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            label,
-            maxLines: 1,
-            style: DeckHud.mono(
-              size: fontSize,
-              color: pressed ? pressedInk : ink,
-            ),
-          ),
+        // A label longer than the button (a phone's narrow card, large
+        // system text) takes a second line at the same size, so every
+        // option reads alike.
+        child: Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignLeft ? TextAlign.start : TextAlign.center,
+          style: DeckHud.mono(
+            size: fontSize,
+            color: pressed ? pressedInk : ink,
+          ).copyWith(height: 1.2),
         ),
       ),
     );

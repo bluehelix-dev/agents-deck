@@ -9,7 +9,8 @@ abstract final class DeckHud {
   static const bg = Color(0xFF0A0A0A);
   static const panel = Color(0xFF141412);
   static const ink = Color(0xFFE8E4DC);
-  static const dim = Color(0xFF7A776F);
+  // 4.8:1 on panel, 5.2:1 on bg: the small text (tile meta, labels) reads.
+  static const dim = Color(0xFF85827A);
   static const accent = Color(0xFFFF4D00);
 
   /// Where the font families come from. This package bundles both faces; an
