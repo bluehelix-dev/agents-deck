@@ -574,6 +574,91 @@ void main() {
     });
 
     test(
+      'the paired address unreachable: the deck is found on the network',
+      () async {
+        // A port nothing listens on: the VPN address, away from the VPN.
+        final closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+        final closed2 = await ServerSocket.bind(
+          InternetAddress.loopbackIPv4,
+          0,
+        );
+        final deadPort = closed.port;
+        final deadPort2 = closed2.port;
+        await closed.close();
+        await closed2.close();
+        final asked = <Uri>[];
+        final c = HttpAgentsClient(
+          loadConfig: () => (
+            AgentsConfig.fromJson({
+              'name': 'phone',
+              'url': 'https://127.0.0.1:$deadPort',
+              'ca': pem['ca.pem'],
+              'cert': pem['panel.pem'],
+              'key': pem['panel.key'],
+            }),
+            null,
+          ),
+          backoff: Backoff(initial: const Duration(milliseconds: 50)),
+          discover: (paired) async {
+            asked.add(paired.url);
+            // The deck names an address we can't reach first (one of its
+            // other adapters), then the right one.
+            return [
+              Uri.parse('https://127.0.0.1:$deadPort2'),
+              Uri.parse('https://127.0.0.1:${server.port}'),
+            ];
+          },
+        );
+        addTearDown(c.dispose);
+        final s = await until(c, (s) => s.link == AgentsLink.connected);
+        expect(s.state!.agents, hasLength(11));
+        expect(asked, [Uri.parse('https://127.0.0.1:$deadPort')]);
+        expect(c.foundAt, Uri.parse('https://127.0.0.1:${server.port}'));
+      },
+    );
+
+    test('nothing answers: offline with the reason, and a retry', () async {
+      final closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final deadPort = closed.port;
+      await closed.close();
+      var asked = 0;
+      final c = HttpAgentsClient(
+        loadConfig: () => (cfg(host: '127.0.0.1'), null),
+        backoff: Backoff(initial: const Duration(milliseconds: 50)),
+        discover: (_) async {
+          asked++;
+          return const [];
+        },
+      );
+      addTearDown(c.dispose);
+      // Paired with a working address: never asked.
+      await until(c, (s) => s.link == AgentsLink.connected);
+      expect(asked, 0);
+      final lost = HttpAgentsClient(
+        loadConfig: () => (
+          AgentsConfig.fromJson({
+            'name': 'phone',
+            'url': 'https://127.0.0.1:$deadPort',
+            'ca': pem['ca.pem'],
+            'cert': pem['panel.pem'],
+            'key': pem['panel.key'],
+          }),
+          null,
+        ),
+        backoff: Backoff(initial: const Duration(milliseconds: 50)),
+        discover: (_) async {
+          asked++;
+          return const [];
+        },
+      );
+      addTearDown(lost.dispose);
+      final s = await until(lost, (s) => s.link == AgentsLink.offline);
+      expect(s.problem, isNot(contains('looking')));
+      await until(lost, (_) => asked >= 2); // asks again on every attempt
+      expect(lost.foundAt, isNull);
+    });
+
+    test(
       'a host the certificate doesn\'t name: only the pinned fingerprint',
       () async {
         // "localhost" isn't in the server certificate (only 127.0.0.1).

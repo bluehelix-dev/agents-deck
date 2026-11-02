@@ -36,7 +36,12 @@ Without a camera, copy what `agentctl pair phone` prints and tap **paste the cod
 pairing, from the clipboard. Without either, the bundle below still works.
 
 The phone must reach the listener (`:7341`): the same network, or a VPN (Tailscale or WireGuard) to
-it. Never open `:7341` to the internet. The board takes whichever of its shapes (3×6, 4×4, 6×3) is
+it. Never open `:7341` to the internet. When the paired address can't be reached (the phone is on
+the home Wi-Fi and the VPN is off, or the computer's address changed), the app asks the network where
+the deck is and connects to the answer that comes from the deck it is paired with, by its CA; the
+address it was paired with is tried first again after the next start, or when the found one stops
+working ([protocol.md](protocol.md#devices-and-security)). So pairing with the VPN address covers
+both: at home the app finds the LAN address by itself. The board takes whichever of its shapes (3×6, 4×4, 6×3) is
 closest to the screen's and fills it; cards get a back button since there's no edge swipe, and the
 system's back gesture closes a card or the settings before it leaves the app.
 

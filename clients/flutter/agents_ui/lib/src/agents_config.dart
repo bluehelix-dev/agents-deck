@@ -117,6 +117,18 @@ class AgentsConfig {
     'socket': ?socketPath,
   };
 
+  /// The same pairing at another address: where the deck was found on the
+  /// network.
+  AgentsConfig withUrl(Uri other) => AgentsConfig(
+    url: other,
+    name: name,
+    ca: ca,
+    cert: cert,
+    key: key,
+    fingerprint: fingerprint,
+    socketPath: socketPath,
+  );
+
   /// `url` + path segments (each segment is escaped on its own, so an agent
   /// id can never walk the path).
   Uri endpoint(List<String> segments) => url.replace(
@@ -192,6 +204,23 @@ List<int>? parseFingerprint(String s) {
 /// Canonical form: `sha256:AB:CD:…` (uppercase, colon-separated).
 String formatFingerprint(List<int> bytes) =>
     'sha256:${bytes.map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).join(':')}';
+
+/// SHA-256 of the first certificate in a PEM string (32 bytes): the deck's
+/// CA fingerprint, as `agentctl pair` prints it. Null when [pem] holds none.
+List<int>? caFingerprint(String pem) {
+  final start = pem.indexOf('-----BEGIN CERTIFICATE-----');
+  if (start < 0) return null;
+  final end = pem.indexOf('-----END CERTIFICATE-----', start);
+  if (end < 0) return null;
+  final body = pem
+      .substring(start + '-----BEGIN CERTIFICATE-----'.length, end)
+      .replaceAll(RegExp(r'\s'), '');
+  try {
+    return sha256.convert(base64.decode(body)).bytes;
+  } catch (_) {
+    return null;
+  }
+}
 
 /// True when SHA-256(der) equals [expected]. Constant-time over the digest.
 bool fingerprintMatches(List<int> der, List<int> expected) {

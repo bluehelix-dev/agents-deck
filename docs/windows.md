@@ -32,9 +32,10 @@ path: the installed command uses forward slashes for that reason.)
 
 `agentctl web` opens the dashboard in your default browser with a one-time login link.
 
-Two settings in `%USERPROFILE%\.local\share\agents-terminal\config.json` are worth knowing:
+Three settings in `%USERPROFILE%\.local\share\agents-terminal\config.json` are worth knowing:
 `"liveAutoAdd": true` puts every session the daemon finds on the deck by itself (otherwise you add
-them with `agentctl add` or a tap on a free tile), and the `"hats"` map is where picked hats live.
+them with `agentctl add` or a tap on a free tile), the `"hats"` map is where picked hats live, and
+`"discover": false` stops the daemon answering paired devices that ask the network where it is.
 
 ## What works
 
@@ -53,7 +54,8 @@ them with `agentctl add` or a tap on a free tile), and the `"hats"` map is where
   a phone can't resolve a Windows machine name, and that is what the code or bundle names
   otherwise. Use the PC's LAN address at home, or its VPN address (Tailscale, WireGuard) when the
   phone should reach the deck from anywhere; a device paired with the VPN address works in both
-  places. Removing sessions from the deck on a phone needs `agentctl devices scope <name> admin`.
+  places, and at home the phone app finds the PC's LAN address by itself when the VPN is off
+  ([phone.md](phone.md)). Removing sessions from the deck on a phone needs `agentctl devices scope <name> admin`.
   The deck's CA key is a file under `keys\` in the data folder (there is no Keychain); Windows ACLs
   on your profile folder keep it yours.
 - The CLI: `ls`, `live`, `add`, `hooks`, `sessions`, `resume`, `rm`, `move`, `set`, `get`, `accounts`,

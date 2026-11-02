@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import 'agents_config.dart';
 import 'agents_model.dart';
+import 'discover.dart';
 
 /// Where the link to the agents daemon stands.
 enum AgentsLink {
@@ -260,6 +261,11 @@ class _Problem implements Exception {
 /// * Reconnects with [Backoff] 1 s → 10 s. The pairing file is re-read on
 ///   every attempt, so values saved from the setup page apply without a
 ///   restart.
+/// * When the paired address can't be reached (no route, refused, timed
+///   out), it asks the network where the deck is ([discoverDeck]) and
+///   connects to the answer whose CA is the paired one; that address is
+///   used until it fails too, then the paired one is tried again. A deck
+///   paired with its VPN address is found at home by its LAN address.
 class HttpAgentsClient implements AgentsSource {
   HttpAgentsClient({
     (AgentsConfig?, String?) Function()? loadConfig,
@@ -268,12 +274,24 @@ class HttpAgentsClient implements AgentsSource {
     this.handoffTimeout = const Duration(seconds: 20),
     this.unconfiguredPoll = const Duration(seconds: 5),
     Backoff? backoff,
+    Future<List<Uri>> Function(AgentsConfig)? discover,
   }) : _loadConfig = loadConfig ?? AgentsConfig.load,
-       _backoff = backoff ?? Backoff() {
+       _backoff = backoff ?? Backoff(),
+       _discover = discover ?? discoverDeck {
     unawaited(_run());
   }
 
   final (AgentsConfig?, String?) Function() _loadConfig;
+  final Future<List<Uri>> Function(AgentsConfig) _discover;
+
+  /// Where the deck answered from, while the paired address doesn't work,
+  /// and the other addresses it named, to try next.
+  Uri? _found;
+  var _nextFound = <Uri>[];
+
+  /// The address the deck was found at on the network, when that is how
+  /// the link is up (null while the paired address is in use).
+  Uri? get foundAt => _found;
   final Duration silenceTimeout;
   final Duration requestTimeout;
 
@@ -353,9 +371,9 @@ class HttpAgentsClient implements AgentsSource {
 
   Future<void> _run() async {
     while (!_closed) {
-      final (cfg, reason) = _loadConfig();
-      _config = cfg;
-      if (cfg == null) {
+      final (paired, reason) = _loadConfig();
+      if (paired == null) {
+        _config = null;
         _client?.close(force: true);
         _client = null;
         _configKey = null;
@@ -363,28 +381,68 @@ class HttpAgentsClient implements AgentsSource {
         await _sleep(unconfiguredPoll);
         continue;
       }
+      // The paired address, or where the deck was found on the network.
+      final cfg = _found == null || paired.isLocal
+          ? paired
+          : paired.withUrl(_found!);
+      _config = cfg;
       if (_snapshot.value.link == AgentsLink.unconfigured) {
         _set(const AgentsSnapshot(link: AgentsLink.connecting));
       }
       String problem;
+      var unreachable = false;
       try {
         await _stream(cfg);
         problem = 'connection closed';
       } catch (e) {
         problem = _describe(e);
+        unreachable = _unreachable(e);
       }
       if (_closed) break;
       // Keep the last fleet (the grid dims it) and say why we're retrying.
-      _set(
+      void offline(String problem) => _set(
         AgentsSnapshot(
           link: AgentsLink.offline,
           state: _snapshot.value.state,
           problem: problem,
         ),
       );
+      if (unreachable && !paired.isLocal) {
+        if (_found != null && _nextFound.isNotEmpty) {
+          // The computer named more addresses: the next one, at once.
+          _found = _nextFound.removeAt(0);
+          continue;
+        } else if (_found != null) {
+          // None of them worked: back to the paired one.
+          _found = null;
+        } else {
+          offline('$problem · looking on the network');
+          final here = '${paired.url.host}:${paired.url.port}';
+          final urls = await _discover(paired);
+          if (_closed) break;
+          final others = urls
+              .where((u) => '${u.host}:${u.port}' != here)
+              .toList();
+          if (others.isNotEmpty) {
+            _found = others.removeAt(0);
+            _nextFound = others;
+            continue; // the deck is right there: no waiting
+          }
+        }
+      }
+      offline(problem);
       await _sleep(_backoff.next());
     }
   }
+
+  /// A failure to reach the address at all, as against one the deck gave
+  /// (refused pairing, a certificate that isn't the deck's): only those are
+  /// worth asking the network about.
+  bool _unreachable(Object e) =>
+      !_pinMismatch &&
+      (e is SocketException || e is TimeoutException) &&
+      e is! HandshakeException &&
+      e is! TlsException;
 
   Future<void> _stream(AgentsConfig cfg) async {
     _pinMismatch = false;
@@ -661,6 +719,8 @@ class HttpAgentsClient implements AgentsSource {
   @override
   void reconnect() {
     if (_closed) return;
+    _found = null; // the paired address first, as after a start
+    _nextFound = [];
     _backoff.reset();
     _sleepTimer?.cancel();
     _client?.close(force: true); // ends the stream: the loop reloads the config

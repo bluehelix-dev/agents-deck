@@ -32,6 +32,7 @@ import (
 	"github.com/brushknight/agents-deck/backend/internal/daemon"
 	"github.com/brushknight/agents-deck/backend/internal/demo"
 	"github.com/brushknight/agents-deck/backend/internal/devices"
+	"github.com/brushknight/agents-deck/backend/internal/discover"
 	"github.com/brushknight/agents-deck/backend/internal/hats"
 	"github.com/brushknight/agents-deck/backend/internal/link"
 	"github.com/brushknight/agents-deck/backend/internal/model"
@@ -1182,6 +1183,7 @@ type fileConfig struct {
 	daemon.Config
 	LocalAddr  string `json:"localAddr"`
 	DeviceAddr string `json:"deviceAddr"` // "" disables the network listener (paired devices)
+	Discover   *bool  `json:"discover"`   // false: don't answer devices asking the network where the deck is
 	Link       struct {
 		Ports []link.PortConfig `json:"ports"` // serial ports with Deck Link boards (agentctl link add)
 	} `json:"link"`
@@ -1333,6 +1335,13 @@ func serve(args []string) error {
 		go func() {
 			errc <- fmt.Errorf("devices %s: %w", cfg.DeviceAddr, server.ServeDevice(cfg.DeviceAddr, deviceTLS, srv.DeviceHandler()))
 		}()
+			if cfg.Discover == nil || *cfg.Discover {
+			// Paired devices on the same network find the listener by asking.
+			go discover.Serve(context.Background(), discover.Info{
+				Name: strings.TrimSuffix(host, ".local"), Port: srv.DevicePort,
+				CA: srv.CA.Fingerprint(), Server: srv.ServerFingerprint, Version: version,
+			}, log.Printf)
+		}
 	}
 	log.Printf("agentctl %s serving web on http://%s", version, cfg.LocalAddr)
 	sig := make(chan os.Signal, 1)

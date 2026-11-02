@@ -150,6 +150,17 @@ belong to an active device in `devices.json`; a revoked device fails the handsha
 checked again, and an open `GET /v1/events` stream ends at once when its device is revoked, removed or
 paired again.
 
+**Finding the deck.** A paired device on the same network needn't know the listener's address. The
+daemon answers the datagram `agents-deck?` on the multicast group `239.255.77.73:7342` (LAN only;
+and on `:7342` of each of its addresses) with one JSON object: `{"deck": "my-mac", "urls":
+["https://192.0.2.10:7341", …], "ca": "sha256:…", "server": "sha256:…", "version": "0.2.1"}`, the
+listener's URLs with the one on the asker's network first, and the fingerprints of the CA and of the
+listener's certificate. The answer holds nothing the listener doesn't show anyone who connects, and
+it proves nothing: a device takes only an answer whose `ca` is the CA it paired with, and then
+connects over TLS as above, so a look-alike answer gets it nowhere. The daemon answers at most 20 a
+second. This is how the phone app paired with the computer's VPN address finds its LAN address at
+home ([phone.md](phone.md)); `"discover": false` in `config.json` turns it off.
+
 **Scopes.** Each device has one:
 
 | scope | may |
