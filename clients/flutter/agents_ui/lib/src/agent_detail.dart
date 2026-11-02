@@ -561,7 +561,7 @@ class _AgentDetailState extends State<AgentDetail> {
                     height: 44,
                     decoration: BoxDecoration(
                       color: hatColor(color).$1,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: color == hat.color && !hat.auto || pressed
                             ? DeckHud.ink
@@ -806,7 +806,7 @@ class _AgentDetailState extends State<AgentDetail> {
               ? null
               : BoxDecoration(
                   color: fill,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                 ),
           child: Text(
             _flashKey == 'focus' && _flash == _Flash.sent
@@ -985,7 +985,7 @@ class _AgentDetailState extends State<AgentDetail> {
                 child: Text(
                   _note ?? footer,
                   key: _note == null ? null : const Key('agent-note'),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: DeckHud.mono(
                     size: 14,
@@ -1249,7 +1249,7 @@ class _AgentDetailState extends State<AgentDetail> {
                           ? 'answer it in its own terminal'
                           : 'answer here or at the terminal'),
                   key: _note == null ? null : const Key('agent-note'),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: DeckHud.mono(size: 15, color: DeckHud.bg),
                 ),

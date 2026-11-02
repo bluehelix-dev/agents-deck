@@ -489,6 +489,15 @@ void main() {
   });
 
   group('pairing', () {
+    test('repin keeps a verified listener certificate as the pin', () {
+      File(phone.bundlePath).writeAsStringSync(bundle());
+      phone.repin([1, 2, 3]);
+      final j = jsonDecode(File(phone.bundlePath).readAsStringSync());
+      expect(j['fingerprint'], fingerprintOf([1, 2, 3]));
+      expect(j['name'], 'phone'); // the rest of the bundle as it was
+      expect(phone.config?.fingerprint, hasLength(32));
+    });
+
     testWidgets('the gear on the pairing card opens the settings', (
       tester,
     ) async {

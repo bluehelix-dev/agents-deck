@@ -511,161 +511,169 @@ class _AgentTileState extends State<AgentTile> {
     return Pressable(
       key: _tileKey,
       onTap: () => widget.onOpen(context, _tileKey, a),
-      builder: (context, pressed) {
-        // Pressed = the deck's ink invert.
-        final fill = pressed ? DeckHud.ink : look.fill;
-        Color c(Color v) => pressed ? DeckHud.bg : v;
-        return RepaintBoundary(
-          child: CustomPaint(
-            // Over the content so the ring never shifts the layout.
-            foregroundPainter: pressed
-                ? null
-                : ContextRingPainter(
-                    fraction: a.contextFraction,
-                    color: look.ring,
-                    track: look.ringTrack,
-                  ),
-            child: Container(
-              color: fill,
-              child: Stack(
-                children: [
-                  if (look.stripes && !pressed)
-                    const Positioned.fill(child: HungryStripes())
-                  else if (agentWorkflowing(a) && !pressed)
-                    Positioned.fill(
-                      child: WorkflowTwinkle(
-                        key: const Key('agent-tile-twinkle'),
-                        seed: a.id,
-                      ),
+      builder: (context, pressed) => LayoutBuilder(
+        builder: (context, box) {
+          // Pressed = the deck's ink invert.
+          final fill = pressed ? DeckHud.ink : look.fill;
+          Color c(Color v) => pressed ? DeckHud.bg : v;
+          // A small tile (a phone upright scales the 170 px design to about
+          // two thirds): larger type and a little less critter, so the two
+          // lines still read.
+          final compact = box.maxWidth < _tileDesign * 0.8;
+          final titleSize = compact ? 19.0 : 16.0;
+          final metaSize = compact ? 15.0 : 12.5;
+          return RepaintBoundary(
+            child: CustomPaint(
+              // Over the content so the ring never shifts the layout.
+              foregroundPainter: pressed
+                  ? null
+                  : ContextRingPainter(
+                      fraction: a.contextFraction,
+                      color: look.ring,
+                      track: look.ringTrack,
                     ),
-                  // The colour of the Claude account it runs in, or (when
-                  // asked for) the tool's.
-                  if (!pressed && (a.account != null || widget.toolSquare))
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: Semantics(
-                        label: a.account == null
-                            ? null
-                            : '${a.account!.name} account',
-                        child: Container(
-                          key: a.account == null
-                              ? const Key('agent-tile-tool')
-                              : const Key('agent-tile-account'),
-                          width: 8,
-                          height: 8,
-                          color: a.account == null
-                              ? look.chip
-                              : hatColor(a.account!.color).$1,
+              child: Container(
+                color: fill,
+                child: Stack(
+                  children: [
+                    if (look.stripes && !pressed)
+                      const Positioned.fill(child: HungryStripes())
+                    else if (agentWorkflowing(a) && !pressed)
+                      Positioned.fill(
+                        child: WorkflowTwinkle(
+                          key: const Key('agent-tile-twinkle'),
+                          seed: a.id,
                         ),
                       ),
-                    ),
-                  // Laid out on the deck's 170 px cell and scaled to the
-                  // real one, so any grid size keeps the same composition.
-                  // The system's text size doesn't apply inside it: the
-                  // tile is one picture, and its card carries the text at
-                  // the size the system asks for.
-                  // With subagents out, the session steps left to make room
-                  // for their ladder up the right edge.
-                  Positioned.fill(
-                    child: MediaQuery.withNoTextScaling(
-                      child: FittedBox(
-                        child: SizedBox.square(
-                          dimension: _tileDesign,
-                          child: Stack(
-                            // The column keeps the cell's width: centred.
-                            fit: StackFit.expand,
-                            children: [
-                              if (a.subagents.isNotEmpty)
-                                Positioned(
-                                  right: SubagentLadder.inset,
-                                  bottom: SubagentLadder.inset,
-                                  child: SubagentLadder(
-                                    subagents: a.subagents,
-                                    hat: a.hat,
-                                    body: c(look.body),
-                                    cut: fill,
-                                    dim: c(look.meta),
-                                  ),
-                                ),
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  right: a.subagents.isEmpty
-                                      ? 0
-                                      : SubagentLadder.width +
-                                            SubagentLadder.inset,
-                                ),
-                                child: Column(
-                                  children: [
-                                    const SizedBox(height: 30),
-                                    CritterSprite(
-                                      pose: critterPoseOf(
-                                        a,
-                                        inStatus: widget.state.inStatus(a),
-                                      ),
-                                      celebrateUntil: DateTime.now().add(
-                                        critterCelebration -
-                                            widget.state.inStatus(a),
-                                      ),
-                                      afterCelebrate: a.unseen
-                                          ? CritterPose.hungry
-                                          : CritterPose.idle,
-                                      species: critterSpeciesFor(a.tool),
+                    // The colour of the Claude account it runs in, or (when
+                    // asked for) the tool's.
+                    if (!pressed && (a.account != null || widget.toolSquare))
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Semantics(
+                          label: a.account == null
+                              ? null
+                              : '${a.account!.name} account',
+                          child: Container(
+                            key: a.account == null
+                                ? const Key('agent-tile-tool')
+                                : const Key('agent-tile-account'),
+                            width: 8,
+                            height: 8,
+                            color: a.account == null
+                                ? look.chip
+                                : hatColor(a.account!.color).$1,
+                          ),
+                        ),
+                      ),
+                    // Laid out on the deck's 170 px cell and scaled to the
+                    // real one, so any grid size keeps the same composition.
+                    // The system's text size doesn't apply inside it: the
+                    // tile is one picture, and its card carries the text at
+                    // the size the system asks for.
+                    // With subagents out, the session steps left to make room
+                    // for their ladder up the right edge.
+                    Positioned.fill(
+                      child: MediaQuery.withNoTextScaling(
+                        child: FittedBox(
+                          child: SizedBox.square(
+                            dimension: _tileDesign,
+                            child: Stack(
+                              // The column keeps the cell's width: centred.
+                              fit: StackFit.expand,
+                              children: [
+                                if (a.subagents.isNotEmpty)
+                                  Positioned(
+                                    right: SubagentLadder.inset,
+                                    bottom: SubagentLadder.inset,
+                                    child: SubagentLadder(
+                                      subagents: a.subagents,
                                       hat: a.hat,
-                                      centerBody: true,
-                                      width: 92,
                                       body: c(look.body),
-                                      celebrateBody: c(DeckHud.accent),
-                                      bubble: look.bubble == null
-                                          ? null
-                                          : c(look.bubble!),
                                       cut: fill,
+                                      dim: c(look.meta),
                                     ),
-                                    const SizedBox(height: 14),
-                                    _line(
-                                      a.title,
-                                      DeckHud.mono(
-                                        size: 16,
-                                        color: c(look.label),
+                                  ),
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    right: a.subagents.isEmpty
+                                        ? 0
+                                        : SubagentLadder.width +
+                                              SubagentLadder.inset,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      SizedBox(height: compact ? 26 : 30),
+                                      CritterSprite(
+                                        pose: critterPoseOf(
+                                          a,
+                                          inStatus: widget.state.inStatus(a),
+                                        ),
+                                        celebrateUntil: DateTime.now().add(
+                                          critterCelebration -
+                                              widget.state.inStatus(a),
+                                        ),
+                                        afterCelebrate: a.unseen
+                                            ? CritterPose.hungry
+                                            : CritterPose.idle,
+                                        species: critterSpeciesFor(a.tool),
+                                        hat: a.hat,
+                                        centerBody: true,
+                                        width: compact ? 84 : 92,
+                                        body: c(look.body),
+                                        celebrateBody: c(DeckHud.accent),
+                                        bubble: look.bubble == null
+                                            ? null
+                                            : c(look.bubble!),
+                                        cut: fill,
                                       ),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    if (a.workflow case final wf?) ...[
-                                      WorkflowBar(
-                                        workflow: wf,
-                                        dim: c(look.meta),
+                                      const SizedBox(height: 14),
+                                      _line(
+                                        a.title,
+                                        DeckHud.mono(
+                                          size: titleSize,
+                                          color: c(look.label),
+                                        ),
                                       ),
                                       const SizedBox(height: 5),
-                                      _line(
-                                        wf.line,
-                                        DeckHud.mono(
-                                          size: 12.5,
-                                          color: DeckHud.workflow,
-                                        ).copyWith(letterSpacing: 0.4),
-                                      ),
-                                    ] else
-                                      _line(
-                                        agentMetaLine(a, widget.state),
-                                        DeckHud.mono(
-                                          size: 12.5,
-                                          color: c(look.meta),
-                                        ).copyWith(letterSpacing: 0.4),
-                                      ),
-                                  ],
+                                      if (a.workflow case final wf?) ...[
+                                        WorkflowBar(
+                                          workflow: wf,
+                                          dim: c(look.meta),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        _line(
+                                          wf.line,
+                                          DeckHud.mono(
+                                            size: metaSize,
+                                            color: DeckHud.workflow,
+                                          ).copyWith(letterSpacing: 0.4),
+                                        ),
+                                      ] else
+                                        _line(
+                                          agentMetaLine(a, widget.state),
+                                          DeckHud.mono(
+                                            size: metaSize,
+                                            color: c(look.meta),
+                                          ).copyWith(letterSpacing: 0.4),
+                                        ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -997,7 +1005,7 @@ class AgentsPairingCard extends StatelessWidget {
             ),
             const SizedBox(height: 34),
             step('1', [
-              const TextSpan(text: 'on the mac, run '),
+              const TextSpan(text: 'on the computer, run '),
               code('agentctl pair desk-panel --bundle -'),
             ]),
             step('2', [

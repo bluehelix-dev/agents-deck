@@ -36,6 +36,7 @@ Future<void> main() async {
   final source = HttpAgentsClient(
     loadConfig: phone.loadConfig,
     unconfiguredPoll: const Duration(seconds: 2),
+    onServerCertificate: phone.repin,
   );
   runApp(PhoneDeck(source: source, phone: phone));
 }
@@ -248,7 +249,7 @@ class Phone {
   Future<String?> pairByPaste() async {
     final payload = (await host.clipboardText())?.trim() ?? '';
     if (payload.isEmpty) {
-      return 'nothing on the clipboard: copy what `agentctl pair phone` prints';
+      return 'nothing on the clipboard: copy what agentctl pair phone prints';
     }
     return pairWith(payload);
   }
@@ -287,6 +288,20 @@ class Phone {
       return 'could not save the bundle: ${e.message}';
     }
     return null;
+  }
+
+  /// Keeps the listener certificate a verified connection presented as the
+  /// bundle's pin, so the pin stays current when the deck reissues it.
+  void repin(List<int> der) {
+    try {
+      final f = File(bundlePath);
+      final j = jsonDecode(f.readAsStringSync());
+      if (j is! Map<String, dynamic>) return;
+      j['fingerprint'] = fingerprintOf(der);
+      f.writeAsStringSync(jsonEncode(j), flush: true);
+    } catch (_) {
+      // The next verified connection tries again.
+    }
   }
 
   /// Removes the bundle from this phone. The deck still lists the device
@@ -719,25 +734,29 @@ class DeckToggle extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => onChanged(!on),
-        child: Container(
-          width: 60,
-          height: 32,
-          decoration: BoxDecoration(
-            color: on ? DeckHud.accent : DeckHud.panel,
-            border: Border.all(
-              color: on ? DeckHud.accent : DeckHud.dim,
-              width: 2,
+        // 72 x 44 to the finger, 60 x 32 to the eye.
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Container(
+            width: 60,
+            height: 32,
+            decoration: BoxDecoration(
+              color: on ? DeckHud.accent : DeckHud.panel,
+              border: Border.all(
+                color: on ? DeckHud.accent : DeckHud.dim,
+                width: 2,
+              ),
             ),
-          ),
-          child: AnimatedAlign(
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeOut,
-            alignment: on ? Alignment.centerRight : Alignment.centerLeft,
-            child: Container(
-              margin: const EdgeInsets.all(4),
-              width: 20,
-              height: 20,
-              color: on ? DeckHud.bg : DeckHud.dim,
+            child: AnimatedAlign(
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOut,
+              alignment: on ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                margin: const EdgeInsets.all(4),
+                width: 20,
+                height: 20,
+                color: on ? DeckHud.bg : DeckHud.dim,
+              ),
             ),
           ),
         ),
@@ -952,9 +971,9 @@ class _PairingCardState extends State<PairingCard>
         ),
         const SizedBox(height: 26),
         _lead(
-          'no camera here? copy what `agentctl pair ${widget.device}` prints '
-          'and paste it, or import a bundle from `agentctl pair '
-          '${widget.device} --bundle phone.json --host <its address>`.',
+          'no camera here? copy what agentctl pair ${widget.device} prints '
+          'and paste it, or import a bundle from agentctl pair '
+          '${widget.device} --bundle phone.json --host <its address>.',
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -1120,20 +1139,24 @@ class _SettingsCardState extends State<SettingsCard>
     final paired = cfg != null;
     Widget row(String label, Widget value, {Key? key}) => Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 150,
-            child: Text(
-              label,
-              style: DeckHud.mono(size: 16, color: DeckHud.dim),
+      child: LayoutBuilder(
+        builder: (context, box) => Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              // The label column is a share of the row, so a long label (large
+              // text, another language) wraps instead of pushing the value out.
+              width: math.min(150, box.maxWidth * 0.4),
+              child: Text(
+                label,
+                style: DeckHud.mono(size: 16, color: DeckHud.dim),
+              ),
             ),
-          ),
-          Expanded(
-            child: KeyedSubtree(key: key, child: value),
-          ),
-        ],
+            Expanded(
+              child: KeyedSubtree(key: key, child: value),
+            ),
+          ],
+        ),
       ),
     );
     Text value(String s, {Color color = DeckHud.ink}) => Text(
@@ -1160,9 +1183,9 @@ class _SettingsCardState extends State<SettingsCard>
         _lead(
           paired
               ? 'paired with a deck. the deck knows this ${widget.device} by '
-                    'its name; `agentctl devices` lists it there.'
-              : 'not paired yet: scan the QR code from `agentctl pair '
-                    '${widget.device} --qr` below, or on the board.',
+                    'its name; agentctl devices lists it there.'
+              : 'not paired yet: scan the QR code from agentctl pair '
+                    '${widget.device} --qr below, or on the board.',
         ),
         const SizedBox(height: 34),
         ValueListenableBuilder<AgentsSnapshot>(
