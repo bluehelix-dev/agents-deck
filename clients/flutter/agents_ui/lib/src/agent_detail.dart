@@ -229,6 +229,7 @@ class _AgentDetailState extends State<AgentDetail> {
     bool closeOnOk = false,
   }) async {
     if (_busy || _closing) return null;
+    final asked = _promptId;
     setState(() {
       _busy = true;
       _flashKey = key;
@@ -240,6 +241,10 @@ class _AgentDetailState extends State<AgentDetail> {
     _timer?.cancel();
     switch (r.kind) {
       case AgentsResultKind.ok:
+        // A question form's next step already showed up: stay on the card.
+        if (closeOnOk && _promptId != asked && _liveQuestion() != null) {
+          closeOnOk = false;
+        }
         setState(() {
           _flash = _Flash.sent;
           _closing = closeOnOk;
@@ -392,11 +397,29 @@ class _AgentDetailState extends State<AgentDetail> {
     };
   }
 
+  /// The id of the question the agent waits on now, if it does. A question
+  /// form (several questions, or ticking the answers of a pick-any one) comes
+  /// one step at a time, each step a new prompt.
+  String? _liveQuestion([AgentsSnapshot? snap]) {
+    final a = (snap ?? widget.source.snapshot.value).state?.byId(
+      widget.agentId,
+    );
+    final p = a?.status == AgentStatus.waiting ? a?.waiting : null;
+    return p?.kind == PromptKind.question ? p!.id : null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<AgentsSnapshot>(
       valueListenable: widget.source.snapshot,
       builder: (context, snap, _) {
+        final next = _closing ? _liveQuestion(snap) : null;
+        if (next != null && next != _promptId) {
+          // The answer opened the form's next step: show it instead of closing.
+          _timer?.cancel();
+          _closing = false;
+          _busy = false;
+        }
         // While an answer's "sent" holds, keep showing the prompt it
         // answered — the live state has usually moved on already.
         final frozen = _closing ? _shown : null;
@@ -845,6 +868,10 @@ class _AgentDetailState extends State<AgentDetail> {
     final resumeFlash = _flashColors('resume', onAccent: false);
     final others = _otherAccounts(a);
     final armed = others.where((x) => x.name == _confirmHandoff).firstOrNull;
+    final crew = [
+      for (final s in a.subagents)
+        if (a.workflow == null || s.type != 'workflow') s,
+    ];
     return _card(
       fill: DeckHud.bg,
       // A workflow at work twinkles behind the card too, as on its tile,
@@ -871,10 +898,9 @@ class _AgentDetailState extends State<AgentDetail> {
             cut: DeckHud.bg,
           ),
           const SizedBox(height: 26),
-          // A workflow's phases, with its agents under the running one; any
-          // other subagents as the crew list. Both share the room with the
-          // last prompt, four parts to its one: as many lines as fit, then
-          // a count.
+          // A workflow's phases, with its agents under the running one. They
+          // share the room with the last prompt, four parts to its one: as
+          // many lines as fit, then a count.
           if (a.workflow case final wf?) ...[
             Flexible(
               flex: 4,
@@ -892,27 +918,35 @@ class _AgentDetailState extends State<AgentDetail> {
             ),
             const SizedBox(height: 26),
           ],
-          if (a.subagents.any(
-            (s) => a.workflow == null || s.type != 'workflow',
-          )) ...[
-            Flexible(
-              flex: 4,
-              child: SubagentList(
-                subagents: [
-                  for (final s in a.subagents)
-                    if (a.workflow == null || s.type != 'workflow') s,
-                ],
-                hat: a.hat,
-                body: body,
-                cut: DeckHud.bg,
-                now: state.serverNow(),
-              ),
-            ),
-            const SizedBox(height: 26),
-          ],
-          _label(nowLabel, DeckHud.dim),
+          // Doing now, and how many subagents work for it on the right.
+          Row(
+            children: [
+              Expanded(child: _label(nowLabel, DeckHud.dim)),
+              if (crew.isNotEmpty)
+                Text(
+                  SubagentRows.count(crew),
+                  key: const Key('agent-subagent-count'),
+                  style: DeckHud.mono(size: 14, color: DeckHud.dim),
+                ),
+            ],
+          ),
           const SizedBox(height: 8),
           nowValue,
+          // The working subagents (a workflow's are in its sections above),
+          // one to a row, like the boards draw them.
+          if (crew.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SubagentRows(
+              subagents: crew,
+              hat: a.hat,
+              body: body,
+              cut: DeckHud.bg,
+              now: state.serverNow(),
+              // The other account's row below, or a workflow's phases
+              // above, take the room of two.
+              maxRows: others.isEmpty && a.workflow == null ? 4 : 2,
+            ),
+          ],
           const SizedBox(height: 26),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -965,18 +999,23 @@ class _AgentDetailState extends State<AgentDetail> {
           const SizedBox(height: 26),
           _label('last prompt', DeckHud.dim),
           const SizedBox(height: 8),
+          // As many lines of it as fit (subagent rows take the room first).
           Expanded(
-            // Whole lines only (up to four): a short card shows fewer,
-            // never half of one.
             child: LayoutBuilder(
-              builder: (context, box) => Text(
-                a.lastPrompt.isEmpty ? '—' : a.lastPrompt,
-                maxLines: box.maxHeight.isFinite
-                    ? (box.maxHeight / (17 * 1.45)).floor().clamp(1, 4)
-                    : 4,
-                overflow: TextOverflow.ellipsis,
-                style: DeckHud.rm(17, DeckHud.ink).copyWith(height: 1.45),
-              ),
+              builder: (context, box) {
+                const style = TextStyle(height: 1.45);
+                // Keep clear of the footer under it.
+                final lines = ((box.maxHeight - 10) / (17 * 1.45))
+                    .floor()
+                    .clamp(0, 4);
+                if (lines == 0) return const SizedBox.shrink();
+                return Text(
+                  a.lastPrompt.isEmpty ? '—' : a.lastPrompt,
+                  maxLines: lines,
+                  overflow: TextOverflow.ellipsis,
+                  style: DeckHud.rm(17, DeckHud.ink).merge(style),
+                );
+              },
             ),
           ),
           Row(
@@ -1497,6 +1536,14 @@ class _AgentDetailState extends State<AgentDetail> {
                   ],
                 ),
               ),
+              if (o.selected) ...[
+                const SizedBox(width: 14),
+                Text(
+                  '✓', // ticked answer of a pick-any question
+                  key: Key('agent-option-${o.key}-ticked'),
+                  style: DeckHud.rm(22, fg, weight: 700),
+                ),
+              ],
             ],
           ),
         );
@@ -1641,7 +1688,7 @@ class _AgentDetailState extends State<AgentDetail> {
 /// A running workflow as phase sections (the Claude app's view): each phase
 /// is a row with its count and a square per agent, done ones dim, the running
 /// phase's in the workflow's blue, a phase to come as one outlined square.
-/// Under a phase with agents at work, those agents as crew lines ([SubagentLine]);
+/// Under a phase with agents at work, those agents as rows ([SubagentLine]);
 /// as many as fit the room, then "+N more".
 class WorkflowSections extends StatelessWidget {
   const WorkflowSections({
@@ -1671,7 +1718,7 @@ class WorkflowSections extends StatelessWidget {
       _topH = 8.0,
       _phaseH = 39.0,
       _gapH = 10.0,
-      _lineH = 36.0,
+      _lineH = 42.0,
       _moreH = 29.0,
       _rowH = 25.0,
       _rowGapH = 4.0,
@@ -1685,12 +1732,11 @@ class WorkflowSections extends StatelessWidget {
     // Each phase's agents, in the crew's order.
     final byPhase = <String, List<AgentSubagent>>{};
     for (final s in subagents) {
-      byPhase.putIfAbsent(SubagentList.titleAndKind(s).$2, () => []).add(s);
+      byPhase.putIfAbsent(SubagentRows.titleAndKind(s).$2, () => []).add(s);
     }
     final total = subagents.length;
     return LayoutBuilder(
       builder: (context, box) {
-        final kinds = !box.maxWidth.isFinite || box.maxWidth >= 420;
         final n = phases.length;
         // How much the phases get: with their dots, as bare rows, or one line.
         final bases = [
@@ -1794,8 +1840,6 @@ class WorkflowSections extends StatelessWidget {
               const SizedBox(height: 10),
               SubagentLine(
                 subagent: s,
-                kinds: kinds,
-                meta: meta,
                 hat: hat,
                 body: body,
                 cut: cut,
@@ -1833,26 +1877,28 @@ class WorkflowSections extends StatelessWidget {
   );
 }
 
-/// An agent's working subagents as a crew list: a line each, with its critter
-/// posed by its latest tool and in the session's hat, what it was sent to do,
-/// its kind (a workflow agent's phase), and the tool it is in with how long
-/// it has been at it ("Grep · 2m"). Up to four
-/// lines, fewer when the card is short, then "+N more".
-class SubagentList extends StatelessWidget {
-  const SubagentList({
+/// "3 subagents", "1 subagent".
+String subagentCount(int n) => '$n subagent${n == 1 ? '' : 's'}';
+
+/// An agent's working subagents, one to a row (the boards' card draws them
+/// the same way): a small critter posed by its latest tool and in the
+/// session's hat, its task, its kind after it when there's room (a workflow
+/// agent's phase), and the tool it is in with how long it has been at it
+/// ("Grep · 2m"). Past [maxRows] the last row says how many more there are.
+class SubagentRows extends StatelessWidget {
+  const SubagentRows({
     super.key,
     required this.subagents,
     required this.body,
     required this.cut,
     this.hat,
     this.now,
+    this.maxRows = 4,
   });
 
-  static const max = 4;
-
-  /// Heights at the design's text size: the label, one line with its gap,
-  /// a two-line task with its gap, the "+N more" line.
-  static const _labelH = 21.0, _lineH = 36.0, _lineH2 = 57.0, _moreH = 29.0;
+  /// Rows at most, the "+N more" row included.
+  final int maxRows;
+  static const rowHeight = 32.0;
 
   final List<AgentSubagent> subagents;
 
@@ -1863,6 +1909,15 @@ class SubagentList extends StatelessWidget {
 
   /// "Now" on the daemon's clock, for how long each has been at it.
   final DateTime? now;
+
+  /// The count beside "doing now": "3 subagents", or "workflow · 2 agents"
+  /// for a workflow's agents.
+  static String count(List<AgentSubagent> subagents) {
+    final n = subagents.length;
+    return subagents.any((s) => s.type == 'workflow')
+        ? 'workflow · $n agent${n == 1 ? '' : 's'}'
+        : subagentCount(n);
+  }
 
   /// What it was sent to do, and its kind: a workflow agent's title is
   /// "label · phase", and the phase is its kind.
@@ -1878,150 +1933,169 @@ class SubagentList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final n = subagents.length;
-    final workflow = subagents.any((s) => s.type == 'workflow');
-    final what = workflow
-        ? 'workflow · $n agent${n == 1 ? '' : 's'}'
-        : '$n subagent${n == 1 ? '' : 's'}';
-    final meta = DeckHud.mono(size: 14, color: DeckHud.dim);
-    return LayoutBuilder(
-      builder: (context, box) {
-        // On a phone in portrait the kind column makes way for the task.
-        final kinds = !box.maxWidth.isFinite || box.maxWidth >= 420;
-        var fit = n.clamp(0, max);
-        // A task gets two lines (what the agent was sent to do is only
-        // shown here) while every line still fits; else one, then fewer.
-        var lines = 2;
-        if (box.maxHeight.isFinite) {
-          final k = MediaQuery.textScalerOf(context).scale(17) / 17;
-          bool fits(int shown, double lineH) =>
-              k * (_labelH + shown * lineH + (shown < n ? _moreH : 0)) <=
-              box.maxHeight;
-          if (!fits(fit, _lineH2)) lines = 1;
-          while (fit > 0 && !fits(fit, _lineH)) {
-            fit--;
-          }
-        }
-        final shown = subagents.take(fit).toList();
-        final more = n - shown.length;
-        return Column(
-          key: const Key('agent-subagents'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(what, style: meta),
-            for (final s in shown) ...[
-              const SizedBox(height: 10),
-              SubagentLine(
-                subagent: s,
-                kinds: kinds,
-                meta: meta,
-                hat: hat,
-                body: body,
-                cut: cut,
-                now: now,
-                lines: lines,
+    final fits = subagents.length <= maxRows;
+    final shown = subagents.take(fits ? maxRows : maxRows - 1).toList();
+    final more = subagents.length - shown.length;
+    return Semantics(
+      label:
+          '${count(subagents)}: '
+          '${subagents.map((s) => s.title).join(', ')}',
+      child: Column(
+        key: const Key('agent-subagents'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final s in shown)
+            SubagentLine(subagent: s, hat: hat, body: body, cut: cut, now: now),
+          if (more > 0)
+            SizedBox(
+              height: rowHeight,
+              child: Row(
+                children: [
+                  const _Lead(child: SizedBox.shrink()),
+                  Text(
+                    '+$more more',
+                    key: const Key('agent-subagents-more'),
+                    style: DeckHud.mono(size: 15, color: DeckHud.dim),
+                  ),
+                ],
               ),
-            ],
-            if (more > 0 && shown.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('+$more more', style: meta),
-            ],
-          ],
-        );
-      },
+            ),
+        ],
+      ),
     );
   }
 }
 
-/// One line of the crew: the critter posed by its latest tool and in the
-/// session's hat, what it was sent to do, its kind (unless the section says
-/// it) and its tool with how long it has been at it ("Grep · 2m").
+/// One subagent's row: the critter, its task and kind ([_SubagentLine]), and
+/// its tool with how long it has been at it ("Grep · 2m").
 class SubagentLine extends StatelessWidget {
   const SubagentLine({
     super.key,
     required this.subagent,
-    required this.kinds,
-    required this.meta,
     required this.body,
     required this.cut,
     this.hat,
     this.now,
     this.showKind = true,
-    this.lines = 1,
   });
 
   final AgentSubagent subagent;
-
-  /// Whether there is room for the kind column (not on a phone upright).
-  final bool kinds;
-
-  /// How many lines the task may take before it loses its end.
-  final int lines;
-  final TextStyle meta;
   final AgentHat? hat;
   final Color body;
   final Color cut;
   final DateTime? now;
+
+  /// Off under a workflow's phase: the section's title says it.
   final bool showKind;
 
   @override
   Widget build(BuildContext context) {
     final s = subagent;
-    final (title, kind) = SubagentList.titleAndKind(s);
     var tool = s.tool.isEmpty ? 'thinking' : s.tool;
     final since = s.startedAt, at = now;
     if (since != null && at != null) {
       final d = at.difference(since);
       tool += ' · ${shortDuration(d.isNegative ? Duration.zero : d)}';
     }
-    return Semantics(
-      label: [title, kind, tool].where((x) => x.isNotEmpty).join(', '),
-      excludeSemantics: true,
+    return SizedBox(
+      key: Key('agent-subagent-${s.id}'),
+      height: SubagentRows.rowHeight,
       child: Row(
-        key: Key('agent-subagent-${s.id}'),
         children: [
-          CritterSprite(
-            pose: critterPoseForTool(s.tool),
-            width: 36,
-            hat: hat,
-            body: body,
-            cut: cut,
+          _Lead(
+            child: CritterSprite(
+              pose: critterPoseForTool(s.tool),
+              showBubble: false,
+              // Whole-pixel cells: 36 is two pixels to a cell.
+              width: 36,
+              hat: hat,
+              body: body,
+              cut: cut,
+            ),
           ),
-          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              title,
-              maxLines: lines,
-              overflow: TextOverflow.ellipsis,
-              style: DeckHud.rm(17, DeckHud.ink).copyWith(height: 1.25),
-            ),
+            child: _SubagentLine(subagent: s, showKind: showKind),
           ),
-          if (showKind && kinds && kind.isNotEmpty) ...[
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 110,
-              child: Text(
-                kind,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: meta,
-              ),
-            ),
-          ],
           const SizedBox(width: 12),
           SizedBox(
-            width: 128, // fixed, so the kind column lines up
+            width: 128, // fixed, so the tasks end in a line
             child: Text(
               tool,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: meta,
+              style: DeckHud.mono(size: 14, color: DeckHud.dim),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The critter's column at the start of a subagent row.
+class _Lead extends StatelessWidget {
+  const _Lead({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 50,
+    child: Align(alignment: Alignment.centerLeft, child: child),
+  );
+}
+
+/// A subagent's task, then " · kind" in dim when the whole of it fits.
+class _SubagentLine extends StatelessWidget {
+  const _SubagentLine({required this.subagent, this.showKind = true});
+
+  final AgentSubagent subagent;
+  final bool showKind;
+
+  @override
+  Widget build(BuildContext context) {
+    final (task, kind) = SubagentRows.titleAndKind(subagent);
+    final titleStyle = DeckHud.rm(17, DeckHud.ink);
+    final typeStyle = DeckHud.mono(
+      size: 15,
+      color: DeckHud.dim,
+    ).copyWith(height: 1.0);
+    final title = task.isNotEmpty
+        ? task
+        : kind.isNotEmpty
+        ? kind
+        : 'subagent';
+    final type = showKind && task.isNotEmpty && kind.isNotEmpty
+        ? ' · $kind'
+        : '';
+    return LayoutBuilder(
+      builder: (context, box) {
+        final span = TextSpan(
+          children: [
+            TextSpan(text: title, style: titleStyle),
+            if (type.isNotEmpty) TextSpan(text: type, style: typeStyle),
+          ],
+        );
+        final tp = TextPainter(
+          text: span,
+          textDirection: TextDirection.ltr,
+          textScaler: MediaQuery.textScalerOf(context),
+          maxLines: 1,
+        )..layout();
+        final fits = tp.width <= box.maxWidth;
+        tp.dispose();
+        return Text.rich(
+          fits ? span : TextSpan(text: title, style: titleStyle),
+          // The same line box with or without the type: rows stay level.
+          strutStyle: StrutStyle.fromTextStyle(
+            titleStyle,
+            forceStrutHeight: true,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      },
     );
   }
 }

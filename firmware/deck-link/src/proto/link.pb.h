@@ -170,6 +170,7 @@ typedef struct _agentsdeck_link_v1_Option {
     char key[8];
     char label[96];
     bool primary;
+    bool selected; /* ticked: a pick-any question's answer so far */
 } agentsdeck_link_v1_Option;
 
 typedef struct _agentsdeck_link_v1_Prompt {
@@ -607,7 +608,7 @@ extern "C" {
 #define agentsdeck_link_v1_WorkflowPhase_init_default {"", 0, 0}
 #define agentsdeck_link_v1_Activity_init_default {"", ""}
 #define agentsdeck_link_v1_Prompt_init_default   {"", _agentsdeck_link_v1_PromptKind_MIN, "", "", "", 0, {agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default}}
-#define agentsdeck_link_v1_Option_init_default   {"", "", 0}
+#define agentsdeck_link_v1_Option_init_default   {"", "", 0, 0}
 #define agentsdeck_link_v1_Tokens_init_default   {0, 0, 0, 0}
 #define agentsdeck_link_v1_Context_init_default  {0, 0}
 #define agentsdeck_link_v1_Hat_init_default      {"", "", 0}
@@ -658,7 +659,7 @@ extern "C" {
 #define agentsdeck_link_v1_WorkflowPhase_init_zero {"", 0, 0}
 #define agentsdeck_link_v1_Activity_init_zero    {"", ""}
 #define agentsdeck_link_v1_Prompt_init_zero      {"", _agentsdeck_link_v1_PromptKind_MIN, "", "", "", 0, {agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero}}
-#define agentsdeck_link_v1_Option_init_zero      {"", "", 0}
+#define agentsdeck_link_v1_Option_init_zero      {"", "", 0, 0}
 #define agentsdeck_link_v1_Tokens_init_zero      {0, 0, 0, 0}
 #define agentsdeck_link_v1_Context_init_zero     {0, 0}
 #define agentsdeck_link_v1_Hat_init_zero         {"", "", 0}
@@ -733,6 +734,7 @@ extern "C" {
 #define agentsdeck_link_v1_Option_key_tag        1
 #define agentsdeck_link_v1_Option_label_tag      2
 #define agentsdeck_link_v1_Option_primary_tag    3
+#define agentsdeck_link_v1_Option_selected_tag   4
 #define agentsdeck_link_v1_Prompt_id_tag         1
 #define agentsdeck_link_v1_Prompt_kind_tag       2
 #define agentsdeck_link_v1_Prompt_title_tag      3
@@ -1118,7 +1120,8 @@ X(a, STATIC,   REPEATED, MESSAGE,  options,           6)
 #define agentsdeck_link_v1_Option_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, STRING,   key,               1) \
 X(a, STATIC,   SINGULAR, STRING,   label,             2) \
-X(a, STATIC,   SINGULAR, BOOL,     primary,           3)
+X(a, STATIC,   SINGULAR, BOOL,     primary,           3) \
+X(a, STATIC,   SINGULAR, BOOL,     selected,          4)
 #define agentsdeck_link_v1_Option_CALLBACK NULL
 #define agentsdeck_link_v1_Option_DEFAULT NULL
 
@@ -1452,9 +1455,9 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Account_size          30
 #define agentsdeck_link_v1_Activity_size         155
 #define agentsdeck_link_v1_AddLive_size          52
-#define agentsdeck_link_v1_AgentChanged_size     3767
+#define agentsdeck_link_v1_AgentChanged_size     3779
 #define agentsdeck_link_v1_AgentRemoved_size     13
-#define agentsdeck_link_v1_Agent_size            3764
+#define agentsdeck_link_v1_Agent_size            3776
 #define agentsdeck_link_v1_Answer_size           39
 #define agentsdeck_link_v1_CertIssued_size       1788
 #define agentsdeck_link_v1_CertRequest_size      603
@@ -1462,7 +1465,7 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Dismiss_size          13
 #define agentsdeck_link_v1_Display_size          14
 #define agentsdeck_link_v1_Focus_size            13
-#define agentsdeck_link_v1_Frame_size            3777
+#define agentsdeck_link_v1_Frame_size            3789
 #define agentsdeck_link_v1_GetState_size         0
 #define agentsdeck_link_v1_Handoff_size          30
 #define agentsdeck_link_v1_HatList_size          1868
@@ -1477,11 +1480,11 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_LiveSessions_size     2424
 #define agentsdeck_link_v1_Move_size             19
 #define agentsdeck_link_v1_NetStatus_size        92
-#define agentsdeck_link_v1_Option_size           108
+#define agentsdeck_link_v1_Option_size           110
 #define agentsdeck_link_v1_Order_size            416
 #define agentsdeck_link_v1_Ping_size             11
 #define agentsdeck_link_v1_Pong_size             11
-#define agentsdeck_link_v1_Prompt_size           1387
+#define agentsdeck_link_v1_Prompt_size           1399
 #define agentsdeck_link_v1_RestoreResult_size    3056
 #define agentsdeck_link_v1_Restore_size          0
 #define agentsdeck_link_v1_Restored_size         188

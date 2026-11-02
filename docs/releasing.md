@@ -73,8 +73,9 @@ Before tagging: `main` is green in `ci`, and each board you changed was flashed 
 2.0.17) project and checked by eye.
 
 Every push to `main` and every pull request runs `ci`: Go vet and tests, cross-compiling for the planned
-platforms, the Flutter tests of the deck UI and the menu bar app, and the firmware host tests and
-default builds.
+platforms, the Flutter tests of the deck UI and the menu bar app, a Linux build of the tray app with
+a headless smoke test (`clients/macos/linux/test/smoke.sh`), and the firmware host tests and default
+builds.
 
 ## How the firmware images are built
 
@@ -145,8 +146,8 @@ The first three turn on signing; the last three add notarization. Notarization n
 |---|---|
 | macOS arm64 | released: `agentctl` and the menu bar app |
 | macOS amd64 | `agentctl` compiles; the app needs a universal Flutter build (blocked locally by Xcode 27's `lipo`, fine on CI's Xcode) |
-| Linux amd64 / arm64 | `agentctl` compiles (CI checks it); still needs a systemd user unit instead of the LaunchAgent, and terminal focus without iTerm |
-| Windows amd64 / arm64 | `agentctl` builds and its tests pass (CI cross-compiles it); the daemon, the dashboard, watched Claude sessions (with `agentctl hooks install` for their prompts), paired phones and `agentctl install` (a login item) work, see [windows.md](windows.md). No release archive yet, and no tray app: the menu bar app is macOS only |
+| Linux amd64 / arm64 | built from source by `install.sh` (CI checks `agentctl` and the tray app build): a systemd user unit for the daemon, the tray app with `--app`. No release archives yet; terminal focus still needs iTerm |
+| Windows amd64 / arm64 | `agentctl` builds and its tests pass (CI cross-compiles it); the daemon, the dashboard, watched Claude sessions (with `agentctl hooks install` for their prompts), paired phones and `agentctl install` (a login item) work, see [windows.md](windows.md). No release archive yet, and no tray app yet |
 | Android | the app in `clients/android`, built by hand and attached to the release as an APK; it updates itself from the releases ([phone.md](phone.md)). iOS: not yet |
 
 Adding a target means a job beside `macos-arm64` in `.github/workflows/release.yml` that uploads its archives as an artifact, and a download of that artifact in `publish`, which puts them in the release and `SHA256SUMS`. Adding a board means a row in the `firmware` job's matrix (and in the board table above).

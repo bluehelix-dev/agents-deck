@@ -490,6 +490,70 @@ void main() {
     expect(find.text('send 3'), findsNothing);
   });
 
+  testWidgets('question form: one step at a time, ticks, stays open', (
+    tester,
+  ) async {
+    final fixture = FakeAgentsSource.demo().toJson();
+    final agent = (fixture['agents'] as List)
+        .cast<Map<String, dynamic>>()
+        .firstWhere((a) => a['id'] == '4uthfl');
+    const review = {
+      'id': 'p21',
+      'kind': 'question',
+      'title': 'submit these answers?',
+      'detail': 'which store? → redis\nwhich checks? → lint',
+      'context': 'review · 2 questions',
+      'options': [
+        {'key': '1', 'label': 'submit answers', 'primary': true},
+        {'key': '2', 'label': 'cancel'},
+      ],
+    };
+    agent['waiting'] = {
+      'id': 'p19',
+      'kind': 'question',
+      'title': 'which store?',
+      'detail': '',
+      'context': 'store · question 1 of 2',
+      'options': [
+        {'key': '1', 'label': 'redis', 'primary': true},
+        {'key': '2', 'label': 'sqlite'},
+      ],
+      'next': {
+        'id': 'p20',
+        'kind': 'question',
+        'title': 'which checks?',
+        'detail': '',
+        'context': 'checks · question 2 of 2 · pick any',
+        'options': [
+          {'key': '1', 'label': 'unit tests'},
+          {'key': '2', 'label': 'lint', 'selected': true},
+          {'key': '3', 'label': 'next — review your answers', 'primary': true},
+        ],
+        'next': review,
+      },
+    };
+    final source = FakeAgentsSource.fromState(fixture);
+    await _pumpApp(tester, source);
+    await _open(tester, 'auth-flow');
+
+    expect(find.text('store · question 1 of 2'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('agent-send')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    // Still on the card: the next step, with its tick and "next" preselected.
+    expect(find.text('which checks?'), findsOneWidget);
+    expect(find.text('checks · question 2 of 2 · pick any'), findsOneWidget);
+    expect(find.byKey(const Key('agent-option-2-ticked')), findsOneWidget);
+    expect(find.byKey(const Key('agent-option-1-ticked')), findsNothing);
+    expect(find.text('send 3'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('agent-send')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('submit these answers?'), findsOneWidget);
+    expect(source.calls.map((c) => c.$3?['key']), ['1', '3']);
+    expect(source.calls.map((c) => c.$3?['promptId']), ['p19', 'p20']);
+  });
+
   testWidgets('focus and interrupt post to the agent', (tester) async {
     final source = FakeAgentsSource.demo();
     await _pumpApp(tester, source);
@@ -703,9 +767,11 @@ void main() {
     );
     await _open(tester, 'checkout-api');
     expect(find.text('workflow · 2 agents'), findsOneWidget);
-    // In the crew list a workflow agent's phase is its kind.
-    expect(find.text('find:auth'), findsOneWidget);
-    expect(find.text('Search'), findsOneWidget);
+    // In the crew rows a workflow agent's phase is its kind.
+    expect(
+      find.textContaining('find:auth · Search', findRichText: true),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -741,16 +807,20 @@ void main() {
     expect(list, findsOneWidget);
     expect(find.text('6 subagents'), findsOneWidget);
     final first = find.byKey(const Key('agent-subagent-s1'));
-    for (final t in [
-      'find every caller of resetTool',
-      'Explore',
-      'Grep · 2m',
-    ]) {
-      expect(
-        find.descendant(of: first, matching: find.text(t)),
-        findsOneWidget,
-      );
-    }
+    expect(
+      find.descendant(
+        of: first,
+        matching: find.textContaining(
+          'find every caller of resetTool · Explore',
+          findRichText: true,
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: first, matching: find.text('Grep · 2m')),
+      findsOneWidget,
+    );
     expect(
       tester
           .widget<CritterSprite>(
@@ -760,7 +830,10 @@ void main() {
           ?.shape,
       'propeller',
     );
-    expect(find.text('general'), findsOneWidget);
+    expect(
+      find.textContaining('write the migration · general', findRichText: true),
+      findsOneWidget,
+    );
     // Without a start time the tool stands alone.
     expect(
       find.descendant(
@@ -769,11 +842,10 @@ void main() {
       ),
       findsOneWidget,
     );
-    // On the 720 px panel two lines fit next to the last prompt; the rest
-    // is counted.
-    expect(find.byKey(const Key('agent-subagent-s2')), findsOneWidget);
-    expect(find.byKey(const Key('agent-subagent-s3')), findsNothing);
-    expect(find.text('+4 more'), findsOneWidget);
+    // Four rows at most, the last one counting the rest.
+    expect(find.byKey(const Key('agent-subagent-s3')), findsOneWidget);
+    expect(find.byKey(const Key('agent-subagent-s4')), findsNothing);
+    expect(find.text('+3 more'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -892,6 +964,85 @@ void main() {
     expect(find.text('find:auth'), findsOneWidget);
     expect(find.text('Search'), findsOneWidget); // the section's title only
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the card shows each subagent on its own row, with a count', (
+    tester,
+  ) async {
+    await _pumpApp(tester, FakeAgentsSource.demo());
+    await _open(tester, 'checkout-api');
+
+    expect(find.text('3 subagents'), findsOneWidget);
+    for (final (id, title) in [
+      ('a1f3c9', 'map the payment retry paths'),
+      ('b72e01', 'write tests for refunds'),
+      ('c90d4a', 'check the webhook docs'),
+    ]) {
+      final row = find.byKey(Key('agent-subagent-$id'));
+      expect(row, findsOneWidget);
+      // A small critter and the task, in that row.
+      expect(
+        find.descendant(of: row, matching: find.byType(CritterSprite)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.textContaining(title, findRichText: true),
+        ),
+        findsOneWidget,
+      );
+    }
+    // The rows are top to bottom, oldest first.
+    final ys = [
+      for (final id in ['a1f3c9', 'b72e01', 'c90d4a'])
+        tester.getTopLeft(find.byKey(Key('agent-subagent-$id'))).dy,
+    ];
+    expect(ys, orderedEquals([...ys]..sort()));
+    expect(find.byKey(const Key('agent-subagents-more')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('many subagents: the rows stop at four, "+N more" last', (
+    tester,
+  ) async {
+    final fixture = FakeAgentsSource.demo().toJson();
+    final first = (fixture['agents'] as List).first as Map<String, dynamic>;
+    first['subagents'] = [
+      for (var i = 0; i < 7; i++)
+        {'id': 's$i', 'title': 'task $i', 'type': 'Explore', 'tool': 'Read'},
+    ];
+    await _pumpApp(tester, FakeAgentsSource.fromState(fixture));
+    await _open(tester, 'checkout-api');
+
+    expect(find.text('7 subagents'), findsOneWidget);
+    for (var i = 0; i < 7; i++) {
+      expect(
+        find.byKey(Key('agent-subagent-s$i')),
+        i < 3 ? findsOneWidget : findsNothing,
+      );
+    }
+    expect(find.text('+4 more'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a subagent with no title shows its type', (tester) async {
+    final fixture = FakeAgentsSource.demo().toJson();
+    final first = (fixture['agents'] as List).first as Map<String, dynamic>;
+    first['subagents'] = [
+      {'id': 'x1', 'title': '', 'type': 'Explore', 'tool': ''},
+    ];
+    await _pumpApp(tester, FakeAgentsSource.fromState(fixture));
+    await _open(tester, 'checkout-api');
+
+    expect(find.text('1 subagent'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('agent-subagent-x1')),
+        matching: find.text('Explore', findRichText: true),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a quick tap still opens the agent (no drag)', (tester) async {

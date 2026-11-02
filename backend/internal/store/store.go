@@ -47,7 +47,8 @@ type Entry struct {
 	SubRead map[string]int64    `json:"-"` // subagent transcript path -> bytes folded into Usage
 	Pending string              `json:"-"` // partial trailing line
 	PromptN int                 `json:"promptN"`
-	Menu    bool                `json:"-"` // current prompt is an arrow-key menu, not numbered
+	Menu    bool                `json:"-"`              // current prompt is an arrow-key menu, not numbered
+	Form    *Form               `json:"form,omitempty"` // the open question form, walked one step at a time
 }
 
 type msgUsage struct {
@@ -108,6 +109,7 @@ func (e *Entry) SetStatus(s model.Status) {
 	}
 	if s != model.Waiting {
 		e.A.Waiting = nil
+		e.Form = nil
 	}
 	if s != model.Error {
 		e.A.Error = nil

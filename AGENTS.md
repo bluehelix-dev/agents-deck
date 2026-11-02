@@ -13,7 +13,7 @@ over USB serial or Wi-Fi.
 | `backend/internal/link` | Deck Link, the serial protocol for boards |
 | `proto/agentsdeck/link/v1` | `link.proto` and `link.options`: the Deck Link contract |
 | `clients/flutter/agents_ui` | the deck UI as a Flutter package (desk panel, menu bar app) |
-| `clients/macos` | the menu bar app |
+| `clients/macos` | the menu bar app: `macos/` (Swift shell), and `linux/` (the Linux tray app, a GTK shell) |
 | `clients/android` | the Android app: the same package in a Kotlin shell (file picker, QR scanner, pairing, alerts, self-update from the releases) |
 | `firmware/deck-link` | the C firmware kit for Deck Link boards, with examples |
 | `firmware/devices` | firmware for specific devices |
@@ -24,6 +24,7 @@ over USB serial or Wi-Fi.
 - `cd backend && go vet ./... && go test ./...`
 - `cd clients/flutter/agents_ui && flutter analyze && flutter test` if you touched Flutter, and
   `cd clients/android && flutter analyze && flutter test` if you touched the Android app
+- `clients/macos/linux/test/smoke.sh` (on Linux, after `flutter build linux`) if you touched `clients/macos/linux`
 - `make -C firmware/deck-link/test/host test` and the PlatformIO builds if you touched firmware
 - Keep `docs/` in step with the code: the API table in `docs/protocol.md` is checked against Deck Link
   by a test, and so are `link.options` and the Go limits.

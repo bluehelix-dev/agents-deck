@@ -14,7 +14,7 @@ One tile per agent, on a 4×4 deck: the same board in the menu bar, on the desk 
 - **Tool colour.** Off by default: a small square in the tile's corner in its tool's colour (Claude, Codex, Gemini), for a deck that runs more than one. Turn it on with **tool colour** in the web dashboard's header, or the switch **tool colour on tiles** in the Android app's settings. An agent in a named Claude account shows its account's colour either way.
 - **The border** fills clockwise with the agent's context window.
 - **Ready.** An agent that finished but whose result you haven't reviewed says "ready", with sliding orange stripes on its tile and open card and the critter awake and calm (eyes open, a blink now and then, no bubble), until you focus its terminal or give it a new task.
-- **Subagents.** Subagents at work climb the tile's right edge: a small critter each, in the session's colour and hat, posed by what it is doing (reading, editing, in the shell), the newest on top; four fit, a "+N" above them counts the rest, and the session steps a little left to make room. The agent's card lists the crew under its title: a line per subagent with its critter, what it was sent to do, its kind (Explore, general, fork; a workflow agent's phase) and the tool it is in; as many lines as the card has room for, then "+N more". A session whose
+- **Subagents.** Subagents at work climb the tile's right edge: a small critter each, in the session's colour and hat, posed by what it is doing (reading, editing, in the shell), the newest on top; four fit, a "+N" above them counts the rest, and the session steps a little left to make room. The agent's card lists them under "doing now", one to a row, with their count beside it: a small critter, what it was sent to do, its kind (Explore, general, fork; a workflow agent's phase) when there's room, and the tool it is in with how long it has been at it ("Grep · 2m"); four rows at most (two when the card also offers another account), the last one "+N more" when there are more. A session whose
   turn is over while its subagents go on (background agents) shows "N subagents working" until their
   transcripts go quiet, and a subagent's permission prompt shows on the session like its own. A session
   that ended its turn with a command still running in the background (a Bash command run in the
@@ -31,7 +31,7 @@ One tile per agent, on a 4×4 deck: the same board in the menu bar, on the desk 
 Tap a tile for its card:
 
 - **Overview.** What it's doing now, context used, tokens, estimated cost, turns and the last prompt, with **focus terminal**, **interrupt** and **stop** (or **resume** / **remove** once it has exited).
-- **Permission prompts** show the exact command with Claude's own options; **questions** show their choices. Your answer is typed into the agent's terminal, and a prompt that has already changed is refused.
+- **Permission prompts** show the exact command with Claude's own options; **questions** show their choices; a question with several parts goes one question at a time (pick-any ones tick, then **next**), then **submit answers**. Your answer is typed into the agent's terminal, and a prompt that has already changed is refused.
 - **Free-text input** can't be typed on the deck: the card sends you to the terminal.
 
 <p align="center"><img src="images/web-permission-v2.png" alt="answering a permission prompt from the web" width="80%"></p>
@@ -41,6 +41,7 @@ Tap a tile for its card:
 | | |
 |---|---|
 | **Menu bar** | A critter icon that turns orange when an agent needs you; the deck drops down in the top-right corner. Esc, the ‹ button or a click elsewhere hides it; right-click opens the web dashboard. |
+| **System tray (Linux)** | The same app and critter icon in the system tray. A click opens the deck next to the icon; Esc or a click elsewhere hides it; the icon's menu has the deck, the web dashboard and Quit. Details in [clients/macos/README.md](../clients/macos/README.md#linux). |
 | **Browser** | `agentctl web` opens the dashboard with a one-time login link. On Linux the link goes through a short-lived private page, so the login code never shows on a command line, and the link is printed too in case the browser can't open that page. It has a grid view and a panel view that mirrors the 720×720 desk panel. |
 | **Wall panel** | A 4″ 720×720 touch panel ([Wall Panel](https://github.com/dotstartech/wall-panel): Raspberry Pi CM4, Flutter) talking to the daemon over Wi-Fi: TLS 1.3 with its own client certificate (`agentctl pair desk-panel --bundle -`). Cards close with an edge swipe. |
 | **Serial boards** | ESP32 boards on USB with Deck Link: see below. |
