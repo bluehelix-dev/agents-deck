@@ -80,6 +80,7 @@ func tailSession(e *store.Entry) bool {
 	changed := false
 	var lastCtx int64
 	var lastModel, lastEffort string
+	var pendingErr *model.ErrInfo // the last API error, until a reply follows it
 	for range maxChunks {
 		buf, _ := io.ReadAll(io.LimitReader(f, maxRead))
 		if len(buf) == 0 {
@@ -123,9 +124,9 @@ func tailSession(e *store.Entry) bool {
 					continue
 				}
 				if l.IsAPIErr {
-					e.SetStatus(model.Error)
-					e.A.Error = &model.ErrInfo{Message: apiErrorText(l.Message.Content)}
-					changed = true
+					// Shown only if nothing answered after it: a replayed
+					// history's old error says nothing about now.
+					pendingErr = &model.ErrInfo{Message: apiErrorText(l.Message.Content)}
 					continue
 				}
 				if l.Message.Usage == nil || l.Message.ID == "" || l.Message.Model == "<synthetic>" {
@@ -138,12 +139,19 @@ func tailSession(e *store.Entry) bool {
 				if l.Effort != "" {
 					lastEffort = l.Effort
 				}
-				if e.A.Status == model.Error {
+				if pendingErr != nil {
+					pendingErr = nil // an error this read already got past
+				} else if e.A.Status == model.Error {
 					e.SetStatus(model.Running) // recovered: a real reply arrived
 				}
 				changed = true
 			}
 		}
+	}
+	if pendingErr != nil {
+		e.SetStatus(model.Error)
+		e.A.Error = pendingErr
+		changed = true
 	}
 	if lastEffort != "" && lastEffort != e.A.Effort {
 		e.A.Effort, changed = lastEffort, true

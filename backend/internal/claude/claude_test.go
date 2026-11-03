@@ -589,3 +589,35 @@ func TestInterruptedAt(t *testing.T) {
 		t.Errorf("not interrupted: %v", got)
 	}
 }
+
+// Replaying a history with an old API error and replies after it leaves the
+// status as it was (the end of the file decides), not on "running".
+func TestTailOldAPIErrorReplay(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "s.jsonl")
+	lines := `{"type":"assistant","isApiErrorMessage":true,"message":{"id":"m1","model":"<synthetic>","content":[{"type":"text","text":"You've hit your limit"}]}}` + "\n" +
+		`{"type":"assistant","message":{"id":"m2","model":"claude-opus-5-5","usage":{"input_tokens":1,"output_tokens":5,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}` + "\n"
+	if err := os.WriteFile(path, []byte(lines), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e := &store.Entry{Transcript: path}
+	e.SetStatus(model.Idle)
+	Tail(e)
+	if e.A.Status != model.Idle || e.A.Error != nil {
+		t.Fatalf("replayed old error: %s %+v", e.A.Status, e.A.Error)
+	}
+	// An error after a live reply still shows, and a reply after it clears it.
+	f, _ := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	f.WriteString(`{"type":"assistant","isApiErrorMessage":true,"message":{"id":"m3","model":"<synthetic>","content":[{"type":"text","text":"API Error: 529 Overloaded"}]}}` + "\n")
+	f.Close()
+	Tail(e)
+	if e.A.Status != model.Error {
+		t.Fatalf("new error: %s", e.A.Status)
+	}
+	f, _ = os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	f.WriteString(`{"type":"assistant","message":{"id":"m4","model":"claude-opus-5-5","usage":{"input_tokens":1,"output_tokens":5,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}` + "\n")
+	f.Close()
+	Tail(e)
+	if e.A.Status != model.Running {
+		t.Fatalf("recovered: %s", e.A.Status)
+	}
+}
