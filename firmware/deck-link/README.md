@@ -160,8 +160,8 @@ The largest stack frame is a command's message (a `CertRequest`, about 610 bytes
 To save RAM, build with a smaller `-DDECK_LINK_MAX_FRAME` (at least 512), `-DDECK_TILES_MAX=8` or
 smaller `DECK_TILE_*_SIZE` values. The core reports the frame size in `Hello.max_frame` and the deck
 keeps to it: it drops an agent's subagents, last prompt and folder path first, then shortens the
-prompt's text and option labels; an agent that still doesn't fit is skipped. 3328 bytes fits
-everything the current `link.options` allows. The decoded `Frame` (about 3.2 KB) is sized by nanopb
+prompt's text and option labels; an agent that still doesn't fit is skipped. 3794 bytes fits
+everything the current `link.options` allows. The decoded `Frame` (about 3.6 KB) is sized by nanopb
 from `link.options` either way.
 
 ## Rules for the serial port
