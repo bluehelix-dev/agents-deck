@@ -98,14 +98,7 @@ func (r *responder) refresh(group *net.UDPAddr) {
 		if ifi.Flags&net.FlagUp == 0 || ifi.Flags&net.FlagMulticast == 0 || ifi.Flags&net.FlagLoopback != 0 {
 			continue
 		}
-		var ips []string
-		addrs, _ := ifi.Addrs()
-		for _, a := range addrs {
-			if ipn, ok := a.(*net.IPNet); ok && ipn.IP.To4() != nil && !ipn.IP.IsLinkLocalUnicast() {
-				ips = append(ips, ipn.IP.String())
-			}
-		}
-		if len(ips) > 0 {
+		if ips := usableIPv4(&ifi); len(ips) > 0 {
 			live[ifi.Name] = ips
 		}
 	}
@@ -117,7 +110,7 @@ func (r *responder) refresh(group *net.UDPAddr) {
 			delete(r.conns, name)
 		}
 	}
-	for name, ips := range live {
+	for name := range live {
 		if _, ok := r.conns[name]; ok {
 			continue
 		}
@@ -133,13 +126,35 @@ func (r *responder) refresh(group *net.UDPAddr) {
 		if len(r.conns) == 1 {
 			r.logf("discovery: answering %q on udp %s:%d", Query, Group, Port)
 		}
-		go r.serveConn(c, ips, allIPv4)
+		go r.serveConn(c, func() []string { return ifaceIPv4(name) }, allIPv4)
 	}
 }
 
-// serveConn answers queries on one socket; ips are the addresses of its
-// interface, others lists the rest of the computer's.
-func (r *responder) serveConn(c *net.UDPConn, ips []string, others func() []string) {
+// ifaceIPv4 lists an interface's IPv4 addresses as they are now, without the
+// 169.254.x.x an adapter gives itself.
+func ifaceIPv4(name string) []string {
+	ifi, err := net.InterfaceByName(name)
+	if err != nil {
+		return nil
+	}
+	return usableIPv4(ifi)
+}
+
+func usableIPv4(ifi *net.Interface) []string {
+	var ips []string
+	addrs, _ := ifi.Addrs()
+	for _, a := range addrs {
+		if ipn, ok := a.(*net.IPNet); ok && ipn.IP.To4() != nil && !ipn.IP.IsLinkLocalUnicast() {
+			ips = append(ips, ipn.IP.String())
+		}
+	}
+	return ips
+}
+
+// serveConn answers queries on one socket; ips lists the addresses of its
+// interface, read for every answer (a new lease keeps the interface's name),
+// others the rest of the computer's.
+func (r *responder) serveConn(c *net.UDPConn, ips, others func() []string) {
 	buf := make([]byte, 512)
 	for {
 		n, src, err := c.ReadFromUDP(buf)
@@ -149,7 +164,7 @@ func (r *responder) serveConn(c *net.UDPConn, ips []string, others func() []stri
 		if !isQuery(buf[:n]) || src.IP.To4() == nil || !r.allow() {
 			continue
 		}
-		_, _ = c.WriteToUDP(r.reply(ips, others()), src)
+		_, _ = c.WriteToUDP(r.reply(ips(), others()), src)
 		r.mu.Lock()
 		if !r.told[src.IP.String()] && len(r.told) < 64 {
 			r.told[src.IP.String()] = true
