@@ -686,6 +686,43 @@ void main() {
     });
 
     test(
+      'a found address with the wrong certificate is dropped, not kept',
+      () async {
+        final closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+        final deadPort = closed.port;
+        await closed.close();
+        var asked = 0;
+        final c = HttpAgentsClient(
+          loadConfig: () => (
+            AgentsConfig.fromJson({
+              'name': 'phone',
+              'url': 'https://127.0.0.1:$deadPort',
+              'ca': pem['ca.pem'],
+              'cert': pem['panel.pem'],
+              'key': pem['panel.key'],
+            }),
+            null,
+          ),
+          backoff: Backoff(initial: const Duration(milliseconds: 50)),
+          discover: (_) async {
+            asked++;
+            // First something whose certificate doesn't fit ("localhost"
+            // isn't in it, and nothing is pinned), then the deck.
+            return [
+              asked == 1
+                  ? Uri.parse('https://localhost:${server.port}')
+                  : Uri.parse('https://127.0.0.1:${server.port}'),
+            ];
+          },
+        );
+        addTearDown(c.dispose);
+        await until(c, (s) => s.link == AgentsLink.connected);
+        expect(asked, 2);
+        expect(c.foundAt, Uri.parse('https://127.0.0.1:${server.port}'));
+      },
+    );
+
+    test(
       'a host the certificate doesn\'t name: only the pinned fingerprint',
       () async {
         // "localhost" isn't in the server certificate (only 127.0.0.1).

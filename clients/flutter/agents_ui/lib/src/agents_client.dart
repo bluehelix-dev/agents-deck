@@ -264,7 +264,8 @@ class _Problem implements Exception {
 /// * When the paired address can't be reached (no route, refused, timed
 ///   out), it asks the network where the deck is ([discoverDeck]) and
 ///   connects to the answer whose CA is the paired one; that address is
-///   used until it fails too, then the paired one is tried again. A deck
+///   used until it fails too (a certificate that doesn't fit counts), then
+///   the next one it named, then the paired one again. A deck
 ///   paired with its VPN address is found at home by its LAN address.
 class HttpAgentsClient implements AgentsSource {
   HttpAgentsClient({
@@ -399,12 +400,14 @@ class HttpAgentsClient implements AgentsSource {
       }
       String problem;
       var unreachable = false;
+      var failed = false;
       try {
         await _stream(cfg);
         problem = 'connection closed';
       } catch (e) {
         problem = _describe(e);
         unreachable = _unreachable(e);
+        failed = true;
       }
       if (_closed) break;
       // Keep the last fleet (the grid dims it) and say why we're retrying.
@@ -415,7 +418,10 @@ class HttpAgentsClient implements AgentsSource {
           problem: problem,
         ),
       );
-      if (unreachable && !paired.isLocal) {
+      // A found address that fails in any way, its certificate included
+      // (something else answered there), is dropped; asking the network
+      // is only for when the paired address can't be reached.
+      if (!paired.isLocal && (_found != null ? failed : unreachable)) {
         if (_found != null && _nextFound.isNotEmpty) {
           // The computer named more addresses: the next one, at once.
           _found = _nextFound.removeAt(0);
