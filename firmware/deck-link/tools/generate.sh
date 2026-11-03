@@ -30,23 +30,6 @@ fi
 (cd "$proto_dir" && nanopb_generator -q -T -L '#include "%s"' \
 	-f link.options -D "$target" link.proto)
 
-# Say in the preamble where the files come from.
-for f in "$target/link.pb.h" "$target/link.pb.c"; do
-	sed -e '1s|^/\* Automatically generated nanopb \(.*\) \*/$|/* Automatically generated nanopb \1: do not edit. Regenerate with tools/generate.sh from proto/agentsdeck/link/v1 (link.proto, link.options). */|' \
-		"$f" >"$f.tmp"
-	mv "$f.tmp" "$f"
-done
-
-if [ "${1:-}" = "--check" ]; then
-	target=$(mktemp -d)
-	trap 'rm -rf "$target"' EXIT
-fi
-
-# -T: no timestamp (stable output); -L: include "pb.h" with quotes so the
-# runtime next to the generated files is found without extra include paths.
-(cd "$proto_dir" && nanopb_generator -q -T -L '#include "%s"' \
-	-f link.options -D "$target" link.proto)
-
 # Hat.auto and SetHat.auto are named after a C/C++ keyword; nanopb has no
 # rename option, so the struct member becomes auto_ (the wire format is by
 # field number and doesn't change). Then say so in the preamble.
