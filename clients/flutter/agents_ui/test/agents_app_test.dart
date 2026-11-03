@@ -1276,6 +1276,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a phone-size tile keeps its title and status readable', (
+    tester,
+  ) async {
+    // A 360 dp phone upright: three tiles across, each about two thirds of
+    // the 170 px design. On the screen the title keeps 14 px and the status
+    // line 12 px.
+    tester.view.physicalSize = const Size(360, 760);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: DeckHud.bg),
+        home: Scaffold(
+          body: AgentsApp(
+            source: FakeAgentsSource.demo(),
+            animate: false,
+            columns: 3,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final tile = tester.getSize(find.byType(AgentTile).first);
+    expect(tile.width, lessThan(120));
+    final scale = tile.width / 170;
+    final title = tester.widget<Text>(find.text('checkout-api'));
+    expect(title.style!.fontSize! * scale, greaterThanOrEqualTo(13.95));
+    final meta = tester.widget<Text>(find.text('edit · 41% ctx'));
+    expect(meta.style!.fontSize! * scale, greaterThanOrEqualTo(11.95));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('tiles and free slots are buttons to a screen reader', (
     tester,
   ) async {
