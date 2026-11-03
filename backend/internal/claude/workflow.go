@@ -125,7 +125,7 @@ func promptSince(transcript string, t time.Time) bool {
 type phaseCount struct{ running, done int }
 
 // readJournal counts each phase's agents: started without a result are
-// running, with one done. Phases come back in the order they first appear.
+// running, with one done; a failed one is neither. Phases come back in the order they first appear.
 func readJournal(path string) (map[string]phaseCount, []string) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -168,6 +168,19 @@ func readJournal(path string) (map[string]phaseCount, []string) {
 				c.running--
 			}
 			c.done++
+			counts[p] = c
+			delete(phaseOf, ev.AgentID)
+		case "failed":
+			// Not done: Claude Code starts a replacement under a new id,
+			// and that one brings the result.
+			p, ok := phaseOf[ev.AgentID]
+			if !ok {
+				continue
+			}
+			c := counts[p]
+			if c.running > 0 {
+				c.running--
+			}
 			counts[p] = c
 			delete(phaseOf, ev.AgentID)
 		}

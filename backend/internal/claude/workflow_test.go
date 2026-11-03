@@ -182,3 +182,22 @@ func TestMetaOfInlineScript(t *testing.T) {
 func jsonString(s string) string {
 	return `"` + strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), `"`, `\"`) + `"`
 }
+
+// A failed agent stops running without counting as done: Claude Code starts
+// a replacement under a new id, and that one brings the result.
+func TestReadJournalFailed(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "journal.jsonl")
+	lines := []string{
+		`{"type":"started","agentId":"a1","phase":"Build"}`,
+		`{"type":"failed","agentId":"a1","key":"k"}`,
+		`{"type":"started","agentId":"a2","phase":"Build"}`,
+		`{"type":"result","agentId":"a2","result":{}}`,
+	}
+	if err := os.WriteFile(p, []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	counts, order := readJournal(p)
+	if len(order) != 1 || counts["Build"] != (phaseCount{running: 0, done: 1}) {
+		t.Fatalf("counts %+v, order %v", counts, order)
+	}
+}
