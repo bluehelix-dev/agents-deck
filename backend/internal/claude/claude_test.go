@@ -82,20 +82,27 @@ func TestParseOptionsNone(t *testing.T) {
 
 func TestRefineKeepsQuestionLabels(t *testing.T) {
 	p := &model.Prompt{Kind: "question", Options: []model.Option{{Key: "1", Label: "red — warm"}, {Key: "2", Label: "green"}, {Key: "3", Label: "blue"}}}
-	if RefineOptions(p, questionPane) || len(p.Options) != 3 || p.Options[0].Label != "red — warm" {
+	if RefineOptions(p, questionPane) != nil || len(p.Options) != 3 || p.Options[0].Label != "red — warm" {
 		t.Fatalf("question options must not change: %+v", p.Options)
 	}
 }
 
+// The refined options come in a copy: snapshots share the prompt and read it
+// outside the store's lock, so it is never written in place.
 func TestRefinePermission(t *testing.T) {
 	p := &model.Prompt{Kind: "permission", Options: DefaultPermissionOptions()}
-	if !RefineOptions(p, permissionPane) {
+	guess := p.Options[1].Label
+	np := RefineOptions(p, permissionPane)
+	if np == nil {
 		t.Fatal("expected refinement")
 	}
-	if !strings.Contains(p.Options[1].Label, "always allow") {
-		t.Fatalf("got %+v", p.Options)
+	if !strings.Contains(np.Options[1].Label, "always allow") {
+		t.Fatalf("got %+v", np.Options)
 	}
-	if RefineOptions(p, permissionPane) {
+	if p.Options[1].Label != guess {
+		t.Fatalf("the shared prompt was written: %+v", p.Options)
+	}
+	if RefineOptions(np, permissionPane) != nil {
 		t.Fatal("second refinement with the same pane should report no change")
 	}
 }

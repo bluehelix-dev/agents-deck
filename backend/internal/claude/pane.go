@@ -49,24 +49,23 @@ func cleanLabel(s string) string {
 	return lower(s)
 }
 
-// RefineOptions replaces a prompt's guessed options with the ones on screen,
-// keeping the guess when the pane shows nothing usable.
-func RefineOptions(p *model.Prompt, pane string) bool {
+// RefineOptions returns a copy of a prompt with its guessed options replaced
+// by the ones on screen, or nil when the pane shows nothing usable or the
+// same options. It never writes p: state snapshots share it and are read
+// outside the store's lock.
+func RefineOptions(p *model.Prompt, pane string) *model.Prompt {
 	if p == nil || p.Kind == "input" {
-		return false
+		return nil
 	}
 	opts := ParseOptions(pane)
 	if len(opts) < 2 {
-		return false
-	}
-	if p.Kind == "question" && len(opts) < len(p.Options) {
-		return false
+		return nil
 	}
 	if p.Kind == "question" {
 		// Our labels (with descriptions) come from the tool input. The screen adds
 		// free-text choices ("type something", "chat about this") that the panel
 		// can't answer; "type in terminal" covers those.
-		return false
+		return nil
 	}
 	same := len(opts) == len(p.Options)
 	for i := range opts {
@@ -74,8 +73,12 @@ func RefineOptions(p *model.Prompt, pane string) bool {
 			same = false
 		}
 	}
-	p.Options = opts
-	return !same
+	if same {
+		return nil
+	}
+	cp := *p
+	cp.Options = opts
+	return &cp
 }
 
 // cursorRe matches one row of an arrow-key menu: "❯ No, exit" (selected) or

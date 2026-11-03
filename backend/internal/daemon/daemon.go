@@ -160,8 +160,9 @@ func (d *Daemon) Run() {
 			} else if alive && e.A.Status == model.Waiting && e.A.Waiting != nil && n%2 == 1 {
 				if d.askOnScreen(e) {
 					changed = true
-				} else if claude.RefineOptions(e.A.Waiting, tmux.Capture(e.TmuxName, 40)) {
+				} else if p := claude.RefineOptions(e.A.Waiting, tmux.Capture(e.TmuxName, 40)); p != nil {
 					// A permission/question prompt whose options we only guessed: read the screen.
+					e.A.Waiting = p
 					changed = true
 				}
 			}
@@ -400,7 +401,12 @@ func (d *Daemon) Hook(agentID string, body []byte) error {
 			for _, wait := range []time.Duration{250 * time.Millisecond, 900 * time.Millisecond} {
 				time.Sleep(wait)
 				d.Store.Update(agentID, func(e *store.Entry) bool {
-					return e.A.Waiting != nil && claude.RefineOptions(e.A.Waiting, tmux.Capture(e.TmuxName, 40))
+					p := claude.RefineOptions(e.A.Waiting, tmux.Capture(e.TmuxName, 40))
+					if p == nil {
+						return false
+					}
+					e.A.Waiting = p
+					return true
 				})
 			}
 		}()
