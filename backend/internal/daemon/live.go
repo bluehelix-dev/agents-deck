@@ -201,7 +201,15 @@ func (d *Daemon) liveStatus(e *store.Entry, l claude.Live) bool {
 	// its status can't end what they never hear about.
 	changed := claude.EndStaleCompact(e, l.Reported && !l.Busy)
 	if e.LiveHooks {
-		return changed // its hooks say what it does and waits for (daemon.go Hook)
+		// Its hooks say what it does and waits for (daemon.go Hook), except
+		// that Esc at a prompt runs none: the transcript shows it.
+		if e.A.Status == model.Waiting && claude.InterruptedAt(e.Transcript).After(e.A.StatusSince) {
+			e.SetStatus(model.Idle)
+			e.A.Unseen = false
+			e.LiveToolUse = ""
+			return true
+		}
+		return changed
 	}
 	running, tool := claude.TranscriptTurn(e.Transcript, 10*time.Minute)
 	if l.Reported { // Claude Code's own report beats reading the transcript

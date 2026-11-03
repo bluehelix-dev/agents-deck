@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -154,5 +156,35 @@ func TestStopLeavesASessionReady(t *testing.T) {
 	turn("o1", "own-"+sid)
 	if e, _ := d.Store.Get("o1"); e.A.Unseen {
 		t.Fatal("finished in front of you: want done, not ready")
+	}
+}
+
+// Esc at a permission prompt runs no hook: a hooked session waiting on a
+// prompt goes idle once its transcript shows the interrupt, and stays
+// waiting while the interrupt is older than the prompt.
+func TestHookedSessionInterruptedAtAPrompt(t *testing.T) {
+	d := &Daemon{Store: store.New("", "test", "0")}
+	sid := "9a7b8c90-1111-4222-8333-944455556677"
+	tr := filepath.Join(t.TempDir(), sid+".jsonl")
+	live := &store.Entry{External: true, SessionID: sid, Transcript: tr, A: model.Agent{ID: "l1", Tool: "claude", External: true, Status: model.Idle, Cwd: "/w/app"}}
+	d.Store.Add(live)
+	interrupt := func(at time.Time) {
+		line := `{"type":"user","timestamp":"` + at.UTC().Format(time.RFC3339Nano) + `","message":{"content":[{"type":"text","text":"[Request interrupted by user for tool use]"}]}}` + "\n"
+		if err := os.WriteFile(tr, []byte(line), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	interrupt(time.Now().Add(-time.Hour)) // an old one, from before the prompt
+	ev := `{"hook_event_name":"PermissionRequest","session_id":"` + sid + `","cwd":"/w/app","tool_name":"Bash","tool_input":{"command":"npm test"}}`
+	if err := d.Hook("", []byte(ev)); err != nil {
+		t.Fatal(err)
+	}
+	e, _ := d.Store.Get("l1")
+	if d.liveStatus(&e, claude.Live{Reported: true}) || e.A.Status != model.Waiting {
+		t.Fatalf("an older interrupt ended the prompt: %s", e.A.Status)
+	}
+	interrupt(time.Now().Add(time.Second))
+	if !d.liveStatus(&e, claude.Live{Reported: true}) || e.A.Status != model.Idle || e.A.Waiting != nil || e.A.Unseen {
+		t.Fatalf("interrupted prompt: %s %+v unseen %v", e.A.Status, e.A.Waiting, e.A.Unseen)
 	}
 }
