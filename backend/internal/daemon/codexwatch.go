@@ -48,14 +48,27 @@ func (d *Daemon) WatchCodex() {
 	}
 	logged := false
 	for {
-		threads, err := codex.RecentThreads(d.codexWindow())
-		if err != nil && !logged {
-			log.Printf("codex: %v", err)
-			logged = true
-		}
-		d.syncCodex(threads)
+		d.pollCodex(&logged)
 		time.Sleep(2 * time.Second)
 	}
+}
+
+// recentThreads is codex.RecentThreads; tests replace it.
+var recentThreads = codex.RecentThreads
+
+// pollCodex reads Codex's threads once. A failed read (the database locked
+// for a moment) changes nothing, as with cmux and herdr: the tiles stay.
+func (d *Daemon) pollCodex(logged *bool) {
+	threads, err := recentThreads(d.codexWindow())
+	if err != nil {
+		if !*logged {
+			log.Printf("codex: %v", err)
+			*logged = true
+		}
+		return
+	}
+	*logged = false
+	d.syncCodex(threads)
 }
 
 func (d *Daemon) syncCodex(threads []codex.Thread) {
