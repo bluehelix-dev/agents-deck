@@ -2,8 +2,10 @@ package hats
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -74,5 +76,21 @@ func TestOverridesInConfig(t *testing.T) {
 	}
 	if b.Set(dir, "fedora", "", false) == nil || b.Set(dir, "cap", "orange", false) == nil {
 		t.Fatal("unknown shapes and colours are refused")
+	}
+}
+
+// docs/protocol.md gives the rule for the automatic hat so a client can
+// draw the same one: it names the shapes in order and the modulus.
+func TestProtocolDocsAutoHatRule(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "protocol.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := strings.Join(strings.Fields(strings.ReplaceAll(string(b), "//", " ")), " ")
+	if want := fmt.Sprintf("shape = h mod %d", len(Shapes)); !strings.Contains(doc, want) {
+		t.Fatalf("docs/protocol.md doesn't say %q", want)
+	}
+	if want := "shape: " + strings.Join(Shapes, ", "); !strings.Contains(doc, want) {
+		t.Fatalf("docs/protocol.md doesn't list the shapes in order: %q", want)
 	}
 }

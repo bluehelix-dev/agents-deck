@@ -99,7 +99,8 @@ The full state is small (≤ a few KB per agent), so there are no deltas.
                                   // shape: hard hat, cap, beanie, helmet, wizard, beret, chef, crown, headphones,
                                   // propeller, top hat, cowboy, bandana, pirate, viking, sombrero, fez, party hat,
                                   // mortarboard, bowler, nightcap, halo · color: teal, blue, yellow, green, purple,
-                                  // pink, sky, ink · auto: picked by FNV-1a of the folder (shape = h mod 13,
+                                  // pink, sky, ink · auto: picked by FNV-1a of the folder without a trailing
+                                  // slash (shape = h mod 22, the number of shapes, in the order listed;
                                   // colour = (h >> 8) mod 8), false when chosen by hand
   "account": { "name": "work", "color": "yellow" }, // omitted while only one Claude account is set up:
                                   // the account (Claude config folder) the session runs in; color is a hat colour
