@@ -10,6 +10,7 @@ import (
 	"hash/fnv"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -38,12 +39,26 @@ func Auto(folder string) model.Hat {
 	return model.Hat{Shape: Shapes[v%uint32(len(Shapes))], Color: Colors[(v>>8)%uint32(len(Colors))], Auto: true}
 }
 
-// Clean normalizes a folder key (absolute, no trailing slash).
+// Clean normalizes a folder key (absolute, no trailing slash). On Windows
+// the drive letter is a capital: Claude Code reports one folder as c:\… and
+// C:\…, and both should wear one hat.
 func Clean(folder string) string {
 	if folder == "" {
 		return ""
 	}
-	return filepath.Clean(folder)
+	folder = filepath.Clean(folder)
+	if runtime.GOOS == "windows" {
+		folder = upperDrive(folder)
+	}
+	return folder
+}
+
+// upperDrive capitalizes a leading drive letter ("c:" to "C:").
+func upperDrive(p string) string {
+	if len(p) >= 2 && p[1] == ':' && 'a' <= p[0] && p[0] <= 'z' {
+		return string(p[0]-'a'+'A') + p[1:]
+	}
+	return p
 }
 
 // Override is a manual choice for one folder.
@@ -161,9 +176,13 @@ func (b *Book) Set(folder, shape, color string, auto bool) error {
 	if raw, err := json.Marshal(cfg["hats"]); err == nil {
 		_ = json.Unmarshal(raw, &all)
 	}
-	if all == nil { // "hats" missing: null decodes to a nil map
-		all = map[string]Override{}
+	// Keys as Clean makes them, so going back to auto drops the override
+	// whatever spelling it was stored under.
+	clean := map[string]Override{}
+	for k, v := range all {
+		clean[Clean(k)] = v
 	}
+	all = clean
 	if auto {
 		delete(all, folder)
 	} else {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -92,5 +93,34 @@ func TestProtocolDocsAutoHatRule(t *testing.T) {
 	}
 	if want := "shape: " + strings.Join(Shapes, ", "); !strings.Contains(doc, want) {
 		t.Fatalf("docs/protocol.md doesn't list the shapes in order: %q", want)
+	}
+}
+
+// Windows reports the same folder as c:\… and C:\…: one key, one hat.
+func TestDriveLetterCase(t *testing.T) {
+	for in, want := range map[string]string{`c:\w\app`: `C:\w\app`, `C:\w\app`: `C:\w\app`, `/w/app`: `/w/app`, `c`: `c`, ``: ``} {
+		if got := upperDrive(in); got != want {
+			t.Errorf("upperDrive(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if runtime.GOOS != "windows" {
+		return
+	}
+	if Auto(`c:\w\app`) != Auto(`C:\w\app`) {
+		t.Fatal("two automatic hats for one folder")
+	}
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, []byte(`{"hats":{"c:\\w\\app":{"shape":"crown"}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b := &Book{Path: path}
+	if h := b.For(`C:\w\app`); h == nil || h.Shape != "crown" {
+		t.Fatalf("override under the other spelling: %+v", h)
+	}
+	if err := b.Set(`C:\w\app`, "", "", true); err != nil {
+		t.Fatal(err)
+	}
+	if h := b.For(`c:\w\app`); h == nil || !h.Auto {
+		t.Fatalf("back to auto left the other spelling's override: %+v", h)
 	}
 }
