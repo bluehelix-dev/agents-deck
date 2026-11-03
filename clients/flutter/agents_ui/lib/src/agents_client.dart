@@ -102,6 +102,8 @@ abstract class AgentsSource {
   Future<AgentsResult> move(String agentId, int slot);
 
   /// `GET /v1/live` — Claude sessions started by hand in other terminals.
+  /// Throws [LiveSessionsError] when the deck can't say (this device lacks
+  /// the admin scope, the link is down), so that isn't shown as none.
   Future<List<LiveSession>> liveSessions();
 
   /// `POST /v1/live/{session}/add` — puts one on the deck, at [slot] if given.
@@ -243,6 +245,17 @@ class Backoff {
 }
 
 // ---- real client -----------------------------------------------------------------
+
+/// Why the list of hand-started sessions couldn't be read, in the deck's
+/// words when it gave a reason.
+class LiveSessionsError implements Exception {
+  const LiveSessionsError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 class _Problem implements Exception {
   const _Problem(this.message);
@@ -646,35 +659,48 @@ class HttpAgentsClient implements AgentsSource {
       _postPath(['v1', 'agents', agentId, 'move'], {'slot': slot});
 
   /// `GET` [path] and the list under [field] of its JSON object; empty on
-  /// any failure.
+  /// any failure, or with [strict] a [LiveSessionsError] saying why.
   Future<List<Map<String, dynamic>>> _getList(
     List<String> path,
-    String field,
-  ) async {
+    String field, {
+    bool strict = false,
+  }) async {
     final cfg = _config;
-    if (cfg == null) return const [];
+    if (cfg == null) {
+      if (strict) throw const LiveSessionsError('not connected to the deck');
+      return const [];
+    }
+    String? problem;
     try {
       final req = await _clientFor(
         cfg,
       ).getUrl(cfg.endpoint(path)).timeout(requestTimeout);
       final res = await req.close().timeout(requestTimeout);
       final text = await _readBody(res);
-      if (res.statusCode != 200) return const [];
-      final j = jsonDecode(text);
-      final list = j is Map<String, dynamic> ? j[field] : null;
-      return [
-        if (list is List)
-          for (final x in list)
-            if (x is Map<String, dynamic>) x,
-      ];
-    } catch (_) {
-      return const [];
+      if (res.statusCode == 200) {
+        final j = jsonDecode(text);
+        final list = j is Map<String, dynamic> ? j[field] : null;
+        return [
+          if (list is List)
+            for (final x in list)
+              if (x is Map<String, dynamic>) x,
+        ];
+      }
+      problem = _httpProblem(res.statusCode, text);
+    } catch (e) {
+      problem = _describe(e);
     }
+    if (strict) throw LiveSessionsError(problem);
+    return const [];
   }
 
   @override
   Future<List<LiveSession>> liveSessions() async => [
-    for (final x in await _getList(const ['v1', 'live'], 'sessions'))
+    for (final x in await _getList(
+      const ['v1', 'live'],
+      'sessions',
+      strict: true,
+    ))
       LiveSession.fromJson(x),
   ];
 

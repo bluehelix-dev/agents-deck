@@ -189,6 +189,17 @@ void main() {
     expect(find.byKey(const Key('agent-interrupt')), findsNothing);
   });
 
+  testWidgets('the picker says why the deck refused the list', (tester) async {
+    final source = FakeAgentsSource.demo()
+      ..liveError = 'tablet may act, this needs admin';
+    await _pumpApp(tester, source);
+    await tester.tap(find.byType(AgentsEmptyTile).first);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('tablet may act, this needs admin'), findsOneWidget);
+    expect(find.byKey(const Key('live-empty')), findsNothing);
+  });
+
   testWidgets('tapping the mascot picks a hat for its folder', (tester) async {
     final source = FakeAgentsSource.demo();
     await _pumpApp(tester, source);

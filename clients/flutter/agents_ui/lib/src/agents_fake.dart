@@ -286,8 +286,14 @@ class FakeAgentsSource implements AgentsSource {
     ),
   ];
 
+  /// Set: [liveSessions] fails with it, as the deck refusing the list.
+  String? liveError;
+
   @override
-  Future<List<LiveSession>> liveSessions() async => List.of(live);
+  Future<List<LiveSession>> liveSessions() async {
+    if (liveError case final e?) throw LiveSessionsError(e);
+    return List.of(live);
+  }
 
   @override
   Future<AgentsResult> setHat(

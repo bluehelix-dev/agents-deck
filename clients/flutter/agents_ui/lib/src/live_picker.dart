@@ -91,6 +91,15 @@ class _LivePickerState extends State<LivePicker> {
             child: FutureBuilder<List<LiveSession>>(
               future: _sessions,
               builder: (context, snap) {
+                if (snap.hasError) {
+                  // Refused (this device isn't admin) or offline: say so,
+                  // not "none running".
+                  return Text(
+                    '${snap.error}',
+                    key: const Key('live-error'),
+                    style: DeckHud.mono(size: 16, color: DeckHud.accent),
+                  );
+                }
                 if (!snap.hasData) {
                   return Text(
                     'looking…',

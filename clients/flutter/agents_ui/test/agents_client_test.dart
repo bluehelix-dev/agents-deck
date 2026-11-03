@@ -468,6 +468,13 @@ void main() {
         if (answerStatus == 409) res.write('{"error":"prompt changed"}');
         return res.close();
       }
+      if (req.uri.path == '/v1/live') {
+        res.statusCode = 403;
+        res.write(
+          '{"error":"panel may act, this needs admin: agentctl devices scope panel admin"}',
+        );
+        return res.close();
+      }
       if (req.uri.path == '/v1/accounts') {
         res.write(
           '{"accounts":[{"name":"personal","color":"teal"},'
@@ -683,6 +690,22 @@ void main() {
       expect(s.problem, isNot(contains('looking')));
       await until(lost, (_) => asked >= 2); // asks again on every attempt
       expect(lost.foundAt, isNull);
+    });
+
+    test('a refused session list says why, not "none running"', () async {
+      final c = HttpAgentsClient(loadConfig: () => (cfg(), null));
+      addTearDown(c.dispose);
+      await until(c, (s) => s.link == AgentsLink.connected);
+      await expectLater(
+        c.liveSessions(),
+        throwsA(
+          isA<LiveSessionsError>().having(
+            (e) => e.message,
+            'message',
+            contains('needs admin'),
+          ),
+        ),
+      );
     });
 
     test(
