@@ -315,10 +315,12 @@ func (s *Session) recheck() error {
 func (s *Session) welcome() error {
 	st := s.Deck.Snapshot()
 	s.sentAs = s.dev
-	return s.send(&linkpb.Frame{Body: &linkpb.Frame_Welcome{Welcome: &linkpb.Welcome{
+	w := &linkpb.Welcome{
 		Protocol: 1, ServerName: st.Server.Name, ServerVersion: st.Server.Version,
 		DeviceName: s.dev.Name, Scope: scopes[s.dev.Scope], Approved: s.dev.Active(), CertSerial: s.dev.CertSerial,
-	}}})
+	}
+	clipMessage(w.ProtoReflect()) // a long host name or version: the board can't decode it whole
+	return s.send(&linkpb.Frame{Body: &linkpb.Frame_Welcome{Welcome: w}})
 }
 
 var scopes = map[devices.Scope]linkpb.Scope{devices.View: linkpb.Scope_SCOPE_VIEW, devices.Act: linkpb.Scope_SCOPE_ACT, devices.Admin: linkpb.Scope_SCOPE_ADMIN}
@@ -525,10 +527,12 @@ func (s *Session) push(full bool) error {
 	sort.Slice(agents, func(i, j int) bool { return agents[i].Slot < agents[j].Slot })
 	if full {
 		s.sent = nil
-		if err := s.send(&linkpb.Frame{Body: &linkpb.Frame_SnapshotBegin{SnapshotBegin: &linkpb.SnapshotBegin{
+		begin := &linkpb.SnapshotBegin{
 			Server:     &linkpb.Server{Name: st.Server.Name, Version: st.Server.Version, TimeMs: st.Server.Time.UnixMilli(), Focus: st.Server.Focus},
 			AgentCount: uint32(len(st.Agents)),
-		}}}); err != nil {
+		}
+		clipMessage(begin.ProtoReflect())
+		if err := s.send(&linkpb.Frame{Body: &linkpb.Frame_SnapshotBegin{SnapshotBegin: begin}}); err != nil {
 			return err
 		}
 	}

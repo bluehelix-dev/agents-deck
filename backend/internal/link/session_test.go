@@ -251,3 +251,30 @@ func TestSmallFramesAndNoise(t *testing.T) {
 		t.Fatalf("shrunk agent: detail %d bytes", len(a.GetWaiting().GetDetail()))
 	}
 }
+
+// A long host name or a `git describe` version doesn't fit the board's
+// buffers: Welcome and SnapshotBegin come clipped to link.options, or the
+// board can't decode them and never leaves CONNECTING.
+func TestWelcomeAndSnapshotAreClipped(t *testing.T) {
+	srv, _ := testDeck(t)
+	srv.Store = store.New("", strings.Repeat("a-long-host-name-", 4), "v0.2.1-rc.9-3-g891ab2d-dirty")
+	b := start(t, srv, Binary)
+	b.send(hi("AA:BB:CC:00:11:33"))
+	w := b.next().GetWelcome()
+	if w == nil || len(w.ServerName) > 47 || len(w.ServerVersion) > 23 {
+		t.Fatalf("welcome: %q %q", w.GetServerName(), w.GetServerVersion())
+	}
+	if err := srv.Devices.Approve("oled-tile-001133"); err != nil {
+		t.Fatal(err)
+	}
+	b.send(&linkpb.Frame{Seq: 2, Body: &linkpb.Frame_Subscribe{Subscribe: &linkpb.Subscribe{SlotCount: 16, Fields: 1}}})
+	for {
+		f := b.next()
+		if sb := f.GetSnapshotBegin(); sb != nil {
+			if len(sb.Server.GetName()) > 47 || len(sb.Server.GetVersion()) > 23 {
+				t.Fatalf("snapshot begin: %q %q", sb.Server.GetName(), sb.Server.GetVersion())
+			}
+			return
+		}
+	}
+}
