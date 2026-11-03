@@ -102,3 +102,33 @@ func TestDecoderRejectsCorruption(t *testing.T) {
 		t.Fatalf("bad json: %d frames, bad %d", len(got), d.Bad)
 	}
 }
+
+// A binary frame whose COBS code byte is 0x0A starts with '\n': it is still a
+// frame, not the end of an empty text line, whole or byte by byte, after a
+// JSON line too.
+func TestDecoderCodeByteNewline(t *testing.T) {
+	f := &linkpb.Frame{Seq: 119, Body: &linkpb.Frame_Subscribe{Subscribe: &linkpb.Subscribe{Fields: 1}}}
+	w, err := Encode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w[0] != '\n' {
+		t.Fatalf("the test needs a frame whose code byte is 0x0A, got % x", w)
+	}
+	j, err := EncodeJSON(&linkpb.Frame{Seq: 7, Body: &linkpb.Frame_Ping{Ping: &linkpb.Ping{TimeMs: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var whole Decoder
+	if got := whole.Feed(append(append([]byte{}, j...), w...)); len(got) != 2 || got[1].Frame.Seq != 119 || got[1].Mode != Binary {
+		t.Fatalf("after a JSON line: %+v", got)
+	}
+	var bytewise Decoder
+	var got []Decoded
+	for _, c := range w {
+		got = append(got, bytewise.Feed([]byte{c})...)
+	}
+	if len(got) != 1 || got[0].Frame.Seq != 119 || bytewise.Bad != 0 {
+		t.Fatalf("byte by byte: %+v (bad %d)", got, bytewise.Bad)
+	}
+}

@@ -182,6 +182,29 @@ func (d *Decoder) Feed(b []byte) []Decoded {
 			}
 			return out
 		}
+		if d.buf[i] == '\n' {
+			// A '\n' right before the magic is a frame's COBS code byte
+			// (0x0A), not the end of a line: the frame runs to the next zero.
+			rest := d.buf[i+1:]
+			if len(rest) < len(magicSeq) && bytes.HasPrefix(magicSeq, rest) && (len(rest) > 0 || i == 0) {
+				return out // can't tell yet: wait for the next bytes
+			}
+			if bytes.HasPrefix(rest, magicSeq) {
+				k := bytes.IndexByte(rest, 0)
+				if k < 0 {
+					if len(d.buf) > 2*MaxFrame+64 {
+						d.buf = d.buf[:0]
+					}
+					return out
+				}
+				chunk := d.buf[i : i+1+k] // what came before it is noise
+				d.buf = d.buf[i+1+k+1:]
+				if f, ok := d.binary(chunk); ok {
+					out = append(out, Decoded{f, Binary})
+				}
+				continue
+			}
+		}
 		if d.buf[i] == '\n' && bytes.Contains(d.buf[:i], magicSeq) {
 			// A binary frame with '\n' inside: it ends at the next zero.
 			k := bytes.IndexByte(d.buf, 0)
