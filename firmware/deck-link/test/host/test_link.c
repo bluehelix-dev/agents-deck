@@ -353,6 +353,32 @@ static void test_stream(void)
 #undef PUTS
 }
 
+/* A frame whose COBS code byte is 0x0A, the byte of a text line end, right
+ * after a JSON line: the board decodes it like any other (the deck once read
+ * it as the end of a line and dropped it). */
+static void test_code_byte_newline(void)
+{
+	static const uint8_t wire[] = {0x0A, 0xDE, 0xC1, 0x01, 0x08, 0x77, 0x72, 0x02, 0x18, 0x01, 0x02, 0xE5, 0x00};
+	static const char json[] = "{\"seq\":7,\"ping\":{\"timeMs\":1}}\n";
+	uint8_t stream[64];
+	memcpy(stream, json, sizeof json - 1);
+	memcpy(stream + sizeof json - 1, wire, sizeof wire);
+	size_t n = sizeof json - 1 + sizeof wire;
+	for (int mode = 0; mode < 2; mode++) {
+		reset_fake();
+		if (mode == 0) {
+			deck_link_feed(&link, stream, n);
+		} else {
+			for (size_t i = 0; i < n; i++)
+				deck_link_feed(&link, stream + i, 1);
+		}
+		CHECK(got_n == 1);
+		CHECK(got[0].seq == 119 && got[0].which_body == agentsdeck_link_v1_Frame_subscribe_tag);
+		CHECK(got[0].body.subscribe.fields == 1);
+		CHECK(deck_link_stats(&link)->rx_bad == 0);
+	}
+}
+
 /* A largest-possible AgentChanged decodes; an oversized frame is dropped
  * and the next frame still arrives. */
 static void test_sizes(void)
@@ -894,6 +920,7 @@ int main(void)
 	test_cobs();
 	test_ping_wire();
 	test_stream();
+	test_code_byte_newline();
 	test_sizes();
 	test_handshake();
 	test_tiles();
