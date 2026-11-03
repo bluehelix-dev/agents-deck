@@ -27,8 +27,10 @@ type Task struct {
 const TaskActivity = "in the background"
 
 var (
-	bgLaunch   = regexp.MustCompile(`Command running in background with ID: ([A-Za-z0-9_-]+)`)
-	monLaunch  = regexp.MustCompile(`Monitor started \(task ([A-Za-z0-9_-]+), expires in (\d+)m`)
+	// At the start of the result: a result that only quotes the sentence (a
+	// grep of these tests) launched nothing.
+	bgLaunch   = regexp.MustCompile(`^\s*Command running in background with ID: ([A-Za-z0-9_-]+)`)
+	monLaunch  = regexp.MustCompile(`^\s*Monitor started \(task ([A-Za-z0-9_-]+), expires in (\d+)m`)
 	taskNotice = regexp.MustCompile(`<task-id>([A-Za-z0-9_-]+)</task-id>`)
 )
 
@@ -60,6 +62,7 @@ func BackgroundTasks(transcript string, maxAge time.Duration) []Task {
 	var opens []open
 	closed := map[string]bool{}
 	inputs := map[string]json.RawMessage{} // tool_use id -> input, for the command
+	tools := map[string]string{}           // tool_use id -> Bash or Monitor
 	var m struct {
 		Type       string `json:"type"`
 		Timestamp  string `json:"timestamp"`
@@ -103,6 +106,7 @@ func BackgroundTasks(transcript string, maxAge time.Duration) []Task {
 			for _, b := range blocks {
 				if b.Type == "tool_use" && (b.Name == "Bash" || b.Name == "Monitor") {
 					inputs[b.ID] = b.Input
+					tools[b.ID] = b.Name
 				}
 			}
 		case "user":
@@ -132,13 +136,16 @@ func BackgroundTasks(transcript string, maxAge time.Duration) []Task {
 					}
 				case "tool_result":
 					s := resultText(b.Content)
-					if h := bgLaunch.FindStringSubmatch(s); h != nil {
+					if tools[b.ToolUseID] == "" {
+						continue // not a Bash or Monitor call
+					}
+					if h := bgLaunch.FindStringSubmatch(s); h != nil && tools[b.ToolUseID] == "Bash" {
 						detail := TaskActivity
 						if cmd := ToolDetail("Bash", inputs[b.ToolUseID], ""); cmd != "" {
 							detail += " · " + cmd
 						}
 						opens = append(opens, open{Task{ID: h[1], Tool: "Bash", Detail: detail}, at.Add(maxAge)})
-					} else if h := monLaunch.FindStringSubmatch(s); h != nil {
+					} else if h := monLaunch.FindStringSubmatch(s); h != nil && tools[b.ToolUseID] == "Monitor" {
 						detail := "watching " + TaskActivity
 						if what := clip(oneLine(field(inputs[b.ToolUseID], "description")), 120); what != "" {
 							detail += " · " + what

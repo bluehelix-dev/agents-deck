@@ -74,3 +74,30 @@ func TestBackgroundTasks(t *testing.T) {
 		t.Fatalf("the monitor expired, the command is within its age: %+v", tasks)
 	}
 }
+
+// A result that only quotes the launch sentence (a Read of a test file, a grep
+// through Bash) opens no task: only a Bash result that begins with it does,
+// and a Monitor's own.
+func TestBackgroundTasksQuoted(t *testing.T) {
+	tr := filepath.Join(t.TempDir(), "s.jsonl")
+	ts := time.Now().Add(-time.Minute).UTC().Format(time.RFC3339Nano)
+	lines := []string{
+		`{"type":"assistant","timestamp":"` + ts + `","message":{"content":[{"type":"tool_use","id":"r1","name":"Read","input":{"file_path":"tasks_test.go"}}]}}`,
+		`{"type":"user","timestamp":"` + ts + `","message":{"content":[{"type":"tool_result","tool_use_id":"r1","content":"Command running in background with ID: b1x. Output is being written to: /tmp/b1x.output."}]}}`,
+		`{"type":"assistant","timestamp":"` + ts + `","message":{"content":[{"type":"tool_use","id":"g1","name":"Bash","input":{"command":"grep -rn background ."}}]}}`,
+		`{"type":"user","timestamp":"` + ts + `","message":{"content":[{"type":"tool_result","tool_use_id":"g1","content":"tasks_test.go:22: Command running in background with ID: b2x. Monitor started (task m3y, expires in 20m"}]}}`,
+		`{"type":"assistant","timestamp":"` + ts + `","message":{"content":[{"type":"tool_use","id":"g2","name":"Bash","input":{"command":"cat log"}}]}}`,
+		`{"type":"user","timestamp":"` + ts + `","message":{"content":[{"type":"tool_result","tool_use_id":"g2","content":"Monitor started (task m4y, expires in 20m unless the source ends first)."}]}}`,
+	}
+	var b []byte
+	for _, l := range lines {
+		b = append(b, l...)
+		b = append(b, '\n')
+	}
+	if err := os.WriteFile(tr, b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if tasks := BackgroundTasks(tr, time.Hour); tasks != nil {
+		t.Fatalf("phantom tasks: %+v", tasks)
+	}
+}
