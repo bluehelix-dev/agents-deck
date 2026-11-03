@@ -5,6 +5,7 @@ package store
 import (
 	"crypto/rand"
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -173,11 +174,17 @@ func (s *Store) Load() {
 		return
 	}
 	var list []*Entry
-	if json.Unmarshal(b, &list) != nil {
+	if err := json.Unmarshal(b, &list); err != nil {
+		// Set it aside: the next save would replace it.
+		log.Printf("store: %s doesn't parse (%v); kept as %s.bad", s.path, err, s.path)
+		_ = os.Rename(s.path, s.path+".bad")
 		return
 	}
 	s.mu.Lock()
 	for _, e := range list {
+		if e == nil || e.A.ID == "" {
+			continue
+		}
 		s.entries[e.A.ID] = e
 	}
 	s.mu.Unlock()

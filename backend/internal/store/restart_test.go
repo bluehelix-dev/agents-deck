@@ -1,6 +1,7 @@
 package store
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -26,5 +27,27 @@ func TestRunStateSurvivesARestart(t *testing.T) {
 	}
 	if e, _ := s2.Get("a2"); !e.CompactToIdle || !e.CompactSince.Equal(since) {
 		t.Fatalf("compaction lost: %+v", e)
+	}
+}
+
+// An agents.json that doesn't parse is set aside before the next save
+// replaces it; a null entry is skipped.
+func TestUnreadableAgentsFileIsKept(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "agents.json")
+	if err := os.WriteFile(path, []byte(`[{"A":`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := New(path, "deck", "0")
+	s.Load()
+	if b, err := os.ReadFile(path + ".bad"); err != nil || string(b) != `[{"A":` {
+		t.Fatalf("not set aside: %q %v", b, err)
+	}
+	if err := os.WriteFile(path, []byte(`[null,{"agent":{"id":"a1","tool":"claude"}}]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s2 := New(path, "deck", "0")
+	s2.Load()
+	if _, ok := s2.Get("a1"); !ok {
+		t.Fatal("entry after a null lost")
 	}
 }

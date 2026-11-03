@@ -254,3 +254,30 @@ func TestAutoApproveUSB(t *testing.T) {
 		t.Fatal("override not saved")
 	}
 }
+
+// A devices.json that doesn't parse is set aside, not overwritten by the next
+// save; a null entry is skipped instead of crashing the first registration.
+func TestUnreadableRegistryIsKept(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "devices.json")
+	if err := os.WriteFile(path, []byte(`[{"name":"desk-panel"`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r := &Registry{Path: path}
+	if err := r.AddNetwork("tablet", Act, "ab", "sha256:00"); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(path + ".bad"); err != nil || string(b) != `[{"name":"desk-panel"` {
+		t.Fatalf("not set aside: %q %v", b, err)
+	}
+	if err := os.WriteFile(path, []byte(`[null,{"name":"desk-panel","scope":"act","certSerial":"cd"}]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r2 := &Registry{Path: path}
+	if err := r2.AddNetwork("tablet", Act, "ef", "sha256:01"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := r2.ByCertSerial("ef"); !ok {
+		t.Fatal("registration after a null entry")
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"sort"
@@ -148,9 +149,17 @@ func (r *Registry) load() {
 	r.seenAt = map[string]time.Time{}
 	var list []*Device
 	if b, err := os.ReadFile(r.Path); err == nil {
-		_ = json.Unmarshal(b, &list)
+		if err := json.Unmarshal(b, &list); err != nil {
+			// Set it aside: the next save would replace every pairing.
+			log.Printf("devices: %s doesn't parse (%v); kept as %s.bad, starting with no devices", r.Path, err, r.Path)
+			_ = os.Rename(r.Path, r.Path+".bad")
+			list = nil
+		}
 	}
 	for _, d := range list {
+		if d == nil || d.Name == "" {
+			continue
+		}
 		r.devices[d.Name] = d
 	}
 	r.set = DefaultSettings()
