@@ -413,12 +413,21 @@ func (s *Session) onHello(seq uint32, h *linkpb.Hello, mode Mode) error {
 // certificate the entry already has is never replaced from here: over USB the
 // board is only the id it claims, so pairing again takes `agentctl link
 // pair` (Deck.Pair, devices.Registry.CanPair).
+// pairFrame is the smallest Hello.max_frame CertIssued always fits in: up to
+// 1788 bytes of message plus the frame around it.
+const pairFrame = 2048
+
 func (s *Session) onCertRequest(seq uint32, req *linkpb.CertRequest) error {
 	if s.Transport != OverSerial {
 		return s.result(seq, http.StatusForbidden, "pair over USB: plug the board into the Mac")
 	}
 	if !s.active() {
 		return s.result(seq, http.StatusForbidden, s.dev.Name+" is waiting for approval: agentctl devices approve "+s.dev.Name)
+	}
+	// Before anything is signed or saved: a refusal after Pair would leave
+	// the board paired without the certificate.
+	if s.maxFrame < pairFrame {
+		return s.result(seq, http.StatusRequestEntityTooLarge, "pairing needs frames of 2048 bytes (Hello.max_frame)")
 	}
 	ci, code, msg := s.Deck.Pair(s.dev, req.Csr)
 	if code != http.StatusOK || ci == nil {

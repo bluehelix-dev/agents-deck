@@ -466,3 +466,34 @@ func waitFor(t *testing.T, ok func() bool) {
 }
 
 var _ = http.StatusOK
+
+// A board whose frames are too small for CertIssued gets 413 before anything
+// is signed or saved: it isn't left "paired" without a certificate, and pairs
+// once it says it takes larger frames.
+func TestPairNeedsLargeFramesFirst(t *testing.T) {
+	srv, _ := testDeck(t)
+	withCA(t, srv)
+	b := start(t, srv, Binary)
+	small := hi("AA:BB:CC:00:00:09")
+	small.GetHello().MaxFrame = 1024
+	b.send(small)
+	name := b.next().GetWelcome().GetDeviceName()
+	_ = srv.Devices.Approve(name)
+	b.next() // the Welcome after approval
+	_, csr := csrFor(t)
+	b.send(certReq(2, csr))
+	if r := b.next(); r.GetResult().GetCode() != 413 {
+		t.Fatalf("small frames: %v", r)
+	}
+	if d, _ := srv.Devices.Get(name); d.CertSerial != "" {
+		t.Fatal("a certificate was saved that the board never got")
+	}
+	big := hi("AA:BB:CC:00:00:09")
+	big.Seq = 3
+	b.send(big)
+	b.next() // Welcome
+	b.send(certReq(4, csr))
+	if r := b.next(); r.GetCertIssued() == nil {
+		t.Fatalf("after a larger max_frame: %v", r)
+	}
+}
