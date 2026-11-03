@@ -624,6 +624,25 @@ void main() {
       await tester.pump();
     });
 
+    testWidgets('paste the code: everything agentctl pair printed works', (
+      tester,
+    ) async {
+      final source = unpairedClient();
+      host.pairing = (_) => bundle();
+      await pumpPhone(tester, const Size(1080, 2340), source: source);
+      host.clipboard =
+          'pairing code for phone (act), valid 2 minutes, single use:\n'
+          '$payload\n'
+          'the device makes its own key and sends a certificate request '
+          'with this code to POST /v1/pair\n';
+      await tester.tap(find.byKey(const Key('paste-code')));
+      await tester.pump();
+      expect(host.paired, [payload]);
+      expect(phone.isPaired, isTrue);
+      source.dispose();
+      await tester.pump();
+    });
+
     testWidgets('one way at a time', (tester) async {
       final source = unpairedClient();
       final hold = Completer<String?>();

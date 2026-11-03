@@ -265,7 +265,14 @@ class Phone {
     if (payload.isEmpty) {
       return 'nothing on the clipboard: copy what agentctl pair phone prints';
     }
-    return pairWith(payload);
+    return pairWith(pairingJson(payload));
+  }
+
+  /// The JSON object in what was pasted: `agentctl pair` prints a line
+  /// before it and one after, and all of it may have been copied.
+  static String pairingJson(String text) {
+    final start = text.indexOf('{'), end = text.lastIndexOf('}');
+    return start >= 0 && end > start ? text.substring(start, end + 1) : text;
   }
 
   /// Makes this phone's key, trades the pairing [payload] for a certificate

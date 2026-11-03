@@ -1,5 +1,6 @@
 package dev.agentsdeck.agents_deck_android
 
+import android.os.Build
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -37,8 +38,13 @@ object Pairing {
     // Reads the QR code's payload: {"url", "ca", "code"} as JSON. The
     // fingerprint is "sha256:" and 64 hex digits, with or without colons.
     fun parse(payload: String): Code {
+        // Only the JSON object: a paste may bring the lines `agentctl pair`
+        // prints around it.
+        val start = payload.indexOf('{')
+        val end = payload.lastIndexOf('}')
+        val json = if (start >= 0 && end > start) payload.substring(start, end + 1) else payload.trim()
         val j = try {
-            JSONObject(payload.trim())
+            JSONObject(json)
         } catch (e: JSONException) {
             throw Problem("not a pairing code: expected {\"url\", \"ca\", \"code\"}")
         }
@@ -56,6 +62,11 @@ object Pairing {
     // Pairs with the deck the payload names. Returns the bundle (JSON) for
     // the app's private folder: name, url, ca, cert, key, fingerprint.
     fun pair(payload: String): String {
+        // First: below Android 10 there is no TLS 1.3, and java.util.Base64
+        // (API 26) would crash the app before post() could say so.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            throw Problem("pairing with a code needs Android 10 or newer: import a bundle instead")
+        }
         val code = parse(payload)
         val keys = KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
         val body = JSONObject().put("code", code.code).put("csr", pem("CERTIFICATE REQUEST", csr(keys))).toString()

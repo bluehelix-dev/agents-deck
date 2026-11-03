@@ -131,12 +131,18 @@ class MainActivity : FlutterActivity() {
     // prompt replaces the first and clearAlert finds it. Without the
     // notification permission only the buzz happens.
     private fun alert(id: String, title: String, body: String) {
-        val effect = VibrationEffect.createWaveform(longArrayOf(0, 120, 90, 120), -1)
+        val buzz = longArrayOf(0, 120, 90, 120)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val effect = VibrationEffect.createWaveform(buzz, -1)
             (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator?.vibrate(effect)
-        } else {
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val effect = VibrationEffect.createWaveform(buzz, -1)
             @Suppress("DEPRECATION")
             (getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)?.vibrate(effect)
+        } else {
+            // Android 7: no VibrationEffect yet (API 26).
+            @Suppress("DEPRECATION")
+            (getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)?.vibrate(buzz, -1)
         }
         if (inFront) return
         val manager = NotificationManagerCompat.from(this)
