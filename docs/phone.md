@@ -101,8 +101,9 @@ pose, the stripes and the workflow twinkle stand still, and a card fades in wher
 of growing out of its tile; the colours and words say the same as the motion did. The switch
 **moving critters** in the settings overrides that either way: until you touch it, the system's
 setting decides. The tiles keep
-their own text size (each is one picture, scaled to the screen); the cards follow the system's font
-size up to 150 %, the settings all the way, and a screen reader hears tiles, free slots, buttons
+their own text size (each is one picture, scaled to the screen), but on a phone upright the title
+and the status line grow so they still read at 14 and 12 px on the screen; the cards follow the
+system's font size up to 150 %, the settings all the way, and a screen reader hears tiles, free slots, buttons
 and switches as such.
 
 ## Updating the app

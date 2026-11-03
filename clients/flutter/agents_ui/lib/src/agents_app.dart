@@ -518,10 +518,16 @@ class _AgentTileState extends State<AgentTile> {
           Color c(Color v) => pressed ? DeckHud.bg : v;
           // A small tile (a phone upright scales the 170 px design to about
           // two thirds): larger type and a little less critter, so the two
-          // lines still read.
-          final compact = box.maxWidth < _tileDesign * 0.8;
-          final titleSize = compact ? 19.0 : 16.0;
-          final metaSize = compact ? 15.0 : 12.5;
+          // lines still read. The type grows with the scale so that on the
+          // screen the title keeps 14 px and the status line 12 px down to
+          // a 360 dp phone; the lines lose their letter spacing and most of
+          // their side padding to keep their words.
+          final scale = box.maxWidth / _tileDesign;
+          final compact = scale < 0.8;
+          final titleSize = compact ? clampDouble(14 / scale, 19, 22) : 16.0;
+          final metaSize = compact ? clampDouble(12 / scale, 15, 19) : 12.5;
+          final linePad = compact ? 4.0 : 10.0;
+          final spacing = compact ? 0.0 : 0.4;
           return RepaintBoundary(
             child: CustomPaint(
               // Over the content so the ring never shifts the layout.
@@ -635,6 +641,7 @@ class _AgentTileState extends State<AgentTile> {
                                           size: titleSize,
                                           color: c(look.label),
                                         ),
+                                        pad: linePad,
                                       ),
                                       const SizedBox(height: 5),
                                       if (a.workflow case final wf?) ...[
@@ -648,7 +655,8 @@ class _AgentTileState extends State<AgentTile> {
                                           DeckHud.mono(
                                             size: metaSize,
                                             color: DeckHud.workflow,
-                                          ).copyWith(letterSpacing: 0.4),
+                                          ).copyWith(letterSpacing: spacing),
+                                          pad: linePad,
                                         ),
                                       ] else
                                         _line(
@@ -656,7 +664,8 @@ class _AgentTileState extends State<AgentTile> {
                                           DeckHud.mono(
                                             size: metaSize,
                                             color: c(look.meta),
-                                          ).copyWith(letterSpacing: 0.4),
+                                          ).copyWith(letterSpacing: spacing),
+                                          pad: linePad,
                                         ),
                                     ],
                                   ),
@@ -677,8 +686,9 @@ class _AgentTileState extends State<AgentTile> {
     );
   }
 
-  static Widget _line(String text, TextStyle style) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 10),
+  static Widget _line(String text, TextStyle style, {double pad = 10}) =>
+      Padding(
+    padding: EdgeInsets.symmetric(horizontal: pad),
     child: Text(
       text,
       maxLines: 1,
