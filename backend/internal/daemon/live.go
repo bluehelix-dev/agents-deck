@@ -54,7 +54,15 @@ type liveWatch struct {
 	reported   []claude.Live // last `claude agents --json`
 	reportedAt time.Time
 	reportedOK bool
+	failures   int // calls in a row that didn't answer
 }
+
+// liveFailuresToGiveUp is how many `claude agents --json` calls in a row may
+// fail before the last answer stops counting.
+const liveFailuresToGiveUp = 3
+
+// listActive is activeSessions; tests replace it.
+var listActive = activeSessions
 
 func addedPath() string { return filepath.Join(paths.Data(), "watched.json") }
 
@@ -330,8 +338,21 @@ func (d *Daemon) discover(skip map[string]bool) []claude.Live {
 	cached, ok := d.live.reported, d.live.reportedOK
 	d.live.mu.Unlock()
 	if !fresh && bin != "-" {
-		cached, ok = activeSessions(bin, skip)
+		got, answered := listActive(bin, skip)
 		d.live.mu.Lock()
+		switch {
+		case answered:
+			d.live.failures = 0
+			cached, ok = got, true
+		case d.live.reportedOK && d.live.failures+1 < liveFailuresToGiveUp:
+			// One slow or failed call: keep the last answer rather than
+			// take every watched session off the board.
+			d.live.failures++
+			log.Printf("live: claude agents --json didn't answer (%d in a row); keeping the last list", d.live.failures)
+		default:
+			d.live.failures++
+			cached, ok = nil, false
+		}
 		d.live.reported, d.live.reportedOK, d.live.reportedAt = cached, ok, time.Now()
 		d.live.mu.Unlock()
 	}
