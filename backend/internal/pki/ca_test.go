@@ -34,8 +34,11 @@ func TestCAReloadsAndRefusesALostKey(t *testing.T) {
 		t.Fatalf("reload: %v", err)
 	}
 	// The certificate without its key: never silently start a new CA.
-	if _, err := LoadOrCreateCA(filepath.Join(dir, "ca.pem"), FileKeystore{Dir: t.TempDir()}, "test"); err == nil ||
-		!strings.Contains(err.Error(), "missing") {
+	// The message names a step that exists: delete the certificate.
+	certPath := filepath.Join(dir, "ca.pem")
+	if _, err := LoadOrCreateCA(certPath, FileKeystore{Dir: t.TempDir()}, "test"); err == nil ||
+		!strings.Contains(err.Error(), "missing") || !strings.Contains(err.Error(), "delete "+certPath) ||
+		strings.Contains(err.Error(), "agentctl devices reset") {
 		t.Fatalf("lost key: %v", err)
 	}
 }

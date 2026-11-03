@@ -46,7 +46,7 @@ func LoadOrCreateCA(certPath string, ks Keystore, name string) (*CA, error) {
 	case keyErr != nil && !errors.Is(keyErr, ErrNoKey):
 		return nil, keyErr
 	case certErr == nil:
-		return nil, fmt.Errorf("the CA key is missing from the %s: run `agentctl devices reset` to start over (every device must pair again)", ks.Where())
+		return nil, fmt.Errorf("the CA key is missing from the %s: delete %s to start over with a new one (every device must pair again)", ks.Where(), certPath)
 	default: // a key but no certificate: make a fresh pair
 		return createCA(certPath, ks, name)
 	}
