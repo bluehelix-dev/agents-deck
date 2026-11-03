@@ -211,9 +211,21 @@ func ServeDevice(addr string, cfg *tls.Config, h http.Handler) error {
 		TLSConfig:         cfg,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
-		ErrorLog:          log.New(io.Discard, "", 0), // device reconnects produce TLS noise
+		ErrorLog:          log.New(handshakeNoise{next: func(s string) { log.Print(s) }}, "", 0),
 	}
 	return srv.ListenAndServeTLS("", "")
+}
+
+// handshakeNoise drops net/http's "TLS handshake error" lines (devices
+// reconnecting make plenty) and passes every other line on, such as a
+// handler's panic or an Accept error.
+type handshakeNoise struct{ next func(string) }
+
+func (h handshakeNoise) Write(p []byte) (int, error) {
+	if !bytes.HasPrefix(p, []byte("http: TLS handshake error")) {
+		h.next(strings.TrimSuffix(string(p), "\n"))
+	}
+	return len(p), nil
 }
 
 // pair: POST /v1/pair {"code", "csr"} → {"name", "cert", "ca"}. The code
