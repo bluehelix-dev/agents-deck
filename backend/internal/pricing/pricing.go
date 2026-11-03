@@ -25,10 +25,16 @@ var rates = []rate{
 	{"opus 4.6", 5, 25, 0.50, 1_000_000, "opus-4-6"},
 	{"fable 5.1", 10, 50, 0.25, 1_000_000, "fable-5-1"},
 	{"fable 5", 10, 50, 1.00, 1_000_000, "fable-5"},
+	{"sonnet 5.5", 2, 10, 0.10, 1_000_000, "sonnet-5-5"},
 	{"sonnet 5", 2, 10, 0.20, 1_000_000, "sonnet-5"},
 	{"sonnet 4.6", 3, 15, 0.30, 1_000_000, "sonnet-4-6"},
+	{"haiku 5.5", 0.10, 0.50, 0.01, 1_000_000, "haiku-5-5"},
 	{"haiku 4.5", 1, 5, 0.10, 200_000, "haiku-4-5"},
 }
+
+// Models priced by prompt length: a request whose prompt (input, cache reads
+// and cache writes together) is over this many tokens costs 5× the rates above.
+var longPrompt = map[string]int64{"haiku-5-5": 100_000}
 
 func lookup(modelID string) (rate, bool) {
 	for _, r := range rates {
@@ -62,6 +68,9 @@ func Cost(modelID string, t model.Tokens) float64 {
 		return 0
 	}
 	const m = 1_000_000.0
+	if over, ok := longPrompt[r.match]; ok && t.Input+t.CacheRead+t.CacheWrite > over {
+		r.in, r.out, r.read = r.in*5, r.out*5, r.read*5
+	}
 	return float64(t.Input)*r.in/m + float64(t.Output)*r.out/m +
 		float64(t.CacheRead)*r.read/m + float64(t.CacheWrite)*r.in*1.25/m
 }
