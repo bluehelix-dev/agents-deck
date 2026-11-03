@@ -43,6 +43,10 @@ struct DeckFleet {
 
 // ---------------------------------------------------------------- one agent
 
+// Ends a prompt's detail cut to fit; the deck's own (promptCut in
+// backend/internal/link/limits.go).
+static const char kPromptCut[] = "… (too long to show here: answer on the phone or at the terminal)";
+
 static inline Status statusFromLink(agentsdeck_link_v1_Status s) {
   switch (s) {
     case agentsdeck_link_v1_Status_STATUS_STARTING: return Status::Starting;
@@ -88,10 +92,20 @@ static inline void agentFromLink(const agentsdeck_link_v1_Agent& in, Agent& a) {
   if (in.has_waiting) {
     copyLine(a.waitKind, sizeof a.waitKind, promptKindName(in.waiting.kind));
     copyLine(a.waitTitle, sizeof a.waitTitle, in.waiting.title);
-    copyLine(a.waitDetail, sizeof a.waitDetail, in.waiting.detail);
+    // A detail the board can't keep whole ends in the deck's note, and a
+    // permission cut like that offers nothing to press: what it would allow
+    // may be in the part the board never shows.
+    const bool cut = strlen(in.waiting.detail) >= sizeof a.waitDetail;
+    if (cut) {
+      copyLine(a.waitDetail, sizeof a.waitDetail - (sizeof kPromptCut - 1), in.waiting.detail);
+      strcat(a.waitDetail, kPromptCut);
+    } else {
+      copyLine(a.waitDetail, sizeof a.waitDetail, in.waiting.detail);
+    }
     copyLine(a.promptId, sizeof a.promptId, in.waiting.id);
     copyLine(a.promptCtx, sizeof a.promptCtx, in.waiting.context);
-    for (pb_size_t i = 0; i < in.waiting.options_count && a.optCount < kMaxOptions; i++) {
+    const bool answerable = !(cut && in.waiting.kind == agentsdeck_link_v1_PromptKind_PROMPT_PERMISSION);
+    for (pb_size_t i = 0; answerable && i < in.waiting.options_count && a.optCount < kMaxOptions; i++) {
       Option& o = a.opts[a.optCount++];
       copyLine(o.key, sizeof o.key, in.waiting.options[i].key);
       o.primary = in.waiting.options[i].primary;

@@ -191,6 +191,28 @@ int main() {
     assert(a.optCount == 3 && a.opts[0].selected && !strcmp(a.opts[0].label, "[x] cheese"));
     assert(!a.opts[1].selected && !strcmp(a.opts[1].label, "ham") && a.opts[2].primary);
 
+    // A detail longer than the board keeps ends in the deck's note. A
+    // permission cut like that offers nothing to press: what it would allow
+    // may be in the part the board never shows. A question keeps its answers.
+    {
+      static const char note[] = "… (too long to show here: answer on the phone or at the terminal)";
+      memset(in.waiting.detail, 'x', 300);
+      in.waiting.detail[300] = '\0';
+      agentFromLink(in, a);
+      size_t n = strlen(a.waitDetail);
+      assert(n < sizeof a.waitDetail && n > sizeof note);
+      assert(!strcmp(a.waitDetail + n - (sizeof note - 1), note) && a.waitDetail[0] == 'x');
+      assert(a.optCount == 3);
+      in.waiting.kind = agentsdeck_link_v1_PromptKind_PROMPT_PERMISSION;
+      agentFromLink(in, a);
+      assert(!strcmp(a.waitDetail + strlen(a.waitDetail) - (sizeof note - 1), note));
+      assert(a.optCount == 0);
+      // One that fits is left alone, answers and all.
+      snprintf(in.waiting.detail, sizeof in.waiting.detail, "make test");
+      agentFromLink(in, a);
+      assert(!strcmp(a.waitDetail, "make test") && a.optCount == 3);
+    }
+
     // No hat, an unknown shape, an unknown colour; a Claude agent with nothing else.
     agentsdeck_link_v1_Agent b = la("b", 0, agentsdeck_link_v1_Status_STATUS_IDLE);
     agentFromLink(b, a);

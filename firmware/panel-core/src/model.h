@@ -19,6 +19,10 @@ constexpr int kMaxOptions = 6;   // link.options: Prompt.options max_count
 #ifndef PANEL_LAST_PROMPT
 #define PANEL_LAST_PROMPT 96
 #endif
+// A prompt's detail (link.options allows 512); a longer one is cut with a note.
+#ifndef PANEL_WAIT_DETAIL
+#define PANEL_WAIT_DETAIL 192
+#endif
 #ifndef PANEL_OPTION_LABEL
 #define PANEL_OPTION_LABEL 40
 #endif
@@ -91,7 +95,7 @@ struct Agent {
   char actDetail[72];
   char waitKind[12];
   char waitTitle[96];
-  char waitDetail[192];
+  char waitDetail[PANEL_WAIT_DETAIL];
   char errMsg[56];
   char lastPrompt[PANEL_LAST_PROMPT];   // CARD: the last prompt the agent was given
   uint64_t tokensOut;       // NUMBERS: output tokens
