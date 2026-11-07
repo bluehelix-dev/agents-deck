@@ -125,18 +125,20 @@ func linkPorts() error {
 	for _, p := range loadConfig().Link.Ports {
 		registered[p.Path] = true
 	}
-	ports := link.CandidatePorts()
+	ports := link.ListPorts()
 	if len(ports) == 0 {
 		fmt.Println("no USB serial ports found: plug the board in (and use a data cable)")
 		return nil
 	}
+	tw := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 	for _, p := range ports {
 		mark := "  "
-		if registered[p] {
+		if registered[p.Path] {
 			mark = "✓ "
 		}
-		fmt.Println(mark + p)
+		fmt.Fprintf(tw, "%s%s\t%s\n", mark, p.Path, p.About)
 	}
+	_ = tw.Flush()
 	fmt.Println("\nregister one with: agentctl link add <port>   (only registered ports are ever opened)")
 	return nil
 }
@@ -152,7 +154,7 @@ func linkAdd(args []string) error {
 	if port == "" {
 		return errors.New("usage: agentctl link add <port> [--baud N]   (see agentctl link ports)")
 	}
-	if _, err := os.Stat(port); err != nil {
+	if !link.PortPresent(port) {
 		fmt.Fprintf(os.Stderr, "note: %s isn't there right now; it's used whenever it appears\n", port)
 	}
 	return editLinkPorts(func(ps []link.PortConfig) ([]link.PortConfig, error) {

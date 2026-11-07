@@ -2,6 +2,7 @@ package link
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -151,7 +152,7 @@ func (m *Manager) check(ctx context.Context, p PortConfig, retry map[string]time
 	if time.Now().Before(retry[p.Path]) {
 		return
 	}
-	if _, err := os.Stat(p.Path); err != nil {
+	if !PortPresent(p.Path) {
 		m.set(p, "not plugged in", "")
 		return
 	}
@@ -160,6 +161,11 @@ func (m *Manager) check(ctx context.Context, p PortConfig, retry map[string]time
 		return
 	}
 	f, err := OpenPort(p.Path, p.Baud)
+	if errors.Is(err, ErrPortBusy) { // Windows, where lsof has no counterpart
+		m.set(p, "in use by another program", "")
+		retry[p.Path] = time.Now().Add(3 * time.Second)
+		return
+	}
 	if err != nil {
 		m.set(p, "error", err.Error())
 		retry[p.Path] = time.Now().Add(10 * time.Second)
@@ -230,15 +236,4 @@ func otherUser(lsof string, self int) string {
 		}
 	}
 	return ""
-}
-
-// CandidatePorts lists USB serial ports that look like boards.
-func CandidatePorts() []string {
-	var out []string
-	for _, g := range []string{"/dev/cu.usbmodem*", "/dev/cu.usbserial*", "/dev/cu.SLAB_USBtoUART*", "/dev/cu.wchusbserial*", "/dev/ttyACM*", "/dev/ttyUSB*"} {
-		m, _ := filepath.Glob(g)
-		out = append(out, m...)
-	}
-	sort.Strings(out)
-	return out
 }

@@ -78,8 +78,12 @@ them with `agentctl add` or a tap on a free tile), the `"hats"` map is where pic
   terminal shows the dialog once the wait is over, and the deck then says to answer it there. Free
   text ("type something") stays at the terminal. This needs the hooks from `agentctl hooks install`
   from this version or later (run it again after updating: the hooks' timeout grew).
-- **Boards on USB**: no serial port discovery on Windows yet (`agentctl link ports`). Flash and pair a
-  board on a Mac, or use a board that is already on Wi-Fi.
+- **Boards on USB**: `agentctl link ports` lists the board's COM port (with its USB vendor and
+  product, such as `COM5  USB 303a:1001`), and `agentctl link add COM5` registers it; the daemon
+  then finds, approves and pairs the board as on a Mac. Windows lets one program at a time have a
+  COM port: while the deck has it, a flasher or serial monitor can't open it, so run
+  `agentctl link rm COM5` first and add the port back after. The deck shows a port another program
+  holds as "in use by another program". Not yet tried with a real board on Windows.
 - **Codex** sessions need a `sqlite3.exe` on your PATH (the daemon reads Codex's database with it).
 - **Orca, herdr and cmux** are macOS terminals; their watchers find nothing here.
 
