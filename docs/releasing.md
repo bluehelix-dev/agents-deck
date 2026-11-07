@@ -24,7 +24,8 @@ same tag.
 The Android app updates itself from these releases ([phone.md](phone.md#updating-the-app)): it
 takes the release published last (pre-releases included; GitHub's list orders by tag name as text, so the date decides) whose assets hold an
 `agents-deck-*.apk`, and needs the APK's line in `SHA256SUMS` to tell whether that is the build it
-runs. A release without the APK is skipped; one without `SHA256SUMS` can't be checked and is reported
+runs. The workflow puts an already attached APK into `SHA256SUMS`, so after attaching the APK by
+hand, run the release workflow once more (or add its checksum line to `SHA256SUMS` by hand). A release without the APK is skipped; one without `SHA256SUMS` can't be checked and is reported
 as such. Android installs the update only over an app signed with the same key, so every release
 APK must come from the same keystore. The build signs with the release key when
 `clients/android/android/key.properties` (kept out of git) names it:

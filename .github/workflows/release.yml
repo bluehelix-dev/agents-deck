@@ -266,6 +266,8 @@ jobs:
         with:
           name: firmware
           path: dist
+      - name: keep an APK attached by hand
+        run: gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p 'agents-deck-*.apk' -D dist || true
       - name: checksums
         run: cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
       - name: release
