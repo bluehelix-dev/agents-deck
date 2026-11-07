@@ -639,6 +639,16 @@ func reopen() error {
 	return nil
 }
 
+// listCost is the COST column of `agentctl ls`. Only a Codex thread the Codex
+// app owns has no cost (Codex reports no prices); a watched Claude session is
+// external too, but its transcript has the prices, as on the dashboard.
+func listCost(a model.Agent) string {
+	if a.External && a.Tool == "codex" && a.App == "" {
+		return "—"
+	}
+	return fmt.Sprintf("$%.2f", a.CostUSD)
+}
+
 func list() error {
 	s, err := state()
 	if err != nil {
@@ -678,11 +688,7 @@ func list() error {
 		} else if !a.StatusSince.IsZero() && a.Status != model.Exited {
 			st += " " + humanAgo(time.Since(a.StatusSince))
 		}
-		cost := fmt.Sprintf("$%.2f", a.CostUSD)
-		if a.External {
-			cost = "—" // Codex reports no prices
-		}
-		row := []string{a.ID, clip(listName(a.Title), 40), st, ctx, cost, clip(a.Folder, 24)}
+		row := []string{a.ID, clip(listName(a.Title), 40), st, ctx, listCost(a), clip(a.Folder, 24)}
 		if acctCol {
 			acct := ""
 			if a.Account != nil {
