@@ -271,6 +271,8 @@ jobs:
       - name: release
         run: |
           if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --generate-notes --title "agents deck $TAG"
+            pre=""
+            case "$TAG" in *-*) pre="--prerelease";; esac
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" $pre --generate-notes --title "agents deck $TAG"
           fi
           gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber dist/*
