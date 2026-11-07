@@ -57,29 +57,71 @@ static int64_t clock_offset_ms;
 
 // ---- text -----------------------------------------------------------------
 
+// One character of clean(): what it becomes in out (1 to 4 bytes, returned)
+// and how many bytes of the source it takes (*in).
+static size_t clean_char(const unsigned char *p, bool flat, char out[4], size_t *in)
+{
+	if (p[0] == 0xC2 && p[1] == 0xB7) { // ·
+		memcpy(out, "\xE2\x80\xA2", 3);
+		*in = 2;
+		return 3;
+	}
+	if (p[0] == 0xE2 && p[1] == 0x80 && p[2] == 0xA6) { // …
+		memcpy(out, "...", 3);
+		*in = 3;
+		return 3;
+	}
+	if (flat && (*p == '\n' || *p == '\t')) {
+		out[0] = ' ';
+		*in = 1;
+		return 1;
+	}
+	size_t len = p[0] >= 0xF0 ? 4 : p[0] >= 0xE0 ? 3 : p[0] >= 0xC0 ? 2 : 1, k = 1;
+	out[0] = (char)p[0];
+	for (; k < len && (p[k] & 0xC0) == 0x80; k++)
+		out[k] = (char)p[k];
+	*in = k;
+	return k;
+}
+
 // Copies UTF-8 text for the Montserrat fonts: "·" becomes "•", "…" "...",
 // line breaks spaces when flat; other characters pass through (missing
-// glyphs are skipped).
+// glyphs are skipped). Text too long for dst is cut between characters and
+// ends in "...".
 static void clean(char *dst, size_t size, const char *src, bool flat)
 {
+	if (!size)
+		return;
+	const unsigned char *p = (const unsigned char *)src;
+	char c[4];
+	size_t in, total = 0;
+	for (const unsigned char *q = p; *q; q += in)
+		total += clean_char(q, flat, c, &in);
+	// Whole when it fits with its NUL; else leave room for "..." and the NUL.
+	const bool cut = total >= size;
+	const size_t room = !cut ? size - 1 : size > 4 ? size - 4 : 0;
 	size_t n = 0;
-	for (const unsigned char *p = (const unsigned char *)src; *p && n + 4 < size;) {
-		if (p[0] == 0xC2 && p[1] == 0xB7) { // ·
-			memcpy(dst + n, "\xE2\x80\xA2", 3), n += 3, p += 2;
-		} else if (p[0] == 0xE2 && p[1] == 0x80 && p[2] == 0xA6) { // …
-			memcpy(dst + n, "...", 3), n += 3, p += 3;
-		} else if (flat && (*p == '\n' || *p == '\t')) {
-			dst[n++] = ' ', p++;
-		} else {
-			dst[n++] = (char)*p++;
-		}
+	for (; *p; p += in) {
+		const size_t out = clean_char(p, flat, c, &in);
+		if (n + out > room)
+			break;
+		memcpy(dst + n, c, out);
+		n += out;
+	}
+	if (cut && size > 4) {
+		memcpy(dst + n, "...", 3);
+		n += 3;
 	}
 	dst[n] = '\0';
 }
 
+// Room for the longest text clean() gets: a 512-byte prompt detail whose
+// every "·" (2 bytes) becomes "•" (3 bytes), and a cut's "...".
+#define CLEAN_MAX (512 * 3 / 2 + 5)
+
 static void set_text(lv_obj_t *l, const char *s, bool flat)
 {
-	char b[512];
+	char b[CLEAN_MAX];
 	clean(b, sizeof b, s ? s : "", flat);
 	lv_label_set_text(l, b);
 }
