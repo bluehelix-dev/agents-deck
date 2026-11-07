@@ -107,7 +107,7 @@ static void on_result(deck_link_t *ctx, uint32_t seq, uint32_t code, const char 
 	if (seq != pending_seq)
 		return;
 	pending_seq = 0;
-	char msg[96];
+	char msg[128]; // room for the 403 text with a 39-character device name
 	agents_t *s = agents_lock();
 	switch (code) {
 	case 200:
