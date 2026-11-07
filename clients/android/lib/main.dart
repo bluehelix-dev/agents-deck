@@ -938,9 +938,21 @@ class _PairingCardState extends State<PairingCard>
     with _PairingRunner<PairingCard> {
   @override
   Widget build(BuildContext context) {
-    TextSpan code(String s) =>
-        TextSpan(text: s, style: DeckHud.rm(17, DeckHud.accent));
-    Widget step(String n, List<InlineSpan> text) => Padding(
+    // A command on its own line, in one piece: it scrolls sideways rather
+    // than breaking in the middle of a flag.
+    Widget command(String s) => Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: SingleChildScrollView(
+        key: const Key('pairing-command'),
+        scrollDirection: Axis.horizontal,
+        child: Text(
+          s,
+          softWrap: false,
+          style: DeckHud.rm(17, DeckHud.accent),
+        ),
+      ),
+    );
+    Widget step(String n, List<InlineSpan> text, {Widget? below}) => Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -950,12 +962,18 @@ class _PairingCardState extends State<PairingCard>
             child: Text(n, style: DeckHud.rm(20, DeckHud.accent, weight: 700)),
           ),
           Expanded(
-            child: Text.rich(
-              TextSpan(children: text),
-              style: DeckHud.mono(
-                size: 17,
-                color: DeckHud.ink,
-              ).copyWith(height: 1.4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(children: text),
+                  style: DeckHud.mono(
+                    size: 17,
+                    color: DeckHud.ink,
+                  ).copyWith(height: 1.4),
+                ),
+                ?below,
+              ],
             ),
           ),
         ],
@@ -992,9 +1010,8 @@ class _PairingCardState extends State<PairingCard>
         ),
         const SizedBox(height: 26),
         step('1', [
-          const TextSpan(text: 'on the computer:\n'),
-          code('agentctl pair ${widget.device} --qr'),
-        ]),
+          const TextSpan(text: 'on the computer:'),
+        ], below: command('agentctl pair ${widget.device} --qr')),
         step('2', [
           const TextSpan(
             text: 'point the camera at the code within two minutes:',
