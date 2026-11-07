@@ -449,7 +449,7 @@ func TestLinkWifiOverSerialOnly(t *testing.T) {
 
 type fakeLocal struct{ *fakeCtl }
 
-func (fakeLocal) Hook(string, []byte) error                            { return nil }
+func (fakeLocal) Hook(string, []byte) ([]byte, error)                  { return nil, nil }
 func (fakeLocal) Create(server.CreateOpts) (string, error)             { return "", nil }
 func (fakeLocal) ResumeSession(string, string, string) (string, error) { return "", nil }
 func (fakeLocal) HistoryJSON() any                                     { return nil }

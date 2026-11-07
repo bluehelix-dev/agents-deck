@@ -59,7 +59,9 @@ type Watcher interface {
 // Local-only extras (unix socket).
 type LocalController interface {
 	Controller
-	Hook(agentID string, body []byte) error
+	// Hook takes a Claude Code hook payload; what it returns is printed by the
+	// hook for Claude Code (a decision), nothing for most events.
+	Hook(agentID string, body []byte) ([]byte, error)
 	Create(o CreateOpts) (string, error)
 	ResumeSession(sessionID, cwd, title string) (string, error)
 	HistoryJSON() any
@@ -108,6 +110,7 @@ type Server struct {
 	DevicePort  int
 	certMu      sync.RWMutex
 	serverCert  atomic.Pointer[tls.Certificate]
+	streams     atomic.Int32 // open event streams: phones, panels, browser dashboards
 	// DeviceLink serves GET /v1/link on the network listener: a paired
 	// board's Deck Link session over TLS (link.DeviceUpgradeHandler).
 	DeviceLink func(w http.ResponseWriter, r *http.Request, d devices.Device)
@@ -348,6 +351,10 @@ func (s *Server) act(w http.ResponseWriter, err error) {
 	}
 }
 
+// Streams is how many clients hold an event stream open right now: what could
+// answer a prompt (the daemon holds a watched session's hook for them).
+func (s *Server) Streams() int { return int(s.streams.Load()) }
+
 // events streams full snapshots: one on connect, one per change (debounced), pings every 15s.
 // A device's stream ends at the next snapshot or ping after it is revoked,
 // removed or paired again (those touch the store, so that is at once).
@@ -363,6 +370,8 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	h.Set("X-Accel-Buffering", "no")
 	ch, unsub := s.Store.Subscribe()
 	defer unsub()
+	s.streams.Add(1)
+	defer s.streams.Add(-1)
 	rc := http.NewResponseController(w)
 	send := func() bool {
 		if !s.stillPaired(r) {
@@ -504,11 +513,18 @@ func (s *Server) UnixHandler(lc LocalController) http.Handler {
 	})
 	mux.HandleFunc("POST /hook", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-		if err := lc.Hook(r.URL.Query().Get("agent"), body); err != nil {
+		out, err := lc.Hook(r.URL.Query().Get("agent"), body)
+		if err != nil {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		w.WriteHeader(http.StatusNoContent)
+		if len(out) == 0 {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(out)
 	})
 	mux.HandleFunc("POST /local/agents", func(w http.ResponseWriter, r *http.Request) {
 		var body CreateOpts

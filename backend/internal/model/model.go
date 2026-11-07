@@ -116,6 +116,11 @@ type Prompt struct {
 	Detail  string   `json:"detail"`
 	Context string   `json:"context"`
 	Options []Option `json:"options"`
+	// Until: a watched session (started by hand, no way to type into it) can
+	// be answered from the deck until then: its hook is holding Claude Code
+	// for the deck's answer. Afterwards, or when omitted, a watched session is
+	// answered in its own terminal; the deck's own agents don't need it.
+	Until time.Time `json:"until,omitzero"`
 }
 
 type Option struct {

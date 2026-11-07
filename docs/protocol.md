@@ -124,7 +124,10 @@ The full state is small (≤ a few KB per agent), so there are no deltas.
     { "key": "1", "label": "yes", "primary": true },
     { "key": "2", "label": "yes, and don't ask again for terraform" },
     { "key": "3", "label": "no" }
-  ]
+  ],
+  "until": "2026-10-08T00:51:22Z" // only for a watched session (started by hand, nothing the deck can type
+                                  // into): its hook holds Claude Code for the deck's answer until then, so
+                                  // answering works; omitted once the wait is over (answer in the terminal)
 }
 
 // Option — "selected": true marks a ticked answer of a pick-any question (omitted otherwise)

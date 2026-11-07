@@ -181,6 +181,7 @@ typedef struct _agentsdeck_link_v1_Prompt {
     char context[96];
     pb_size_t options_count;
     agentsdeck_link_v1_Option options[6]; /* empty for INPUT: answer in the terminal */
+    int64_t until_ms; /* a watched session: the deck can answer until then (its hook waits); 0 otherwise */
 } agentsdeck_link_v1_Prompt;
 
 typedef struct _agentsdeck_link_v1_Tokens {
@@ -607,7 +608,7 @@ extern "C" {
 #define agentsdeck_link_v1_Workflow_init_default {"", 0, {agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default, agentsdeck_link_v1_WorkflowPhase_init_default}}
 #define agentsdeck_link_v1_WorkflowPhase_init_default {"", 0, 0}
 #define agentsdeck_link_v1_Activity_init_default {"", ""}
-#define agentsdeck_link_v1_Prompt_init_default   {"", _agentsdeck_link_v1_PromptKind_MIN, "", "", "", 0, {agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default}}
+#define agentsdeck_link_v1_Prompt_init_default   {"", _agentsdeck_link_v1_PromptKind_MIN, "", "", "", 0, {agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default, agentsdeck_link_v1_Option_init_default}, 0}
 #define agentsdeck_link_v1_Option_init_default   {"", "", 0, 0}
 #define agentsdeck_link_v1_Tokens_init_default   {0, 0, 0, 0}
 #define agentsdeck_link_v1_Context_init_default  {0, 0}
@@ -658,7 +659,7 @@ extern "C" {
 #define agentsdeck_link_v1_Workflow_init_zero    {"", 0, {agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero, agentsdeck_link_v1_WorkflowPhase_init_zero}}
 #define agentsdeck_link_v1_WorkflowPhase_init_zero {"", 0, 0}
 #define agentsdeck_link_v1_Activity_init_zero    {"", ""}
-#define agentsdeck_link_v1_Prompt_init_zero      {"", _agentsdeck_link_v1_PromptKind_MIN, "", "", "", 0, {agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero}}
+#define agentsdeck_link_v1_Prompt_init_zero      {"", _agentsdeck_link_v1_PromptKind_MIN, "", "", "", 0, {agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero, agentsdeck_link_v1_Option_init_zero}, 0}
 #define agentsdeck_link_v1_Option_init_zero      {"", "", 0, 0}
 #define agentsdeck_link_v1_Tokens_init_zero      {0, 0, 0, 0}
 #define agentsdeck_link_v1_Context_init_zero     {0, 0}
@@ -741,6 +742,7 @@ extern "C" {
 #define agentsdeck_link_v1_Prompt_detail_tag     4
 #define agentsdeck_link_v1_Prompt_context_tag    5
 #define agentsdeck_link_v1_Prompt_options_tag    6
+#define agentsdeck_link_v1_Prompt_until_ms_tag   7
 #define agentsdeck_link_v1_Tokens_input_tag      1
 #define agentsdeck_link_v1_Tokens_output_tag     2
 #define agentsdeck_link_v1_Tokens_cache_read_tag 3
@@ -1112,7 +1114,8 @@ X(a, STATIC,   SINGULAR, UENUM,    kind,              2) \
 X(a, STATIC,   SINGULAR, STRING,   title,             3) \
 X(a, STATIC,   SINGULAR, STRING,   detail,            4) \
 X(a, STATIC,   SINGULAR, STRING,   context,           5) \
-X(a, STATIC,   REPEATED, MESSAGE,  options,           6)
+X(a, STATIC,   REPEATED, MESSAGE,  options,           6) \
+X(a, STATIC,   SINGULAR, INT64,    until_ms,          7)
 #define agentsdeck_link_v1_Prompt_CALLBACK NULL
 #define agentsdeck_link_v1_Prompt_DEFAULT NULL
 #define agentsdeck_link_v1_Prompt_options_MSGTYPE agentsdeck_link_v1_Option
@@ -1455,9 +1458,9 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Account_size          30
 #define agentsdeck_link_v1_Activity_size         155
 #define agentsdeck_link_v1_AddLive_size          52
-#define agentsdeck_link_v1_AgentChanged_size     3779
+#define agentsdeck_link_v1_AgentChanged_size     3790
 #define agentsdeck_link_v1_AgentRemoved_size     13
-#define agentsdeck_link_v1_Agent_size            3776
+#define agentsdeck_link_v1_Agent_size            3787
 #define agentsdeck_link_v1_Answer_size           39
 #define agentsdeck_link_v1_CertIssued_size       1788
 #define agentsdeck_link_v1_CertRequest_size      603
@@ -1465,7 +1468,7 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Dismiss_size          13
 #define agentsdeck_link_v1_Display_size          14
 #define agentsdeck_link_v1_Focus_size            13
-#define agentsdeck_link_v1_Frame_size            3789
+#define agentsdeck_link_v1_Frame_size            3800
 #define agentsdeck_link_v1_GetState_size         0
 #define agentsdeck_link_v1_Handoff_size          30
 #define agentsdeck_link_v1_HatList_size          1868
@@ -1484,7 +1487,7 @@ extern const pb_msgdesc_t agentsdeck_link_v1_NetStatus_msg;
 #define agentsdeck_link_v1_Order_size            416
 #define agentsdeck_link_v1_Ping_size             11
 #define agentsdeck_link_v1_Pong_size             11
-#define agentsdeck_link_v1_Prompt_size           1399
+#define agentsdeck_link_v1_Prompt_size           1410
 #define agentsdeck_link_v1_RestoreResult_size    3056
 #define agentsdeck_link_v1_Restore_size          0
 #define agentsdeck_link_v1_Restored_size         188

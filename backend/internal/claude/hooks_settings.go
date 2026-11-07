@@ -97,8 +97,13 @@ func InstallHooks(path, agentctl string) (bool, error) {
 		for _, g := range list {
 			if m, ok := g.(map[string]any); ok && ours(m) {
 				for _, h := range m["hooks"].([]any) {
-					if hm, _ := h.(map[string]any); hm["command"] != cmd {
+					hm, _ := h.(map[string]any)
+					if hm["command"] != cmd {
 						hm["command"] = cmd // the binary moved: point at this one
+						changed = true
+					}
+					if hm["timeout"] != float64(HookTimeout(ev)) {
+						hm["timeout"] = float64(HookTimeout(ev)) // an older install: the hook may wait for the deck now
 						changed = true
 					}
 				}
@@ -108,7 +113,7 @@ func InstallHooks(path, agentctl string) (bool, error) {
 		if have {
 			continue
 		}
-		group := map[string]any{"hooks": []any{map[string]any{"type": "command", "command": cmd, "timeout": float64(5)}}}
+		group := map[string]any{"hooks": []any{map[string]any{"type": "command", "command": cmd, "timeout": float64(HookTimeout(ev))}}}
 		if ev == "PreToolUse" || ev == "PostToolUse" || ev == "PermissionRequest" {
 			group["matcher"] = "*"
 		}

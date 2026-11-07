@@ -78,6 +78,9 @@ const poseOf = (a) => {
 // another terminal that you added to the deck ("watched").
 const codexThread = (a) => a.external && a.tool === 'codex' && !a.app;
 const watched = (a) => a.external && a.tool === 'claude' && !a.app;
+// A watched session's prompt can be answered here only while the daemon holds
+// its hook for the deck (the prompt carries "until"; on Windows, say).
+const answerable = (a, w) => !watched(a) || !!w?.until;
 const inApp = (a) => !!a.app; // runs in another app (Orca, herdr): answer, interrupt and focus work there
 // Whether the daemon can bring a terminal to the front here (not on Windows):
 // without it the focus controls stay away instead of failing.
@@ -1412,7 +1415,7 @@ function buildPrompt(a) {
   };
 
   const answer = async (key) => {
-    if (watched(a)) { note.className = 'note'; note.textContent = 'answer it in its own terminal'; return; }
+    if (!answerable(a, w)) { note.className = 'note'; note.textContent = 'answer it in its own terminal'; return; }
     const cur = sending.get(w.id);
     if (cur) return;
     sending.set(w.id, { key, status: 'sending' });
@@ -1460,7 +1463,7 @@ function buildPrompt(a) {
     if (w.context) kids.push(h('span', { class: 'lbl', text: w.context })); // e.g. "size · question 2 of 3"
     kids.push(h('h3', { class: 'p-title', id: 'p-title', text: w.title }));
     if (w.detail) kids.push(h('span', { class: 'val p-detail', text: w.detail }));
-    kids.push(h('div', { class: 'sec grow' }, optList), h('div', { class: 'actions' }, watched(a) ? h('span', { class: 'lbl', text: 'answer it in its own terminal' }) : sendBtn, focusBtn('narrow', 'type in terminal')), note);
+    kids.push(h('div', { class: 'sec grow' }, optList), h('div', { class: 'actions' }, answerable(a, w) ? sendBtn : h('span', { class: 'lbl', text: 'answer it in its own terminal' }), focusBtn('narrow', 'type in terminal')), note);
   } else {
     panel.className = 'detail p-accent';
     kids.push(h('div', { class: 'sec' },

@@ -33,14 +33,38 @@ func TestInstallAndRemoveHooks(t *testing.T) {
 	if len(pre) != 2 || pre[0].(map[string]any)["matcher"] != "Bash" {
 		t.Fatalf("the user's PreToolUse hook should come first and stay: %v", pre)
 	}
-	cmd := pre[1].(map[string]any)["hooks"].([]any)[0].(map[string]any)["command"]
-	if cmd != `"C:/tools/agentctl.exe" hook` {
+	ourHook := pre[1].(map[string]any)["hooks"].([]any)[0].(map[string]any)
+	if cmd := ourHook["command"]; cmd != `"C:/tools/agentctl.exe" hook` {
 		t.Fatalf("command %q (bash on Windows needs forward slashes)", cmd)
+	}
+	// A permission request or a question may wait for the deck's answer; the
+	// other hooks return at once.
+	if ourHook["timeout"] != float64(120) {
+		t.Fatalf("PreToolUse timeout %v", ourHook["timeout"])
+	}
+	stop := obj["hooks"].(map[string]any)["Stop"].([]any)[0].(map[string]any)["hooks"].([]any)[0].(map[string]any)
+	if stop["timeout"] != float64(5) {
+		t.Fatalf("Stop timeout %v", stop["timeout"])
 	}
 
 	// Again: nothing to do. With the binary elsewhere: the command follows it.
 	if changed, err := InstallHooks(path, `C:\tools\agentctl.exe`); err != nil || changed {
 		t.Fatalf("second install: %v %v", changed, err)
+	}
+	// An install from before hooks waited: the timeout is raised in place.
+	ourHook["timeout"] = float64(5)
+	b, _ = json.Marshal(obj)
+	if err := os.WriteFile(path, b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := InstallHooks(path, `C:\tools\agentctl.exe`); err != nil || !changed {
+		t.Fatalf("old timeout: %v %v", changed, err)
+	}
+	b, _ = os.ReadFile(path)
+	obj = nil
+	_ = json.Unmarshal(b, &obj)
+	if got := obj["hooks"].(map[string]any)["PreToolUse"].([]any)[1].(map[string]any)["hooks"].([]any)[0].(map[string]any)["timeout"]; got != float64(120) {
+		t.Fatalf("timeout after reinstall: %v", got)
 	}
 	if changed, err := InstallHooks(path, "/usr/local/bin/agentctl"); err != nil || !changed {
 		t.Fatalf("moved binary: %v %v", changed, err)

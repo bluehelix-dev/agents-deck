@@ -45,14 +45,23 @@ type Config struct {
 	LiveAutoAdd bool `json:"liveAutoAdd"`
 	// ExitedTTLSeconds: how long exited agents stay visible (0 = 10 min, <0 = forever).
 	ExitedTTLSeconds int `json:"exitedTTLSeconds"`
+	// AnswerWaitSeconds: how long a watched session's permission request or
+	// question waits for an answer from the deck before Claude Code asks in
+	// the terminal (hold.go; default 20, at most 110). Only while a phone, a
+	// board or the browser dashboard is connected.
+	AnswerWaitSeconds int `json:"answerWaitSeconds"`
 }
 
 type Daemon struct {
 	Store    *store.Store
 	Cfg      Config
 	Agentctl string // absolute path of this binary, used in hook commands
+	// Answerers counts what could answer a prompt right now: connected
+	// phones, boards and browser dashboards. nil: nothing (hooks never wait).
+	Answerers func() int
 
 	mu        sync.Mutex
+	holds     map[string]*hold // agent id -> the hook waiting for the deck's answer
 	scans     sync.WaitGroup // screen reads started by Hook, so tests can wait for them
 	lastFocus time.Time
 	iterm     itermLink
@@ -355,11 +364,13 @@ func (d *Daemon) scanMenu(e *store.Entry) bool {
 	return false
 }
 
-// Hook folds one Claude Code hook payload into its agent.
-func (d *Daemon) Hook(agentID string, body []byte) error {
+// Hook folds one Claude Code hook payload into its agent. What it returns is
+// what the hook prints for Claude Code: a decision for a permission request or
+// a question answered on the deck (hold.go), else nothing.
+func (d *Daemon) Hook(agentID string, body []byte) ([]byte, error) {
 	var ev claude.Event
 	if err := json.Unmarshal(body, &ev); err != nil {
-		return err
+		return nil, err
 	}
 	bySession := agentID == ""
 	if bySession {
@@ -369,18 +380,23 @@ func (d *Daemon) Hook(agentID string, body []byte) error {
 		// event through the user settings is dropped.
 		agentID = d.Store.FindBySession(ev.SessionID)
 		if e, ok := d.Store.Get(agentID); !ok || !e.External || e.A.Tool != "claude" {
-			return nil
+			return nil, nil
 		}
 	}
 	scan := false
 	d.mu.Lock()
 	front := d.front
 	d.mu.Unlock()
+	canHold := d.canHold(ev)
+	var h *hold
 	if !d.Store.Update(agentID, func(e *store.Entry) bool {
 		var changed bool
 		changed, scan = claude.Apply(e, ev)
 		if bySession {
 			e.LiveHooks = true // from here on its hooks set its status
+		}
+		if changed && canHold {
+			h = d.startHold(agentID, ev, e)
 		}
 		// Finished while you were watching it: only where the deck knows
 		// which terminal is in front (tmux). On Windows it never does, and a
@@ -391,9 +407,9 @@ func (d *Daemon) Hook(agentID string, body []byte) error {
 		}
 		return changed
 	}) {
-		return server.ErrNotFound
+		return nil, server.ErrNotFound
 	}
-	if scan {
+	if scan && h == nil {
 		// The dialog renders a moment after the hook fires.
 		d.scans.Add(1)
 		go func() {
@@ -411,7 +427,10 @@ func (d *Daemon) Hook(agentID string, body []byte) error {
 			}
 		}()
 	}
-	return nil
+	if h != nil {
+		return d.wait(h), nil
+	}
+	return nil, nil
 }
 
 // Create starts a new agent in a detached tmux session and returns its id.
@@ -524,6 +543,9 @@ func (d *Daemon) Answer(id, promptID, key string) error {
 		if h, ok := d.harnessOf(e); ok {
 			return d.answerInApp(h, id, promptID, key)
 		}
+	}
+	if handled, err := d.answerHeld(id, promptID, key); handled {
+		return err // a watched session whose hook waits for the deck (hold.go)
 	}
 	if e, ok := d.Store.Get(id); ok && e.External {
 		return externalErr(e)

@@ -27,13 +27,24 @@ const CompactTool = "Compact"
 // lost, or Claude Code is too old to send it.
 const CompactTimeout = 5 * time.Minute
 
+// HookTimeout is how many seconds Claude Code gives the deck's hook for an
+// event. A permission request or a question may wait for an answer from the
+// deck (daemon: hold.go); every other hook returns at once.
+func HookTimeout(ev string) int {
+	if ev == "PermissionRequest" || ev == "PreToolUse" {
+		return 120
+	}
+	return 5
+}
+
 // HooksSettings is the JSON passed to `claude --settings`: every event runs
-// `<agentctl> hook`, which forwards the payload to the daemon and prints nothing.
+// `<agentctl> hook`, which forwards the payload to the daemon and prints what
+// the daemon decides (nothing, for most events).
 func HooksSettings(agentctl string) ([]byte, error) {
 	cmd := hookCommand(agentctl)
 	hooks := map[string]any{}
 	for _, ev := range Events {
-		group := map[string]any{"hooks": []map[string]any{{"type": "command", "command": cmd, "timeout": 5}}}
+		group := map[string]any{"hooks": []map[string]any{{"type": "command", "command": cmd, "timeout": HookTimeout(ev)}}}
 		if ev == "PreToolUse" || ev == "PostToolUse" || ev == "PermissionRequest" {
 			group["matcher"] = "*"
 		}
@@ -51,6 +62,7 @@ type Event struct {
 	Prompt           string          `json:"prompt"`
 	ToolName         string          `json:"tool_name"`
 	ToolInput        json.RawMessage `json:"tool_input"`
+	Suggestions      json.RawMessage `json:"permission_suggestions"` // PermissionRequest: the "don't ask again" rules Claude Code offers
 	Message          string          `json:"message"`
 	NotificationType string          `json:"notification_type"`
 	Source           string          `json:"source"`

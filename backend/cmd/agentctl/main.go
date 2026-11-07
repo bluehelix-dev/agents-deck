@@ -200,10 +200,20 @@ func hook() {
 	if id := os.Getenv("AGENTSTERM_ID"); id != "" {
 		url += "?agent=" + id
 	}
-	c := unixClient(2 * time.Second)
+	// A permission request or a question may be held while the deck answers
+	// it (daemon hold.go), so this waits as long as Claude Code lets the hook.
+	c := unixClient(time.Duration(claude.HookTimeout("PermissionRequest")) * time.Second)
 	resp, err := c.Post(url, "application/json", bytes.NewReader(body))
-	if err == nil {
-		resp.Body.Close()
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		// The daemon's decision, for Claude Code.
+		out, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		if len(out) > 0 {
+			os.Stdout.Write(out)
+		}
 	}
 }
 
@@ -1314,6 +1324,11 @@ func serve(args []string) error {
 	srv.LinkStatus = func() any {
 		return map[string]any{"ports": links.Status(), "boards": hub.Links(), "wifiDefault": wifiDefault.SSID()}
 	}
+	if dm, ok := lc.(*daemon.Daemon); ok {
+		// A watched session's hook waits for the deck only while something
+		// that can answer is connected: a stream (phone, dashboard) or a board.
+		dm.Answerers = func() int { return srv.Streams() + len(hub.Links()) }
+	}
 	srv.LinkWifi = hub.SendWifi
 	srv.LinkWifiDefault = func(ssid, password string, forget bool) error {
 		if forget {
@@ -1392,7 +1407,7 @@ func serve(args []string) error {
 // demoLocal lets the CLI talk to a demo daemon (no hooks, no create).
 type demoLocal struct{ server.Controller }
 
-func (demoLocal) Hook(string, []byte) error { return nil }
+func (demoLocal) Hook(string, []byte) ([]byte, error) { return nil, nil }
 func (demoLocal) Create(server.CreateOpts) (string, error) {
 	return "", errors.New("demo mode: agents can't be created")
 }

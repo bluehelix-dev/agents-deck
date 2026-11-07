@@ -283,8 +283,22 @@ class _AgentDetailState extends State<AgentDetail> {
   }
 
   /// A session started by hand and watched: its prompts show here, but are
-  /// answered in its own terminal (the daemon has no way in).
+  /// answered in its own terminal (the daemon has no way in), unless its
+  /// hook is holding Claude Code for the deck's answer ([_canAnswer]).
   static bool _watched(Agent a) => a.external && a.tool == 'claude' && !a.inApp;
+
+  /// Whether the answer buttons work for this prompt: always for the deck's
+  /// own agents and agents in an app; for a watched session only while the
+  /// daemon holds its hook (`until` set), on Windows for instance.
+  static bool _canAnswer(Agent a, AgentPrompt p) =>
+      !_watched(a) || p.heldForDeck;
+
+  /// The footer's hint on where to answer.
+  static String _whereToAnswer(Agent a, AgentPrompt p) => !_watched(a)
+      ? 'answer here or at the terminal'
+      : p.heldForDeck
+      ? 'answer here now, or at the terminal in a moment'
+      : 'answer it in its own terminal';
 
   void _answer(Agent a, AgentPrompt p, String key) =>
       _run(key, () => widget.source.answer(a.id, p.id, key), closeOnOk: true);
@@ -1283,10 +1297,7 @@ class _AgentDetailState extends State<AgentDetail> {
               ),
               Expanded(
                 child: Text(
-                  _note ??
-                      (_watched(a)
-                          ? 'answer it in its own terminal'
-                          : 'answer here or at the terminal'),
+                  _note ?? _whereToAnswer(a, p),
                   key: _note == null ? null : const Key('agent-note'),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -1310,7 +1321,7 @@ class _AgentDetailState extends State<AgentDetail> {
     final button = AgentButton(
       key: Key('agent-option-${o.key}'),
       label: '${o.key}  ${sent ? 'sent' : o.label}',
-      onTap: _busy || _watched(a) ? null : () => _answer(a, p, o.key),
+      onTap: _busy || !_canAnswer(a, p) ? null : () => _answer(a, p, o.key),
       fill: fill,
       ink: ink,
       outline: flash?.$1 ?? DeckHud.bg,
@@ -1430,7 +1441,7 @@ class _AgentDetailState extends State<AgentDetail> {
                 pressedFill: DeckHud.ink,
                 pressedInk: DeckHud.bg,
               ),
-              if (_watched(a))
+              if (!_canAnswer(a, p))
                 Expanded(
                   child: Text(
                     'answer it in its own terminal',

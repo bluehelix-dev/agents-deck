@@ -166,14 +166,21 @@ func TestPromptParity(t *testing.T) {
 	} {
 		for i := range c.typ.NumField() {
 			tag := strings.Split(c.typ.Field(i).Tag.Get("json"), ",")[0]
-			if tag != "" && tag != "-" && c.desc.Fields().ByJSONName(tag) == nil {
+			if tag != "" && tag != "-" && c.desc.Fields().ByJSONName(tag) == nil && c.desc.Fields().ByJSONName(tag+"Ms") == nil {
 				t.Errorf("%s JSON field %q has no Deck Link field (link.proto %s)", c.typ.Name(), tag, c.desc.Name())
 			}
 		}
 	}
 	a := model.Agent{ID: "a1", Status: model.Waiting, Waiting: &model.Prompt{ID: "p", Kind: "question", Title: "?", Detail: "d", Context: "c",
-		Options: []model.Option{{Key: "1", Label: "cheese", Primary: true, Selected: true}}}}
-	o := toPB(a, uint32(linkpb.FieldGroup_FIELDS_PROMPT)).GetWaiting().GetOptions()
+		Options: []model.Option{{Key: "1", Label: "cheese", Primary: true, Selected: true}}, Until: time.Now()}}
+	w := toPB(a, uint32(linkpb.FieldGroup_FIELDS_PROMPT)).GetWaiting()
+	wd := w.ProtoReflect().Descriptor()
+	for i := range wd.Fields().Len() {
+		if fd := wd.Fields().Get(i); !w.ProtoReflect().Has(fd) {
+			t.Errorf("toPB leaves Prompt.%s unset", fd.Name())
+		}
+	}
+	o := w.GetOptions()
 	if len(o) != 1 {
 		t.Fatalf("options: %v", o)
 	}

@@ -71,6 +71,7 @@ class AgentPrompt {
     required this.detail,
     required this.context,
     required this.options,
+    this.until,
   });
 
   /// Changes with every new prompt; echoed back with the answer so the
@@ -81,6 +82,15 @@ class AgentPrompt {
   final String detail;
   final String context;
   final List<AgentOption> options;
+
+  /// A watched session (started by hand, nothing the deck can type into):
+  /// while this is set, its hook holds Claude Code for the deck's answer,
+  /// so the answer buttons work here too. The daemon clears it when the
+  /// wait is over and Claude Code asks in the terminal instead.
+  final DateTime? until;
+
+  /// Whether the deck can answer this prompt of a watched session now.
+  bool get heldForDeck => until != null;
 
   static AgentPrompt fromJson(Map<String, dynamic> j) => AgentPrompt(
     id: _str(j['id']),
@@ -96,6 +106,7 @@ class AgentPrompt {
       for (final o in (j['options'] is List ? j['options'] as List : const []))
         if (_map(o) case final m?) AgentOption.fromJson(m),
     ],
+    until: _time(j['until']),
   );
 }
 

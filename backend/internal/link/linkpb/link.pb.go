@@ -2211,7 +2211,8 @@ type Prompt struct {
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	Detail        string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`
 	Context       string                 `protobuf:"bytes,5,opt,name=context,proto3" json:"context,omitempty"`
-	Options       []*Option              `protobuf:"bytes,6,rep,name=options,proto3" json:"options,omitempty"` // empty for INPUT: answer in the terminal
+	Options       []*Option              `protobuf:"bytes,6,rep,name=options,proto3" json:"options,omitempty"`                 // empty for INPUT: answer in the terminal
+	UntilMs       int64                  `protobuf:"varint,7,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"` // a watched session: the deck can answer until then (its hook waits); 0 otherwise
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2286,6 +2287,13 @@ func (x *Prompt) GetOptions() []*Option {
 		return x.Options
 	}
 	return nil
+}
+
+func (x *Prompt) GetUntilMs() int64 {
+	if x != nil {
+		return x.UntilMs
+	}
+	return 0
 }
 
 type Option struct {
@@ -4318,14 +4326,15 @@ const file_agentsdeck_link_v1_link_proto_rawDesc = "" +
 	"\x04done\x18\x03 \x01(\rR\x04done\"6\n" +
 	"\bActivity\x12\x12\n" +
 	"\x04tool\x18\x01 \x01(\tR\x04tool\x12\x16\n" +
-	"\x06detail\x18\x02 \x01(\tR\x06detail\"\xca\x01\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail\"\xe5\x01\n" +
 	"\x06Prompt\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1e.agentsdeck.link.v1.PromptKindR\x04kind\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\x16\n" +
 	"\x06detail\x18\x04 \x01(\tR\x06detail\x12\x18\n" +
 	"\acontext\x18\x05 \x01(\tR\acontext\x124\n" +
-	"\aoptions\x18\x06 \x03(\v2\x1a.agentsdeck.link.v1.OptionR\aoptions\"f\n" +
+	"\aoptions\x18\x06 \x03(\v2\x1a.agentsdeck.link.v1.OptionR\aoptions\x12\x19\n" +
+	"\buntil_ms\x18\a \x01(\x03R\auntilMs\"f\n" +
 	"\x06Option\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x18\n" +

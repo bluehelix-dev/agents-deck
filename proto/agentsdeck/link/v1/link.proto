@@ -240,6 +240,7 @@ message Prompt {
   string detail = 4;
   string context = 5;
   repeated Option options = 6;  // empty for INPUT: answer in the terminal
+  int64 until_ms = 7;           // a watched session: the deck can answer until then (its hook waits); 0 otherwise
 }
 
 enum PromptKind {

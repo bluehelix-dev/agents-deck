@@ -271,6 +271,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a watched prompt held for the deck can be answered here', (
+    tester,
+  ) async {
+    // The daemon holds the session's hook for the deck's answer (Windows):
+    // the prompt carries "until", and the buttons work.
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final infra = (j['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['id'] == 'h0m3l4',
+    );
+    infra['external'] = true;
+    (infra['waiting'] as Map<String, dynamic>)['until'] = DateTime.now()
+        .add(const Duration(seconds: 20))
+        .toUtc()
+        .toIso8601String();
+    final source = FakeAgentsSource.fromState(j);
+    await _pumpApp(tester, source);
+    await _open(tester, 'infra-network');
+    expect(
+      find.text('answer here now, or at the terminal in a moment'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('agent-option-1')));
+    await tester.pump();
+    expect(source.calls.where((c) => c.$1 == 'answer'), hasLength(1));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a watched question shows its choices without send', (
     tester,
   ) async {

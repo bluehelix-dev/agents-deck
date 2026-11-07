@@ -67,12 +67,17 @@ them with `agentctl add` or a tap on a free tile), the `"hats"` map is where pic
 
 - **`agentctl new`, `attach`, `restore`, `reopen`**: agents the deck starts itself live in tmux, which
   Windows lacks. Start Claude Code the way you always do and add the session instead.
-- **Focus** (jump to an agent's terminal) and **answering from the deck**: both type into the
-  session's terminal, through iTerm2 or tmux, which Windows has no equivalent for, and the Claude
-  desktop app has no terminal to type into at all. The daemon reports `"focus": false` in its state
-  and the cards leave the focus buttons out; a watched session's prompt shows with its choices, and
-  you answer it in the session itself. On Windows the deck is a second pair of eyes, not a remote
-  control.
+- **Focus** (jump to an agent's terminal): it types into the session's terminal through iTerm2 or
+  tmux, which Windows has no equivalent for, and the Claude desktop app has no terminal to type into
+  at all. The daemon reports `"focus": false` in its state and the cards leave the focus buttons out.
+- **Answering from the deck** works another way here: Claude Code lets a hook decide a permission
+  request and answer a question, so when a session asks, the deck's hook waits for your answer on
+  the phone, a board or the browser dashboard, for 20 seconds (`"answerWaitSeconds"` in
+  `config.json`, at most 110), and only while one of them is connected. Tap an answer and Claude goes
+  on at once; a question with several parts is walked step by step like in the terminal. The
+  terminal shows the dialog once the wait is over, and the deck then says to answer it there. Free
+  text ("type something") stays at the terminal. This needs the hooks from `agentctl hooks install`
+  from this version or later (run it again after updating: the hooks' timeout grew).
 - **Boards on USB**: no serial port discovery on Windows yet (`agentctl link ports`). Flash and pair a
   board on a Mac, or use a board that is already on Wi-Fi.
 - **Codex** sessions need a `sqlite3.exe` on your PATH (the daemon reads Codex's database with it).
