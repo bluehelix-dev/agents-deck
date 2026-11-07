@@ -236,5 +236,4 @@ device, see [link/new-device.md](link/new-device.md).
 | `mouse` | `tmux` (default), `native`: who owns the mouse in agent terminals |
 | `restore` | `ask` (default), `auto`: what happens to agents lost with tmux |
 | `header` | `on` (default), `off`: the band at the top of agent terminals |
-| `web` | `local` (default), `lan`: also serve the dashboard on your local network |
 | `hat` | `agentctl set hat <agent|folder> <shape> [colour]`, `none` or `auto`: the hat of a working folder (stored in `config.json` `"hats"`) |
