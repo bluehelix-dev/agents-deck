@@ -183,6 +183,14 @@ class AgentsConfig {
       (e['HOME'] == null ? null : '${e['HOME']}/.local/share/agents-terminal');
   if (home == null) return (null, 'no home directory');
   final sock = daemonSocketPath(home, env: e);
+  if (sock == null) {
+    return (
+      null,
+      'the deck\'s folder is too deep for its socket and there is no private '
+          'folder to fall back to: set AGENTSTERM_HOME to a short folder of '
+          'your own (or XDG_RUNTIME_DIR)',
+    );
+  }
   if (FileSystemEntity.typeSync(sock) != FileSystemEntityType.unixDomainSock) {
     return (
       null,
@@ -197,14 +205,17 @@ class AgentsConfig {
 
 /// Where the daemon puts its socket for data directory [dataDir], as
 /// `paths.Socket` does in the Go code: `<dataDir>/agentd.sock`, or, when that
-/// path is too long for a unix socket (macOS caps it at 104 bytes), the temp
-/// directory (`$TMPDIR`, else /tmp) with a name made from a hash of [dataDir].
-String daemonSocketPath(String dataDir, {Map<String, String>? env}) {
+/// path is too long for a unix socket (macOS caps it at 104 bytes), a private
+/// per-user folder (`$XDG_RUNTIME_DIR`, else `$TMPDIR`) with a name made from
+/// a hash of [dataDir]. Null when neither is set: the shared /tmp is no place
+/// for it, since another user could put a socket of that name there first and
+/// speak for the deck (the daemon refuses it too).
+String? daemonSocketPath(String dataDir, {Map<String, String>? env}) {
   final p = '$dataDir/agentd.sock';
   if (utf8.encode(p).length < 100) return p;
   final e = env ?? Platform.environment;
-  var tmp = e['TMPDIR'] ?? '';
-  if (tmp.isEmpty) tmp = '/tmp';
+  var tmp = e['XDG_RUNTIME_DIR'] ?? e['TMPDIR'] ?? '';
+  if (tmp.isEmpty) return null;
   while (tmp.length > 1 && tmp.endsWith('/')) {
     tmp = tmp.substring(0, tmp.length - 1);
   }

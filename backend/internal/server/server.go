@@ -25,6 +25,7 @@ import (
 	"github.com/brushknight/agents-deck/backend/internal/devices"
 	"github.com/brushknight/agents-deck/backend/internal/hats"
 	"github.com/brushknight/agents-deck/backend/internal/model"
+	"github.com/brushknight/agents-deck/backend/internal/paths"
 	"github.com/brushknight/agents-deck/backend/internal/pki"
 	"github.com/brushknight/agents-deck/backend/internal/store"
 )
@@ -580,6 +581,11 @@ func (s *Server) UnixHandler(lc LocalController) http.Handler {
 }
 
 func ServeUnix(path string, h http.Handler) error {
+	// Only in a folder of the user's own: in a shared one another user could
+	// have put a socket of this name first and would speak for the deck.
+	if err := paths.SocketDirOK(path); err != nil {
+		return err
+	}
 	_ = os.Remove(path)
 	l, err := net.Listen("unix", path)
 	if err != nil {

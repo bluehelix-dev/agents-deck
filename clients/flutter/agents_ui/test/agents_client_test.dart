@@ -243,10 +243,21 @@ void main() {
           daemonSocketPath(deep, env: {'TMPDIR': '/var/tmp/'}),
           '/var/tmp/agentsterm-59625981.sock',
         );
+        // A Linux desktop's private runtime dir comes first; the shared /tmp
+        // is never used (another user could plant a socket there).
         expect(
-          daemonSocketPath(deep, env: const {}),
-          '/tmp/agentsterm-59625981.sock',
+          daemonSocketPath(
+            deep,
+            env: {'XDG_RUNTIME_DIR': '/run/user/1000', 'TMPDIR': '/var/tmp'},
+          ),
+          '/run/user/1000/agentsterm-59625981.sock',
         );
+        expect(daemonSocketPath(deep, env: const {}), isNull);
+        final (cfg, why) = localAgentsConfig(
+          env: {'AGENTSTERM_HOME': deep},
+        );
+        expect(cfg, isNull);
+        expect(why, contains('AGENTSTERM_HOME'));
       },
     );
   });

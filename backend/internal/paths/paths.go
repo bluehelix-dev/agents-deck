@@ -20,14 +20,16 @@ func Data() string {
 func Ensure() error { return os.MkdirAll(Data(), 0o700) }
 
 // Socket is the daemon's unix socket. macOS caps socket paths at 104 bytes, so
-// a deep data dir falls back to the per-user private $TMPDIR.
+// a deep data dir falls back to a per-user private folder: $XDG_RUNTIME_DIR,
+// else the temp dir. Whether that folder is really private is checked where
+// the socket is opened (SocketDirOK): Linux's /tmp is not, and is refused.
 func Socket() string {
 	p := filepath.Join(Data(), "agentd.sock")
 	if len(p) < 100 {
 		return p
 	}
 	sum := sha256.Sum256([]byte(Data()))
-	return filepath.Join(os.TempDir(), "agentsterm-"+hex.EncodeToString(sum[:4])+".sock")
+	return filepath.Join(runtimeDir(), "agentsterm-"+hex.EncodeToString(sum[:4])+".sock")
 }
 
 func Agents() string     { return filepath.Join(Data(), "agents.json") }

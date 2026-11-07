@@ -296,6 +296,11 @@ func unixClient(timeout time.Duration) *http.Client {
 	}
 	return &http.Client{Timeout: timeout, Transport: &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			// Never talk to a socket in a shared folder: whoever put it
+			// there would get every hook payload and could answer as the deck.
+			if err := paths.SocketDirOK(sock); err != nil {
+				return nil, err
+			}
 			return (&net.Dialer{}).DialContext(ctx, "unix", sock)
 		},
 	}}

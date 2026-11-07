@@ -139,8 +139,13 @@ static void open_dashboard() {
   }
   char* argv[] = {found, const_cast<char*>("web"), nullptr};
   g_autoptr(GError) error = nullptr;
-  if (!g_spawn_async(nullptr, argv, nullptr, G_SPAWN_DEFAULT, nullptr, nullptr,
-                     nullptr, &error)) {
+  // agentctl web prints the login link (a one-time code) when it thinks it
+  // talks to a terminal; from here its output would go to the session's
+  // journal, which other accounts may read, so it goes nowhere.
+  if (!g_spawn_async(nullptr, argv, nullptr,
+                     static_cast<GSpawnFlags>(G_SPAWN_STDOUT_TO_DEV_NULL |
+                                              G_SPAWN_STDERR_TO_DEV_NULL),
+                     nullptr, nullptr, nullptr, &error)) {
     g_warning("agents deck: agentctl web: %s", error->message);
   }
 }
