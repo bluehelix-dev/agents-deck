@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/brushknight/agents-deck/backend/internal/claude"
 	"github.com/brushknight/agents-deck/backend/internal/model"
 	"github.com/brushknight/agents-deck/backend/internal/orca"
 	"github.com/brushknight/agents-deck/backend/internal/server"
@@ -127,6 +128,29 @@ func TestOrcaAgentsOnTheDeck(t *testing.T) {
 }
 
 // A question without a tool (Claude waiting for you): options from the screen.
+// A Codex agent in the same Orca worktree as a Claude session does not take
+// that session over; the Claude agent there does.
+func TestOrcaCodexLeavesClaudeSessionAlone(t *testing.T) {
+	d := &Daemon{Store: store.New("", "test", "0")}
+	d.orca.client = &fakeOrca{}
+	d.live.reported = []claude.Live{{Cwd: "/work/app", SessionID: "sess-claude"}}
+	snap := orcaSnap("working", "Bash", "go test ./...", 100)
+	snap.Worktrees[0].Agents = append(snap.Worktrees[0].Agents,
+		orca.Agent{PaneKey: "tab1:leaf2", State: "working", AgentType: "codex", StateStartedAt: 100, UpdatedAt: 100})
+	snap.Terminals = append(snap.Terminals,
+		orca.Terminal{Handle: "term_2", TabID: "tab1", LeafID: "leaf2", WorktreePath: "/work/app", Connected: true})
+	d.syncOrca(snap)
+
+	cx, ok := d.Store.Get(orcaAgentID("tab1:leaf2"))
+	if !ok || cx.A.Tool != "codex" || cx.SessionID != "" || cx.Transcript != "" {
+		t.Fatalf("codex agent took the Claude session: ok=%v tool=%q session=%q transcript=%q", ok, cx.A.Tool, cx.SessionID, cx.Transcript)
+	}
+	cl, ok := d.Store.Get(orcaAgentID("tab1:leaf1"))
+	if !ok || cl.SessionID != "sess-claude" {
+		t.Fatalf("claude agent lost its session: ok=%v session=%q", ok, cl.SessionID)
+	}
+}
+
 func TestOrcaWaitingQuestion(t *testing.T) {
 	d := &Daemon{Store: store.New("", "test", "0")}
 	d.orca.client = &fakeOrca{screen: " Which database?\n ❯ 1. Postgres\n   2. SQLite\n"}

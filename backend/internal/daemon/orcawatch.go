@@ -124,7 +124,12 @@ func (d *Daemon) syncOrca(snap orca.Snapshot) {
 		if cur, ok := d.Store.Get(id); ok && (r.a.State == "blocked" || r.a.State == "waiting") && cur.OrcaTurn != r.a.StateStartedAt {
 			screen, _ = d.orcaClient().Screen(r.t.Handle)
 		}
-		session := d.orcaSession(r.w.Path)
+		// Only a Claude agent owns the Claude session in its worktree; a Codex
+		// next to it must not take that session's id and transcript.
+		session := claude.Live{}
+		if orcaTool(r.a.AgentType) == "claude" {
+			session = d.orcaSession(r.w.Path)
+		}
 		d.Store.Update(id, func(e *store.Entry) bool {
 			changed := false
 			if e.OrcaTerminal != r.t.Handle {
