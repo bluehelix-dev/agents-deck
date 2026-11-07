@@ -98,7 +98,7 @@ Environment=PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 WantedBy=default.target
 EOF
     systemctl --user daemon-reload 2>/dev/null || true
-    if systemctl --user enable --now agents-deck.service 2>/dev/null; then
+    if systemctl --user enable agents-deck.service 2>/dev/null && systemctl --user restart agents-deck.service 2>/dev/null; then
       echo "  daemon → systemd user service 'agents-deck' (running)"
     else
       echo "  systemd user unit written; start it with:"
