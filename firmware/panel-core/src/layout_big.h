@@ -334,11 +334,23 @@ static inline bool bigStopArmed(const PanelUi& ui, uint32_t ms) {
   return ui.stopArmedUntil != 0 && (int32_t)(ui.stopArmedUntil - ms) > 0;
 }
 
+// Chooses option i of a's current prompt; the choice holds for that prompt only.
+static inline void bigChoose(PanelUi& ui, const Agent& a, int i) {
+  ui.selected = i;
+  snprintf(ui.selectedPrompt, sizeof ui.selectedPrompt, "%s", a.promptId);
+}
+
+// The option chosen on a's current prompt, or -1 (none, or chosen on a prompt since replaced).
+static inline int bigChosen(const PanelUi& ui, const Agent& a) {
+  if (ui.selected < 0 || ui.selected >= a.optCount || strcmp(ui.selectedPrompt, a.promptId)) return -1;
+  return ui.selected;
+}
+
 static inline void bigOpen(PanelUi& ui, const Fleet& f, int i) {
   const Agent& a = f.agents[i];
   snprintf(ui.openId, sizeof ui.openId, "%s", a.id);
   ui.screen = a.status == Status::Waiting ? Screen::Prompt : Screen::Card;
-  ui.selected = bigDefaultOption(a);
+  bigChoose(ui, a, bigDefaultOption(a));
   ui.stopArmedUntil = 0;
   ui.backAfterToast = false;
 }
@@ -378,14 +390,22 @@ static inline DeckCommand bigTap(PanelUi& ui, const Fleet& f, const PanelHit& h,
         if (!ui.stopArmedUntil) ui.stopArmedUntil = 1;   // 0 means not armed
       }
       break;
-    case Hit::Option: ui.selected = h.index; break;
+    case Hit::Option: bigChoose(ui, f.agents[h.agent], h.index); break;
     case Hit::Send: {
       const Agent& a = f.agents[h.agent];
-      if (ui.selected < 0 || ui.selected >= a.optCount || ui.backAfterToast) break;
+      if (ui.backAfterToast) break;
+      // A choice made on a prompt that has since been replaced is not sent with the new one.
+      if (ui.selected >= 0 && strcmp(ui.selectedPrompt, a.promptId)) {
+        bigChoose(ui, a, bigDefaultOption(a));
+        uiToast(ui, "the prompt changed", ms);
+        break;
+      }
+      const int k = bigChosen(ui, a);
+      if (k < 0) break;
       if (!canAct(scope)) { uiToast(ui, "view only: needs scope act", ms); break; }
       out = commandFor(DeckCmd::Answer, a);
       snprintf(out.prompt, sizeof out.prompt, "%s", a.promptId);
-      snprintf(out.key, sizeof out.key, "%s", a.opts[ui.selected].key);
+      snprintf(out.key, sizeof out.key, "%s", a.opts[k].key);
       uiToast(ui, "sent", ms, 1000);
       ui.backAfterToast = true;
       break;
@@ -447,7 +467,9 @@ static inline bool bigTick(PanelUi& ui, const Fleet& f, uint32_t ms) {
       ui.screen = Screen::Card;
     else if (ui.screen == Screen::Card && f.agents[i].status == Status::Waiting) {
       ui.screen = Screen::Prompt;
-      ui.selected = bigDefaultOption(f.agents[i]);
+      bigChoose(ui, f.agents[i], bigDefaultOption(f.agents[i]));
+    } else if (ui.screen == Screen::Prompt && !ui.backAfterToast && strcmp(ui.selectedPrompt, f.agents[i].promptId)) {
+      bigChoose(ui, f.agents[i], bigDefaultOption(f.agents[i]));   // a new prompt: start over on it
     }
   }
   if (ui.backAfterToast && (int32_t)(ui.toastUntil - ms) <= 0) bigHome(ui);
@@ -1051,9 +1073,10 @@ static inline void prompt(Canvas& c, const BigSpec& S, const Theme& T, const Pan
 
   // The options (_questionRow): the key, the title and its hint.
   const PanelUi& ui = *in.ui;
+  const int sel = bigChosen(ui, a);   // none when chosen on a prompt since replaced
   for (int i = 0; i < p.n; i++) {
     const Rect& o = p.opt[i];
-    const bool on = ui.selected == i || (ui.pressed.kind == Hit::Option && ui.pressed.index == i);
+    const bool on = sel == i || (ui.pressed.kind == Hit::Option && ui.pressed.index == i);
     uint16_t fill, edge, fg, sub;
     if (perm) {
       fill = on ? T.bg : T.accent;
@@ -1092,14 +1115,14 @@ static inline void prompt(Canvas& c, const BigSpec& S, const Theme& T, const Pan
   // always" or "deny" once one is chosen ("choose one" before); a question
   // "send N". Focus terminal beside it where the deck can focus.
   char send[32];
-  const bool chosen = ui.selected >= 0 && ui.selected < a.optCount;
+  const bool chosen = sel >= 0;
   if (chosen && perm) {
-    const char* l = a.opts[ui.selected].label;
+    const char* l = a.opts[sel].label;
     if (!strncmp(l, "yes", 3)) snprintf(send, sizeof send, "%s", strstr(l, "don't ask") || strstr(l, "always") ? "allow always" : "allow");
     else if (!strncmp(l, "no", 2)) snprintf(send, sizeof send, "deny");
-    else snprintf(send, sizeof send, "send %s", a.opts[ui.selected].key);
+    else snprintf(send, sizeof send, "send %s", a.opts[sel].key);
   } else if (chosen) {
-    snprintf(send, sizeof send, "send %s", a.opts[ui.selected].key);
+    snprintf(send, sizeof send, "send %s", a.opts[sel].key);
   } else {
     snprintf(send, sizeof send, perm ? "choose one" : "send");
   }

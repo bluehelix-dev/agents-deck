@@ -5,7 +5,8 @@ A rotary encoder with a push button on an ESP32-S3.
 - **Turn:** pick an agent.
 - **Press:** open its prompt (on an agent without a prompt: focus its terminal).
 - In a prompt, **turn** to pick an option (`*` marks the primary one) and **press** to answer;
-  a **long press** goes back.
+  a **long press** goes back. If the agent asked something new while you turned, the press sends
+  nothing: it says "prompt changed" and starts the pick over on the new prompt.
 
 Deck Link uses the S3's native USB port. What the knob points at is printed as text on the UART port
 (`Serial0`, the DevKitC-1's "UART" USB connector), so the Deck Link port carries frames only. Build the

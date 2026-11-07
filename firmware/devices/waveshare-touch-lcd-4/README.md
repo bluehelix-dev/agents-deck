@@ -48,7 +48,9 @@ Flutter UI with every size times 2/3 (`layout_big.h`).
   does: **allow**, **allow always** or **deny**. A question starts with its primary chosen and says
   **send 1**. A permission is the orange card; a question is dark with the orange border. A
   permission whose command doesn't fit whole above its options shows "too long to show here: answer
-  on the phone or at the terminal" instead, with nothing to choose.
+  on the phone or at the terminal" instead, with nothing to choose. A choice holds for its prompt
+  only: if the agent asks something new before you send, the button sends nothing, says "the prompt
+  changed", and the new prompt starts with nothing (or its primary) chosen.
 - **Back.** Swipe right, or press BOOT.
 - **Other screens.** Waiting for approval (with the command), connecting to the deck, deck offline,
   no agents.

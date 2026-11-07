@@ -75,6 +75,7 @@ struct PanelUi {
   bool holdFired = false;      // the stop hold already sent its Dismiss
   bool caught = false;         // the finger stopped a moving list: not a tap
   int selected = -1;           // big panels: the prompt's chosen option (sent with "send")
+  char selectedPrompt[16] = ""; // big panels: the prompt id `selected` was chosen on
   uint32_t stopArmedUntil = 0; // big panels: "tap again to stop" until then
 
   // On Wi-Fi (the firmware sets it from net_link.h): home shows a small

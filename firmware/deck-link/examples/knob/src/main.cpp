@@ -41,6 +41,7 @@ enum Mode { PICK_AGENT, PICK_OPTION };
 static Mode mode = PICK_AGENT;
 static char agentId[12] = ""; // the agent the knob points at
 static int option;            // the option it points at (PICK_OPTION)
+static char optionPrompt[16] = ""; // the prompt that option belongs to
 static uint32_t answerSeq;
 static char status[32] = "";
 static bool dirty = true;
@@ -128,6 +129,14 @@ static void turn(int d)
 	dirty = true;
 }
 
+// Starts picking on t's prompt, at its primary option.
+static void pickFrom(const deck_tile_t *t)
+{
+	int p = deck_tile_primary(t);
+	option = p < 0 ? 0 : p;
+	snprintf(optionPrompt, sizeof optionPrompt, "%s", t->prompt_id);
+}
+
 static void press()
 {
 	const deck_tile_t *t = current();
@@ -136,12 +145,15 @@ static void press()
 	if (mode == PICK_AGENT) {
 		if (t->has_prompt && t->option_count > 0) {
 			mode = PICK_OPTION;
-			int p = deck_tile_primary(t);
-			option = p < 0 ? 0 : p;
+			pickFrom(t);
 		} else {
 			deck.focus(t->id);
 			snprintf(status, sizeof status, "focused");
 		}
+	} else if (t->has_prompt && strcmp(t->prompt_id, optionPrompt) != 0) {
+		// A new prompt came while picking: the option was for the old one.
+		pickFrom(t);
+		snprintf(status, sizeof status, "prompt changed");
 	} else if (t->has_prompt && option < t->option_count) {
 		answerSeq = deck.answer(t->id, t->prompt_id, t->options[option].key);
 		snprintf(status, sizeof status, "sending...");

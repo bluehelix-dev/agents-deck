@@ -297,6 +297,50 @@ int main() {
     }
   }
 
+  // ---- a choice holds for the prompt it was made on: a new prompt that comes
+  // before send is not answered with it (the deck's 409 can't tell, since send
+  // carries the new prompt's id)
+  {
+    Fleet f = fleetOf({mk("w", 0, Status::Waiting)});
+    Agent& w = f.agents[0];
+    snprintf(w.waitKind, sizeof w.waitKind, "permission");
+    snprintf(w.waitTitle, sizeof w.waitTitle, "run this command?");
+    snprintf(w.waitDetail, sizeof w.waitDetail, "make test");
+    snprintf(w.promptId, sizeof w.promptId, "p1");
+    w.optCount = 3;
+    const char* labels[] = {"yes", "yes, and don't ask again", "no"};
+    for (int i = 0; i < 3; i++) {
+      snprintf(w.opts[i].key, sizeof w.opts[i].key, "%d", i + 1);
+      snprintf(w.opts[i].label, sizeof w.opts[i].label, "%s", labels[i]);
+    }
+    const BigPrompt p = bigPrompt(S, w);
+    PanelUi ui;
+    bigOpen(ui, f, 0);
+    tap(S, ui, f, p.opt[1], DeckScope::Act, 100);                   // "allow always" on p1
+    assert(bigChosen(ui, w) == 1);
+    // p2 replaces it, with the same options, before send and before a tick.
+    snprintf(w.waitDetail, sizeof w.waitDetail, "rm -rf build");
+    snprintf(w.promptId, sizeof w.promptId, "p2");
+    assert(bigChosen(ui, w) == -1);                                 // drawn as nothing chosen
+    DeckCommand c = tap(S, ui, f, p.send, DeckScope::Act, 200);
+    assert(c.cmd == DeckCmd::None && !strcmp(ui.toast, "the prompt changed") && ui.selected == -1);
+    assert(!strcmp(ui.selectedPrompt, "p2") && !ui.backAfterToast);
+    // Chosen on p2, it is sent with p2.
+    tap(S, ui, f, p.opt[2], DeckScope::Act, 300);
+    c = tap(S, ui, f, p.send, DeckScope::Act, 400);
+    assert(c.cmd == DeckCmd::Answer && !strcmp(c.prompt, "p2") && !strcmp(c.key, "3"));
+    // A tick after a new prompt starts the choice over on it: a question at its primary.
+    bigOpen(ui, f, 0);
+    tap(S, ui, f, p.opt[0], DeckScope::Act, 500);
+    snprintf(w.waitKind, sizeof w.waitKind, "question");
+    snprintf(w.promptId, sizeof w.promptId, "p3");
+    w.opts[2].primary = true;
+    bigTick(ui, f, 600);
+    assert(ui.selected == 2 && bigChosen(ui, w) == 2 && !strcmp(ui.selectedPrompt, "p3"));
+    c = tap(S, ui, f, p.send, DeckScope::Act, 700);
+    assert(c.cmd == DeckCmd::Answer && !strcmp(c.prompt, "p3") && !strcmp(c.key, "3"));
+  }
+
   // ---- every screen at every scope and link state stays inside the frame
   {
     static DeckFleet d;
