@@ -272,18 +272,28 @@ func (s *Session) Run(ctx context.Context) error {
 	}
 }
 
+// checkPeer cuts off a Wi-Fi session whose certificate no longer counts:
+// the board was revoked, removed or paired again.
+func (s *Session) checkPeer() error {
+	if s.Peer == nil {
+		return nil
+	}
+	d, ok := s.Deck.Device(s.Peer.Name)
+	if !ok || !d.Active() || d.CertSerial != s.Peer.CertSerial {
+		log.Printf("link %s: %s cut off: revoked, removed or paired again", s.Name, s.Peer.Name)
+		return errCutOff
+	}
+	return nil
+}
+
 // recheck follows the registry: approval, scope and revocation take effect
 // at once, with a new Welcome.
 func (s *Session) recheck() error {
+	if err := s.checkPeer(); err != nil { // needs no Hello
+		return err
+	}
 	if s.hello == nil {
 		return nil
-	}
-	if s.Peer != nil { // Wi-Fi: only while its certificate counts
-		d, ok := s.Deck.Device(s.Peer.Name)
-		if !ok || !d.Active() || d.CertSerial != s.Peer.CertSerial {
-			log.Printf("link %s: %s cut off: revoked, removed or paired again", s.Name, s.Peer.Name)
-			return errCutOff
-		}
 	}
 	d, ok := s.Deck.Device(s.dev.Name)
 	if !ok { // removed: it registers again as new
@@ -384,6 +394,9 @@ func (s *Session) onHello(seq uint32, h *linkpb.Hello, mode Mode) error {
 		s.mode = mode
 		_ = s.result(seq, http.StatusForbidden, "this certificate belongs to "+s.Peer.Name+", not to this board")
 		return errors.New("board id doesn't match the certificate")
+	}
+	if err := s.checkPeer(); err != nil { // revoked before its Hello: no Welcome
+		return err
 	}
 	d, err := s.Deck.Board(h.BoardId, h.Type, h.Firmware)
 	if err != nil {

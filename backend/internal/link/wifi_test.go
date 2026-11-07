@@ -336,6 +336,40 @@ func TestLinkOverTLS(t *testing.T) {
 	}
 }
 
+// A board revoked after it connected but before its Hello gets no Welcome:
+// the session ends instead.
+func TestLinkOverTLSRevokedBeforeHello(t *testing.T) {
+	srv, _ := testDeck(t)
+	srvCert := withCA(t, srv)
+	addr := listener(t, srv, srvCert, &Hub{})
+	name, cert := pairedBoard(t, srv, "AA:BB:CC:00:00:05", devices.Act)
+
+	conn, br, err := dialLink(t, addr, srv, &cert)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	_ = srv.Devices.Revoke(name)
+	b := &tlsBoard{&board{t: t, conn: conn}, br}
+	b.send(hi("AA:BB:CC:00:00:05"))
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	buf := make([]byte, 4096)
+	for {
+		n, err := br.Read(buf)
+		for _, f := range b.dec.Feed(buf[:n]) {
+			if w := f.Frame.GetWelcome(); w != nil {
+				t.Fatalf("a revoked board got a Welcome: %v", w)
+			}
+		}
+		if err != nil {
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+				t.Fatal("the session outlived the revocation")
+			}
+			break
+		}
+	}
+}
+
 // A certificate is one board's: it can't say Hello as another, it can't be a
 // network device's, and without one there is no link.
 func TestLinkOverTLSIdentity(t *testing.T) {
