@@ -49,6 +49,7 @@ type Entry struct {
 	Pending string              `json:"-"` // partial trailing line
 	PromptN int                 `json:"promptN"`
 	Menu    bool                `json:"-"`              // current prompt is an arrow-key menu, not numbered
+	Answering string            `json:"-"`              // the prompt whose answer is being typed right now (a second tap waits for the next prompt)
 	Form    *Form               `json:"form,omitempty"` // the open question form, walked one step at a time
 }
 

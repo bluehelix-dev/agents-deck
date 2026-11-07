@@ -1412,7 +1412,7 @@ func serve(args []string) error {
 // demoLocal lets the CLI talk to a demo daemon (no hooks, no create).
 type demoLocal struct{ server.Controller }
 
-func (demoLocal) Hook(string, []byte) ([]byte, error) { return nil, nil }
+func (demoLocal) Hook(context.Context, string, []byte) ([]byte, error) { return nil, nil }
 func (demoLocal) Create(server.CreateOpts) (string, error) {
 	return "", errors.New("demo mode: agents can't be created")
 }

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -26,7 +27,7 @@ func holdDaemon(t *testing.T, waitSeconds int) *Daemon {
 func hookAsync(d *Daemon, ev string) <-chan []byte {
 	ch := make(chan []byte, 1)
 	go func() {
-		out, _ := d.Hook("", []byte(ev))
+		out, _ := d.Hook(context.Background(), "", []byte(ev))
 		ch <- out
 	}()
 	return ch
@@ -166,7 +167,7 @@ func TestNoAnswererNoHold(t *testing.T) {
 	d := holdDaemon(t, 10)
 	d.Answerers = nil
 	start := time.Now()
-	out, err := d.Hook("", []byte(`{"hook_event_name":"PermissionRequest","session_id":"`+holdSID+`","tool_name":"Bash","tool_input":{"command":"npm test"}}`))
+	out, err := d.Hook(context.Background(), "", []byte(`{"hook_event_name":"PermissionRequest","session_id":"`+holdSID+`","tool_name":"Bash","tool_input":{"command":"npm test"}}`))
 	if err != nil || out != nil || time.Since(start) > time.Second {
 		t.Fatalf("held without an answerer: %q %v", out, err)
 	}
@@ -176,7 +177,7 @@ func TestNoAnswererNoHold(t *testing.T) {
 	// A deck-started agent (not watched) is typed into, never held.
 	d.Answerers = func() int { return 1 }
 	d.Store.Add(&store.Entry{SessionID: "own", TmuxName: "t1", A: model.Agent{ID: "o1", Tool: "claude", Status: model.Idle}})
-	out, _ = d.Hook("o1", []byte(`{"hook_event_name":"PermissionRequest","session_id":"own","tool_name":"Bash","tool_input":{"command":"ls"}}`))
+	out, _ = d.Hook(context.Background(), "o1", []byte(`{"hook_event_name":"PermissionRequest","session_id":"own","tool_name":"Bash","tool_input":{"command":"ls"}}`))
 	if e, _ := d.Store.Get("o1"); out != nil || e.A.Waiting == nil || !e.A.Waiting.Until.IsZero() {
 		t.Fatalf("own agent held: %q %+v", out, e.A.Waiting)
 	}
@@ -271,5 +272,35 @@ func TestHeldFormWalkedFromDeck(t *testing.T) {
 	}
 	if e, _ := d.Store.Get("l1"); e.A.Status != model.Idle || e.A.Waiting != nil {
 		t.Fatalf("after cancel: %s %+v", e.A.Status, e.A.Waiting)
+	}
+}
+
+// The hook goes away before the wait is over (Claude Code's timeout, an old
+// install's 5 s): the hold ends at once, the prompt stays to be answered in
+// the terminal, and a later tap on the deck is refused instead of booked.
+func TestHeldHookGoneEndsTheHold(t *testing.T) {
+	d := holdDaemon(t, 30)
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := make(chan []byte, 1)
+	go func() {
+		out, _ := d.Hook(ctx, "", []byte(`{"hook_event_name":"PermissionRequest","session_id":"`+holdSID+`","tool_name":"Bash","tool_input":{"command":"npm test"}}`))
+		ch <- out
+	}()
+	p := awaitPrompt(t, d)
+	cancel()
+	select {
+	case out := <-ch:
+		if out != nil {
+			t.Fatalf("output after the hook went away: %q", out)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("the hold outlived its hook")
+	}
+	e, _ := d.Store.Get("l1")
+	if e.A.Status != model.Waiting || e.A.Waiting == nil || e.A.Waiting.ID != p.ID || !e.A.Waiting.Until.IsZero() {
+		t.Fatalf("after the hook left: %s %+v", e.A.Status, e.A.Waiting)
+	}
+	if err := d.Answer("l1", p.ID, "1"); err != errLive {
+		t.Fatalf("late answer: %v", err)
 	}
 }

@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -366,8 +367,9 @@ func (d *Daemon) scanMenu(e *store.Entry) bool {
 
 // Hook folds one Claude Code hook payload into its agent. What it returns is
 // what the hook prints for Claude Code: a decision for a permission request or
-// a question answered on the deck (hold.go), else nothing.
-func (d *Daemon) Hook(agentID string, body []byte) ([]byte, error) {
+// a question answered on the deck (hold.go), else nothing. ctx ends when the
+// hook is gone (Claude Code's timeout, or the connection dropped).
+func (d *Daemon) Hook(ctx context.Context, agentID string, body []byte) ([]byte, error) {
 	var ev claude.Event
 	if err := json.Unmarshal(body, &ev); err != nil {
 		return nil, err
@@ -428,7 +430,7 @@ func (d *Daemon) Hook(agentID string, body []byte) ([]byte, error) {
 		}()
 	}
 	if h != nil {
-		return d.wait(h), nil
+		return d.wait(ctx, h), nil
 	}
 	return nil, nil
 }
@@ -563,8 +565,8 @@ func (d *Daemon) Answer(id, promptID, key string) error {
 	err := errors.New("")
 	ok := d.Store.Update(id, func(e *store.Entry) bool {
 		p := e.A.Waiting
-		if e.A.Status != model.Waiting || p == nil || p.ID != promptID {
-			err = server.ErrStalePrompt
+		if e.A.Status != model.Waiting || p == nil || p.ID != promptID || e.Answering == promptID {
+			err = server.ErrStalePrompt // gone, or being typed right now (two taps)
 			return false
 		}
 		for _, o := range p.Options {
@@ -576,6 +578,7 @@ func (d *Daemon) Answer(id, promptID, key string) error {
 			err = server.ErrBadKey
 			return false
 		}
+		e.Answering = promptID // until the keys are typed and the prompt moves on
 		if f := claude.ActiveForm(e); f != nil {
 			if screen != "" && claude.SyncForm(e, screen) {
 				err = server.ErrStalePrompt // answered in the terminal meanwhile: show where it is now
@@ -619,10 +622,15 @@ func (d *Daemon) Answer(id, promptID, key string) error {
 		err = tmux.SendKeys(tmuxName, text)
 	}
 	if err != nil {
+		d.Store.Update(id, func(e *store.Entry) bool {
+			e.Answering = "" // nothing was typed: the prompt can be answered again
+			return false
+		})
 		return err
 	}
 	log.Printf("answered %s prompt %s with option %s", id, promptID, key)
 	d.Store.Update(id, func(e *store.Entry) bool {
+		e.Answering = ""
 		if e.A.Waiting == nil || e.A.Waiting.ID != promptID {
 			return false
 		}

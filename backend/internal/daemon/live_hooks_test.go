@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,7 +25,7 @@ func TestWatchedSessionHooks(t *testing.T) {
 	d.Store.Add(own)
 
 	ev := `{"hook_event_name":"PermissionRequest","session_id":"` + sid + `","cwd":"/w/app","tool_name":"Bash","tool_input":{"command":"npm test"}}`
-	if _, err := d.Hook("", []byte(ev)); err != nil {
+	if _, err := d.Hook(context.Background(), "", []byte(ev)); err != nil {
 		t.Fatal(err)
 	}
 	e, _ := d.Store.Get("l1")
@@ -49,7 +50,7 @@ func TestWatchedSessionHooks(t *testing.T) {
 		`{"hook_event_name":"Stop","session_id":"` + sid + `"}`,
 		`{"hook_event_name":"PreCompact","session_id":"` + sid + `","trigger":"auto"}`,
 	} {
-		if _, err := d.Hook("", []byte(ev)); err != nil {
+		if _, err := d.Hook(context.Background(), "", []byte(ev)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -66,7 +67,7 @@ func TestWatchedSessionHooks(t *testing.T) {
 	}
 	// (The copy above went idle; the stored one ends its compaction by the
 	// PostCompact hook, as Claude Code 2.1.3xx sends it.)
-	if _, err := d.Hook("", []byte(`{"hook_event_name":"PostCompact","session_id":"`+sid+`","trigger":"auto"}`)); err != nil {
+	if _, err := d.Hook(context.Background(), "", []byte(`{"hook_event_name":"PostCompact","session_id":"`+sid+`","trigger":"auto"}`)); err != nil {
 		t.Fatal(err)
 	}
 	if e, _ := d.Store.Get("l1"); e.A.Status != model.Idle {
@@ -76,7 +77,7 @@ func TestWatchedSessionHooks(t *testing.T) {
 	// hooks: the session shows working for it, and goes idle again once no
 	// subagent transcript is being written (none here).
 	ev = `{"hook_event_name":"PreToolUse","session_id":"` + sid + `","agent_id":"a1","tool_name":"Bash","tool_input":{"command":"go test"}}`
-	if _, err := d.Hook("", []byte(ev)); err != nil {
+	if _, err := d.Hook(context.Background(), "", []byte(ev)); err != nil {
 		t.Fatal(err)
 	}
 	e, _ = d.Store.Get("l1")
@@ -95,7 +96,7 @@ func TestWatchedSessionHooks(t *testing.T) {
 	}
 	// Back to a turn with a prompt, for the rest of the test.
 	ev = `{"hook_event_name":"PermissionRequest","session_id":"` + sid + `","cwd":"/w/app","tool_name":"Bash","tool_input":{"command":"npm test"}}`
-	if _, err := d.Hook("", []byte(ev)); err != nil {
+	if _, err := d.Hook(context.Background(), "", []byte(ev)); err != nil {
 		t.Fatal(err)
 	}
 	// Allowed: PostToolUse clears the prompt, Stop ends the turn.
@@ -103,7 +104,7 @@ func TestWatchedSessionHooks(t *testing.T) {
 		`{"hook_event_name":"PostToolUse","session_id":"` + sid + `","tool_name":"Bash","tool_input":{"command":"npm test"}}`,
 		`{"hook_event_name":"Stop","session_id":"` + sid + `"}`,
 	} {
-		if _, err := d.Hook("", []byte(ev)); err != nil {
+		if _, err := d.Hook(context.Background(), "", []byte(ev)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -113,14 +114,14 @@ func TestWatchedSessionHooks(t *testing.T) {
 
 	// The deck's own agent, reported without its id: ignored, not changed.
 	dup := `{"hook_event_name":"PermissionRequest","session_id":"own-` + sid + `","tool_name":"Bash","tool_input":{"command":"rm -rf x"}}`
-	if _, err := d.Hook("", []byte(dup)); err != nil {
+	if _, err := d.Hook(context.Background(), "", []byte(dup)); err != nil {
 		t.Fatal(err)
 	}
 	if e, _ := d.Store.Get("o1"); e.A.Status != model.Idle || e.LiveHooks {
 		t.Fatalf("own agent touched by the duplicate: %s %v", e.A.Status, e.LiveHooks)
 	}
 	// Unknown session: nothing, no error (the hook must never fail a session).
-	if _, err := d.Hook("", []byte(`{"hook_event_name":"Stop","session_id":"nobody"}`)); err != nil {
+	if _, err := d.Hook(context.Background(), "", []byte(`{"hook_event_name":"Stop","session_id":"nobody"}`)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -138,7 +139,7 @@ func TestStopLeavesASessionReady(t *testing.T) {
 	turn := func(agent, session string) {
 		for _, name := range []string{"UserPromptSubmit", "Stop"} {
 			ev := `{"hook_event_name":"` + name + `","session_id":"` + session + `","prompt":"go"}`
-			if _, err := d.Hook(agent, []byte(ev)); err != nil {
+			if _, err := d.Hook(context.Background(), agent, []byte(ev)); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -176,7 +177,7 @@ func TestHookedSessionInterruptedAtAPrompt(t *testing.T) {
 	}
 	interrupt(time.Now().Add(-time.Hour)) // an old one, from before the prompt
 	ev := `{"hook_event_name":"PermissionRequest","session_id":"` + sid + `","cwd":"/w/app","tool_name":"Bash","tool_input":{"command":"npm test"}}`
-	if _, err := d.Hook("", []byte(ev)); err != nil {
+	if _, err := d.Hook(context.Background(), "", []byte(ev)); err != nil {
 		t.Fatal(err)
 	}
 	e, _ := d.Store.Get("l1")

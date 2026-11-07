@@ -6,6 +6,7 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -61,8 +62,9 @@ type Watcher interface {
 type LocalController interface {
 	Controller
 	// Hook takes a Claude Code hook payload; what it returns is printed by the
-	// hook for Claude Code (a decision), nothing for most events.
-	Hook(agentID string, body []byte) ([]byte, error)
+	// hook for Claude Code (a decision), nothing for most events. ctx ends
+	// when the hook's connection is gone.
+	Hook(ctx context.Context, agentID string, body []byte) ([]byte, error)
 	Create(o CreateOpts) (string, error)
 	ResumeSession(sessionID, cwd, title string) (string, error)
 	HistoryJSON() any
@@ -352,8 +354,9 @@ func (s *Server) act(w http.ResponseWriter, err error) {
 	}
 }
 
-// Streams is how many clients hold an event stream open right now: what could
-// answer a prompt (the daemon holds a watched session's hook for them).
+// Streams is how many clients that could answer a prompt hold an event stream
+// open right now (the daemon holds a watched session's hook for them);
+// view-only devices don't count.
 func (s *Server) Streams() int { return int(s.streams.Load()) }
 
 // events streams full snapshots: one on connect, one per change (debounced), pings every 15s.
@@ -371,8 +374,12 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	h.Set("X-Accel-Buffering", "no")
 	ch, unsub := s.Store.Subscribe()
 	defer unsub()
-	s.streams.Add(1)
-	defer s.streams.Add(-1)
+	// What could answer a prompt: the dashboard and the unix socket, and a
+	// device with the act or admin scope; a view-only device can't.
+	if dev, ok := s.deviceOf(r); !ok || dev.Scope != devices.View {
+		s.streams.Add(1)
+		defer s.streams.Add(-1)
+	}
 	rc := http.NewResponseController(w)
 	send := func() bool {
 		if !s.stillPaired(r) {
@@ -514,7 +521,7 @@ func (s *Server) UnixHandler(lc LocalController) http.Handler {
 	})
 	mux.HandleFunc("POST /hook", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-		out, err := lc.Hook(r.URL.Query().Get("agent"), body)
+		out, err := lc.Hook(r.Context(), r.URL.Query().Get("agent"), body)
 		if err != nil {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return

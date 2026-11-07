@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,7 +31,7 @@ func formAgent(t *testing.T, d *Daemon, script string) string {
 		t.Fatal(err)
 	}
 	body, _ := json.Marshal(map[string]any{"hook_event_name": "PreToolUse", "tool_name": "AskUserQuestion", "tool_input": json.RawMessage(formAsk)})
-	if _, err := d.Hook(id, body); err != nil {
+	if _, err := d.Hook(context.Background(), id, body); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(d.scans.Wait) // its screen reads finish before the test's tmux server goes away

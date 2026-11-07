@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"log"
 	"sync"
 	"time"
@@ -31,22 +32,14 @@ const maxAnswerWait = 110 * time.Second
 type hold struct {
 	agent string
 	event claude.Event
-	done  chan []byte // the decision for `agentctl hook` to print; nil for none
+	done  chan []byte // the decision for `agentctl hook` to print
 
+	// mu serialises the deck's answer against the end of the wait: an answer
+	// is taken only while the hook is still there to carry it, and the wait
+	// ends only when no answer is being taken.
 	mu     sync.Mutex
 	prompt string // the prompt open now (a form moves on to new ids)
-}
-
-func (h *hold) promptID() string {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.prompt
-}
-
-func (h *hold) setPrompt(id string) {
-	h.mu.Lock()
-	h.prompt = id
-	h.mu.Unlock()
+	closed bool   // answered, timed out, or the hook went away
 }
 
 func (d *Daemon) answerWait() time.Duration {
@@ -72,9 +65,9 @@ func (d *Daemon) canHold(ev claude.Event) bool {
 	return holdable(ev) && d.Answerers != nil && d.Answerers() > 0
 }
 
-// watchedPrompt: the entry is a watched Claude session showing a prompt with
+// startHold: the entry is a watched Claude session showing a prompt with
 // options; sets Until and returns the hold to wait on. Called inside a store
-// update, after the event was applied.
+// update, after the event was applied, on the prompt it just made.
 func (d *Daemon) startHold(agentID string, ev claude.Event, e *store.Entry) *hold {
 	if !e.External || e.A.Tool != "claude" || e.A.App != "" || e.A.Status != model.Waiting || e.A.Waiting == nil || len(e.A.Waiting.Options) == 0 {
 		return nil
@@ -83,15 +76,18 @@ func (d *Daemon) startHold(agentID string, ev claude.Event, e *store.Entry) *hol
 	return &hold{agent: agentID, event: ev, prompt: e.A.Waiting.ID, done: make(chan []byte, 1)}
 }
 
-// wait blocks the hook until the deck answers or the wait is over. It returns
+// wait blocks the hook until the deck answers, the wait is over, or the hook
+// is gone (ctx: Claude Code killed it, or the connection dropped). It returns
 // what the hook prints: the decision, or nothing.
-func (d *Daemon) wait(h *hold) []byte {
+func (d *Daemon) wait(ctx context.Context, h *hold) []byte {
 	d.mu.Lock()
 	if old := d.holds[h.agent]; old != nil {
-		select { // a newer prompt replaced it: let that hook go
-		case old.done <- nil:
-		default:
+		old.mu.Lock()
+		if !old.closed { // a newer prompt replaced it: let that hook go
+			old.closed = true
+			old.done <- nil
 		}
+		old.mu.Unlock()
 	}
 	if d.holds == nil {
 		d.holds = map[string]*hold{}
@@ -104,7 +100,16 @@ func (d *Daemon) wait(h *hold) []byte {
 	select {
 	case out = <-h.done:
 	case <-timer.C:
+	case <-ctx.Done():
 	}
+	h.mu.Lock()
+	if out == nil && h.closed {
+		// Answered just as the wait ended: the answer is on its way.
+		out = <-h.done
+	}
+	h.closed = true
+	id := h.prompt
+	h.mu.Unlock()
 	d.mu.Lock()
 	if d.holds[h.agent] == h {
 		delete(d.holds, h.agent)
@@ -112,13 +117,15 @@ func (d *Daemon) wait(h *hold) []byte {
 	d.mu.Unlock()
 	if out == nil {
 		// Claude Code asks in the terminal now; the deck keeps showing the
-		// prompt, to be answered there.
-		id := h.promptID()
+		// prompt, to be answered there. A copy: snapshots read the prompt
+		// outside the store's lock.
 		d.Store.Update(h.agent, func(e *store.Entry) bool {
 			if e.A.Waiting == nil || e.A.Waiting.ID != id || e.A.Waiting.Until.IsZero() {
 				return false
 			}
-			e.A.Waiting.Until = time.Time{}
+			p := *e.A.Waiting
+			p.Until = time.Time{}
+			e.A.Waiting = &p
 			return true
 		})
 	}
@@ -126,7 +133,8 @@ func (d *Daemon) wait(h *hold) []byte {
 }
 
 // answerHeld answers a prompt whose hook is waiting. handled is false when no
-// hook waits for this agent: the answer goes its usual way.
+// hook waits for this agent any more: the answer goes its usual way (for a
+// watched session, "answer it in the terminal").
 func (d *Daemon) answerHeld(id, promptID, key string) (handled bool, err error) {
 	d.mu.Lock()
 	h := d.holds[id]
@@ -134,11 +142,16 @@ func (d *Daemon) answerHeld(id, promptID, key string) (handled bool, err error) 
 	if h == nil {
 		return false, nil
 	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.closed {
+		return false, nil
+	}
 	var out []byte
 	err = server.ErrStalePrompt
 	d.Store.Update(id, func(e *store.Entry) bool {
 		p := e.A.Waiting
-		if e.A.Status != model.Waiting || p == nil || p.ID != promptID || p.ID != h.promptID() {
+		if e.A.Status != model.Waiting || p == nil || p.ID != promptID || p.ID != h.prompt {
 			return false
 		}
 		known := false
@@ -159,7 +172,7 @@ func (d *Daemon) answerHeld(id, promptID, key string) (handled bool, err error) 
 			switch claude.AdvanceForm(e, key) {
 			case claude.FormNext:
 				e.A.Waiting.Until = p.Until // the hook keeps waiting for the next step
-				h.setPrompt(e.A.Waiting.ID)
+				h.prompt = e.A.Waiting.ID
 			case claude.FormSubmitted:
 				out = answers
 				e.A.Waiting = nil
@@ -193,12 +206,13 @@ func (d *Daemon) answerHeld(id, promptID, key string) (handled bool, err error) 
 		return true, err
 	}
 	if out != nil {
+		h.closed = true
+		h.done <- out
 		d.mu.Lock()
 		if d.holds[id] == h {
 			delete(d.holds, id)
 		}
 		d.mu.Unlock()
-		h.done <- out
 		log.Printf("answered %s prompt %s with option %s through its hook", id, promptID, key)
 	}
 	return true, nil
