@@ -612,6 +612,53 @@ static void testPills() {
   }
 }
 
+// A permission whose detail doesn't fit its one line (or gives way to a
+// two-line title) can't be answered here: what it would allow may be in the
+// part not shown. The deck's note takes the pills' place; a tap where a pill
+// was sends nothing. A question keeps its pills.
+static void testPromptCut() {
+  Agent a = waiter("c", 0);
+  snprintf(a.waitKind, sizeof a.waitKind, "permission");
+  snprintf(a.waitDetail, sizeof a.waitDetail, "go test ./...");
+  Pill was[4];
+  assert(!promptCut(a) && promptPills(a, 0, was) == 3);
+  Canvas none{nullptr, 0, 0};
+  assert(textLinesOn(none, FONT_XXL, 230, 32, PANEL_PROMPT_CUT_NOTE, 0, 4) <= 3);   // the note fits whole
+  Agent longDetail = a, longTitle = a, question = a;
+  snprintf(longDetail.waitDetail, sizeof longDetail.waitDetail, "terraform apply -target=module.staging_net");
+  snprintf(longTitle.waitTitle, sizeof longTitle.waitTitle, "allow bash to run this command in the infra folder?");
+  snprintf(question.waitKind, sizeof question.waitKind, "question");
+  snprintf(question.waitDetail, sizeof question.waitDetail, "%s", longDetail.waitDetail);
+  Pill p[4];
+  assert(!promptCut(question) && promptPills(question, 0, p) == 3);
+  for (const Agent* cut : {&longDetail, &longTitle}) {
+    assert(promptCut(*cut) && promptPills(*cut, 0, p) == 0);
+    for (const RoundLayout* L : {(const RoundLayout*)&kOrbit, (const RoundLayout*)&kDial}) {
+      uint32_t ms = 1000;
+      Fleet f = fleetOf({*cut});
+      RoundUi ui;
+      roundSync(ui, *L, f, ms);
+      roundOpen(ui, f, 0, RoundScreen::Prompt);
+      assert(ui.screen == RoundScreen::Prompt);
+      for (int k = 0; k < 3; k++) {
+        assert(tap(ui, *L, f, 240, was[k].y + was[k].h / 2, ms).cmd == RoundCmd::None);
+        assert(ui.screen == RoundScreen::Prompt);
+      }
+      // The note is drawn where the pills were.
+      std::vector<uint16_t> buf(480 * 480);
+      Canvas c{buf.data(), 480, 480};
+      const RoundTheme T = roundTheme();
+      c.fill(T.t.bg);
+      RoundInput in{&f, LinkState::Live, "x", RoundScope::Admin, 0, 2000, &ui, 0};
+      drawPrompt(c, T, in, f.agents[0]);
+      int ink = 0;
+      for (int y = 205; y < 300; y++)
+        for (int x = 60; x < 420; x++) ink += c.px[y * 480 + x] != T.t.bg;
+      assert(ink > 0);
+    }
+  }
+}
+
 // The way back without a gesture: the detail's close button on the left of
 // its row, its big critter, and the prompt's "×" under the top edge.
 static void testBack() {
@@ -817,6 +864,7 @@ int main() {
   testPaging();
   testDial();
   testPills();
+  testPromptCut();
   testBack();
   testSlider();
   testRowAnimation();

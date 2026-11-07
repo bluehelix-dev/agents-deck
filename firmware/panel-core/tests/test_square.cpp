@@ -334,8 +334,54 @@ int main() {
     w.optCount = 6;
     for (int i = 3; i < 6; i++) snprintf(w.opts[i].key, sizeof w.opts[i].key, "%d", i + 1);
     for (const SquareSpec* S : {&A, &L}) {
-      const PromptGeom p = promptGeom(*S, w);
+      Agent q = w;
+      snprintf(q.waitKind, sizeof q.waitKind, "question");
+      const PromptGeom p = promptGeom(*S, q);
       assert(p.n == 6 && p.opt[0].y > p.questionY && p.opt[5].y + p.opt[5].h <= S->h);
+      // A permission whose six answers leave its command too little room: not answered here.
+      const PromptGeom c = promptGeom(*S, w);
+      assert(c.cut && c.n == 0);
+    }
+    // A command too long for its box can't be answered here: what it would
+    // allow may be in the part not shown. The deck's note takes the answers'
+    // place, and a tap where an answer was sends nothing.
+    w.optCount = 3;
+    for (const SquareSpec* S : {&A, &L}) assert(!promptGeom(*S, w).cut);
+    snprintf(w.waitDetail, sizeof w.waitDetail, "%s",
+             "rm -rf /srv/releases/2026-11-07/artifacts/a /srv/releases/2026-11-07/artifacts/b "
+             "/srv/releases/2026-11-07/artifacts/c /srv/releases/2026-11-07/artifacts/d /srv/releases/2026-11-07/artifacts/e");
+    const SquareSpec T4 = specT4S3();
+    squareOpen(ui, f, 0);
+    assert(ui.screen == Screen::Prompt);
+    for (const SquareSpec* S : {&A, &L, &T4}) {
+      const PromptGeom p = promptGeom(*S, w);
+      const int line = S->body->cellH - 4;
+      assert(p.cut && p.n == 0 && p.noteLines >= 1);
+      assert(wrapLines(*S->body, PANEL_PROMPT_CUT_NOTE, S->w - 2 * S->m, p.noteLines + 1) == p.noteLines);   // whole
+      assert(p.noteY + p.noteLines * line <= S->h - S->m);
+      if (p.box.h) assert(p.box.y + p.box.h <= p.noteY);
+      Agent fits = w;
+      snprintf(fits.waitDetail, sizeof fits.waitDetail, "ls");
+      const PromptGeom q = promptGeom(*S, fits);
+      assert(!q.cut && q.n == 3);
+      for (int k = 0; k < 3; k++) {
+        const int x = q.opt[k].x + 40, y = q.opt[k].y + q.opt[k].h / 2;
+        assert(squareHit(*S, ui, f, x, y, DeckScope::Act).kind == Hit::None);
+        assert(touchAt(*S, ui, f, x, y, 10000 + 1000 * k, DeckScope::Act).cmd == DeckCmd::None);
+      }
+    }
+    {
+      // The note is drawn where the answers were.
+      std::vector<uint16_t> px(A.w * A.h);
+      Canvas cv{px.data(), A.w, A.h};
+      PanelInput in{&f, LinkState::Live, "x", DeckScope::Act, 0, 0, &ui, 0};
+      SquarePanel(A).draw(cv, in);
+      const PromptGeom p = promptGeom(A, w);
+      const Theme T = deckTheme(A.trueBlack);
+      bool ink = false;
+      for (int y = p.noteY; y < p.noteY + p.noteLines * (A.body->cellH - 4) && !ink; y++)
+        for (int x = A.m; x < A.w - A.m && !ink; x++) ink = px[y * A.w + x] != T.accent;
+      assert(ink);
     }
   }
 

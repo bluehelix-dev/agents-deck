@@ -309,6 +309,8 @@ with nanopb from the same file can therefore use fixed buffers and never sees a 
 A prompt's `detail` that doesn't fit (512 bytes, or less for a board with small frames) ends in
 "… (too long to show here: answer on the phone or at the terminal)" instead, and the deck refuses an
 `Answer` to that prompt from the board (`Result 403`): what it would allow may be in the part the
-board never showed. Answer it on the phone, the web dashboard or the terminal. A
+board never showed. Answer it on the phone, the web dashboard or the terminal. The boards built on
+`firmware/panel-core` go one step further: a permission whose detail their screen can't draw whole
+beside its answers shows the same note in place of the answers, and nothing on it answers. A
 CI test fails if the Go limits and `link.options` disagree, and another if any web API endpoint or
 Agent field has no Deck Link counterpart.

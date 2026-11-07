@@ -42,7 +42,8 @@ talks to the deck through [Deck Link](../../../docs/link/protocol.md).
   hold it for a second while its ring fills).
 - **Prompt.** The question and its answers as pills; the suggested answer is filled orange. A tap
   answers, shows "sent" for a second, then goes back. With more than three answers, the list
-  scrolls.
+  scrolls. A permission whose command doesn't fit its line shows "too long to show here: answer on
+  the phone or at the terminal" instead of the answers.
 - **Full-screen states**: connecting; waiting for approval (with the exact command); deck offline
   (with when it was last heard); no agents.
 - **Backlight**: dims after 2 minutes with nothing going on.

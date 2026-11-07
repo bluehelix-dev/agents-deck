@@ -281,6 +281,10 @@ struct PromptGeom {
   int n;                       // options shown
   Rect opt[kMaxOptions];
   bool hints;                  // room for the options' hint lines
+  // A permission whose command doesn't fit whole above its answers: no
+  // answers (n = 0), the deck's "too long" note at noteY instead.
+  bool cut;
+  int noteY, noteLines;
 };
 
 // How many lines textWrapped() needs for s (up to maxLines).
@@ -301,43 +305,58 @@ static inline bool anyHint(const Agent& a) {
 static inline PromptGeom promptGeom(const SquareSpec& S, const Agent& a) {
   PromptGeom g{};
   const int m = S.m;
-  g.headerH = 18 + 13 * S.promptScale + 10;
-  g.n = a.optCount;
-  // Options from the bottom, as tall as the spec allows and the room left;
-  // without hint lines they need less.
   const int bottom = S.h - m;
   const int qLine = S.question->cellH - 4;
-  const int minTop = g.headerH + qLine + 10;                      // keep at least one question line
-  int optH = anyHint(a) ? S.optH : S.optH * 5 / 6;
-  if (g.n) {
-    const int room = bottom - minTop;
-    const int fit = (room - (g.n - 1) * S.optGap) / g.n;
-    if (fit < optH) optH = fit;
-  }
-  g.hints = optH >= S.body->cellH + S.label->cellH - 4;
-  const int optTop = g.n ? bottom - g.n * optH - (g.n - 1) * S.optGap : bottom;
-  for (int i = 0; i < g.n; i++) g.opt[i] = Rect{m, optTop + i * (optH + S.optGap), S.w - 2 * m, optH};
-
-  // The question: up to three lines, then the command box with what's left.
-  g.questionY = g.headerH;
-  const int qRoom = (optTop - 12 - g.questionY) / qLine;
-  const int qMax = qRoom > 3 ? 3 : qRoom < 1 ? 1 : qRoom;
-  g.questionLines = wrapLines(*S.question, a.waitTitle[0] ? a.waitTitle : "needs you", S.w - 2 * m, qMax);
-  if (g.questionLines < 1) g.questionLines = 1;
-  int y = g.questionY + g.questionLines * qLine + 8;
-  if (isPermission(a) && a.waitDetail[0]) {
-    const int line = S.body->cellH - 4;
-    const int whereH = a.promptCtx[0] ? S.label->cellH + 2 : 0;
-    int lines = (optTop - 14 - whereH - y - 16) / line;
-    if (lines > 4) lines = 4;
-    const int need = wrapLines(*S.body, a.waitDetail, S.w - 2 * m - 24, lines > 0 ? lines : 1);
-    if (need < lines) lines = need;
-    if (lines >= 1) {
-      g.boxLines = lines;
-      g.box = Rect{m, y, S.w - 2 * m, lines * line + 16};
-      y += g.box.h + 4;
-      if (whereH && y + whereH <= optTop - 6) g.whereY = y;
+  const int minTop = 18 + 13 * S.promptScale + 10 + qLine + 10;   // keep at least one question line
+  // A permission whose command doesn't fit whole above its answers can't be
+  // answered here (what it would allow may be in the part not shown): the
+  // second pass lays it out with the deck's note in place of the answers.
+  for (int pass = 0; pass < 2; pass++) {
+    const bool cut = g.cut;
+    g = PromptGeom{};
+    g.cut = cut;
+    g.headerH = 18 + 13 * S.promptScale + 10;
+    g.n = cut ? 0 : a.optCount;
+    // Options from the bottom, as tall as the spec allows and the room left;
+    // without hint lines they need less.
+    int optH = anyHint(a) ? S.optH : S.optH * 5 / 6;
+    if (g.n) {
+      const int room = bottom - minTop;
+      const int fit = (room - (g.n - 1) * S.optGap) / g.n;
+      if (fit < optH) optH = fit;
     }
+    g.hints = optH >= S.body->cellH + S.label->cellH - 4;
+    const int noteLine = S.body->cellH - 4;
+    if (cut) g.noteLines = wrapLines(*S.body, PANEL_PROMPT_CUT_NOTE, S.w - 2 * m, 3);
+    const int optTop = g.n ? bottom - g.n * optH - (g.n - 1) * S.optGap : bottom - g.noteLines * noteLine;
+    for (int i = 0; i < g.n; i++) g.opt[i] = Rect{m, optTop + i * (optH + S.optGap), S.w - 2 * m, optH};
+    if (cut) g.noteY = optTop;
+
+    // The question: up to three lines, then the command box with what's left.
+    g.questionY = g.headerH;
+    const int qRoom = (optTop - 12 - g.questionY) / qLine;
+    const int qMax = qRoom > 3 ? 3 : qRoom < 1 ? 1 : qRoom;
+    g.questionLines = wrapLines(*S.question, a.waitTitle[0] ? a.waitTitle : "needs you", S.w - 2 * m, qMax);
+    if (g.questionLines < 1) g.questionLines = 1;
+    int y = g.questionY + g.questionLines * qLine + 8;
+    bool whole = true;
+    if (isPermission(a) && a.waitDetail[0]) {
+      const int line = S.body->cellH - 4;
+      const int whereH = a.promptCtx[0] ? S.label->cellH + 2 : 0;
+      int lines = (optTop - 14 - whereH - y - 16) / line;
+      if (lines > 4) lines = 4;
+      const int need = wrapLines(*S.body, a.waitDetail, S.w - 2 * m - 24, lines > 0 ? lines + 1 : 1);
+      whole = lines >= 1 && need <= lines;
+      if (need < lines) lines = need;
+      if (lines >= 1) {
+        g.boxLines = lines;
+        g.box = Rect{m, y, S.w - 2 * m, lines * line + 16};
+        y += g.box.h + 4;
+        if (whereH && y + whereH <= optTop - 6) g.whereY = y;
+      }
+    }
+    if (cut || whole) break;
+    g.cut = true;
   }
   return g;
 }
@@ -1209,6 +1228,10 @@ static inline void prompt(Canvas& c, const SquareSpec& S, const Theme& T, const 
   if (g.whereY) c.text(lf, m, g.whereY, a.promptCtx, T.bg, S.w - 2 * m);
 
   // The options.
+  if (g.cut) {
+    textWrapped(c, *S.body, m, g.noteY, PANEL_PROMPT_CUT_NOTE, fg, S.w - 2 * m, g.noteLines, S.body->cellH - 4);
+    return;
+  }
   if (!g.n) {
     textCentered(c, *S.body, S.w / 2, S.h - m - S.body->cellH - 8, "answer in the terminal", fg, S.w - 2 * m);
     return;

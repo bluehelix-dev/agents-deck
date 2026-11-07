@@ -236,8 +236,65 @@ int main() {
     // Six options with hints still fit above the buttons (shorter, without hints).
     w.optCount = 6;
     for (int i = 3; i < 6; i++) snprintf(w.opts[i].key, sizeof w.opts[i].key, "%d", i + 1);
+    snprintf(w.waitKind, sizeof w.waitKind, "question");
     p = bigPrompt(S, w);
     assert(p.n == 6 && p.opt[0].y > p.titleY && p.opt[5].y + p.opt[5].h <= p.send.y);
+    // A permission with six answers leaves its detail no room: not answered here.
+    snprintf(w.waitKind, sizeof w.waitKind, "permission");
+    p = bigPrompt(S, w);
+    assert(p.cut && p.n == 0 && p.boxLines >= 1);
+
+    // A permission whose detail doesn't fit whole beside its answers can't be
+    // answered here: what it would allow may be in the part not shown. The
+    // deck's note takes the answers' place; nothing can be chosen or sent,
+    // and focus terminal takes the whole row.
+    w.optCount = 3;
+    snprintf(w.waitKind, sizeof w.waitKind, "permission");
+    snprintf(w.waitDetail, sizeof w.waitDetail, "terraform apply");
+    const BigPrompt ok = bigPrompt(S, w);
+    assert(!ok.cut && ok.n == 3);
+    snprintf(w.waitDetail, sizeof w.waitDetail, "%s",
+             "rm -rf /srv/releases/2026-11-07/artifacts/a /srv/releases/2026-11-07/artifacts/b "
+             "/srv/releases/2026-11-07/artifacts/c /srv/releases/2026-11-07/artifacts/d /srv/releases/2026-11-07/artifacts/e");
+    assert(bigWrapLines(*S.text, w.waitDetail, bigCardInner(S).w - 2 * bk(S, 18), 6) > 4);   // one path a line
+    for (bool canFocus : {true, false}) {
+      const BigPrompt q = bigPrompt(S, w, canFocus);
+      const int tLine = (int)lroundf(fontPx(*S.text) * 1.45f);
+      assert(q.cut && q.n == 0 && q.noteLines >= 1 && q.boxLines == 4);
+      assert(bigWrapLines(*S.text, PANEL_PROMPT_CUT_NOTE, bigCardInner(S).w, q.noteLines + 1) == q.noteLines);
+      assert(q.box.y + q.box.h <= q.noteY && q.noteY + q.noteLines * tLine <= q.send.y);
+    }
+    // The same detail as a question keeps its answers.
+    snprintf(w.waitKind, sizeof w.waitKind, "question");
+    assert(!bigPrompt(S, w).cut && bigPrompt(S, w).n == 3);
+    snprintf(w.waitKind, sizeof w.waitKind, "permission");
+    {
+      PanelUi u;
+      bigOpen(u, f, 0);
+      for (int k = 0; k < 3; k++) {
+        assert(bigHit(S, u, f, ok.opt[k].x + 20, ok.opt[k].y + ok.opt[k].h / 2, DeckScope::Act).kind == Hit::None);
+        tap(S, u, f, ok.opt[k], DeckScope::Act, 20000 + 100 * k);
+        assert(u.selected == -1);
+      }
+      assert(tap(S, u, f, ok.send, DeckScope::Act, 21000).cmd == DeckCmd::Focus);   // where send was: focus, no answer
+      const PanelHit h = bigHit(S, u, f, ok.send.x + 10, ok.send.y + 10, DeckScope::Act);
+      assert(h.kind == Hit::Focus && h.agent == 0);
+      f.canFocus = false;
+      assert(bigHit(S, u, f, ok.send.x + 10, ok.send.y + 10, DeckScope::Act).kind == Hit::None);
+      f.canFocus = true;
+      // The note is drawn where the answers were (ink on the orange).
+      std::vector<uint16_t> px(S.w * S.h);
+      Canvas cv{px.data(), S.w, S.h};
+      PanelInput in{&f, LinkState::Live, "x", DeckScope::Act, 0, 0, &u, 0};
+      BigPanel(S).draw(cv, in);
+      const BigPrompt q = bigPrompt(S, w);
+      const Theme T = deckTheme(false);
+      bool ink = false;
+      for (int y = q.noteY; y < q.noteY + fontPx(*S.text) + 4 && !ink; y++)
+        for (int x = bigCardInner(S).x; x < bigCardInner(S).x + bigCardInner(S).w && !ink; x++)
+          ink = px[y * S.w + x] != T.accent;
+      assert(ink);
+    }
   }
 
   // ---- every screen at every scope and link state stays inside the frame

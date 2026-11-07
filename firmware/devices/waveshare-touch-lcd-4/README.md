@@ -46,7 +46,9 @@ Flutter UI with every size times 2/3 (`layout_big.h`).
   right under it the options with their hint lines. Tap one to choose it, then the button beside
   **focus terminal** answers. A permission starts with nothing chosen, and its button says what it
   does: **allow**, **allow always** or **deny**. A question starts with its primary chosen and says
-  **send 1**. A permission is the orange card; a question is dark with the orange border.
+  **send 1**. A permission is the orange card; a question is dark with the orange border. A
+  permission whose command doesn't fit whole above its options shows "too long to show here: answer
+  on the phone or at the terminal" instead, with nothing to choose.
 - **Back.** Swipe right, or press BOOT.
 - **Other screens.** Waiting for approval (with the command), connecting to the deck, deck offline,
   no agents.

@@ -45,7 +45,7 @@ struct DeckFleet {
 
 // Ends a prompt's detail cut to fit; the deck's own (promptCut in
 // backend/internal/link/limits.go).
-static const char kPromptCut[] = "… (too long to show here: answer on the phone or at the terminal)";
+static const char kPromptCut[] = "… (" PANEL_PROMPT_CUT_NOTE ")";
 
 static inline Status statusFromLink(agentsdeck_link_v1_Status s) {
   switch (s) {

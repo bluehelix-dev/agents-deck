@@ -181,6 +181,10 @@ struct BigPrompt {
   Rect opt[kMaxOptions];
   bool subs;                   // room for the hint lines
   Rect send, terminal;
+  // A permission whose detail doesn't fit whole beside its answers: no
+  // answers (n = 0), the deck's "too long" note at noteY instead.
+  bool cut;
+  int noteY, noteLines;
 };
 
 static inline int bigWrapLines(const Font& f, const char* s, int maxW, int maxLines) {
@@ -220,46 +224,60 @@ static inline BigPrompt bigPrompt(const BigSpec& S, const Agent& a, bool canFocu
   p.titleY = bigTopBarBottom(S) + bk(S, 20);
   p.titleLines = bigWrapLines(*S.heading, a.waitTitle[0] ? a.waitTitle : "needs you", in.w, 3);
   if (p.titleLines < 1) p.titleLines = 1;
-  int y = p.titleY + p.titleLines * qLine;
-  // The options, from the bottom up: 74 px rows 10 apart, shorter (and
-  // without hints) when there are many.
-  p.n = a.optCount;
+  const int y0 = p.titleY + p.titleLines * qLine;
   const int bottom = btnY - bk(S, 20);
-  int rowH = bk(S, 74);
   const int gap = bk(S, 10);
-  const int textTop = y + bk(S, 10);
-  if (p.n) {
-    const int room = bottom - textTop - fontPx(*S.label) - bk(S, 10);
-    const int fit = (room - (p.n - 1) * gap) / p.n;
-    if (fit < rowH) rowH = fit < fontPx(*S.text) + 8 ? fontPx(*S.text) + 8 : fit;
-  }
-  p.subs = rowH >= fontPx(*S.text) + fontPx(*S.label) + bk(S, 4) + 2 * bk(S, 10);
-  // The lowest the options may start (pinned above the buttons); they move up
-  // under the detail when there is room, so the choice sits by what it is about.
-  const int lowest = p.n ? bottom - p.n * rowH - (p.n - 1) * gap : bottom;
-  int optTop = lowest;
-  // The detail in a box, with the lines left above the options.
-  if (a.waitDetail[0]) {
-    const int pad = bk(S, 16);
-    const int ctxH = a.promptCtx[0] && perm ? fontPx(*S.label) + bk(S, 10) : 0;
-    int lines = (optTop - bk(S, 10) - ctxH - textTop - 2 * pad) / tLine;
-    if (lines > 4) lines = 4;
-    const int need = bigWrapLines(*S.text, a.waitDetail, in.w - 2 * bk(S, 18), lines > 0 ? lines : 1);
-    if (need < lines) lines = need;
-    if (lines >= 1) {
-      p.boxLines = lines;
-      p.box = Rect{in.x, textTop, in.w, lines * tLine + 2 * pad};
-      y = p.box.y + p.box.h;
+  const int textTop = y0 + bk(S, 10);
+  // A permission whose detail doesn't fit whole beside its answers can't be
+  // answered here (what it would allow may be in the part not shown): the
+  // second pass lays it out with the deck's note in place of the answers.
+  for (int pass = 0; pass < 2; pass++) {
+    int y = y0;
+    p.box = Rect{0, 0, 0, 0};
+    p.boxLines = p.ctxY = 0;
+    // The options, from the bottom up: 74 px rows 10 apart, shorter (and
+    // without hints) when there are many.
+    p.n = p.cut ? 0 : a.optCount;
+    int rowH = bk(S, 74);
+    if (p.n) {
+      const int room = bottom - textTop - fontPx(*S.label) - bk(S, 10);
+      const int fit = (room - (p.n - 1) * gap) / p.n;
+      if (fit < rowH) rowH = fit < fontPx(*S.text) + 8 ? fontPx(*S.text) + 8 : fit;
     }
+    p.subs = rowH >= fontPx(*S.text) + fontPx(*S.label) + bk(S, 4) + 2 * bk(S, 10);
+    if (p.cut) p.noteLines = bigWrapLines(*S.text, PANEL_PROMPT_CUT_NOTE, in.w, 3);
+    // The lowest the options may start (pinned above the buttons); they move up
+    // under the detail when there is room, so the choice sits by what it is about.
+    const int lowest = p.n ? bottom - p.n * rowH - (p.n - 1) * gap : bottom - p.noteLines * tLine;
+    int optTop = lowest;
+    // The detail in a box, with the lines left above the options.
+    bool whole = true;
+    if (a.waitDetail[0]) {
+      const int pad = bk(S, 16);
+      const int ctxH = a.promptCtx[0] && perm ? fontPx(*S.label) + bk(S, 10) : 0;
+      int lines = (optTop - bk(S, 10) - ctxH - textTop - 2 * pad) / tLine;
+      if (lines > 4) lines = 4;
+      const int need = bigWrapLines(*S.text, a.waitDetail, in.w - 2 * bk(S, 18), lines > 0 ? lines + 1 : 1);
+      whole = lines >= 1 && need <= lines;
+      if (need < lines) lines = need;
+      if (lines >= 1) {
+        p.boxLines = lines;
+        p.box = Rect{in.x, textTop, in.w, lines * tLine + 2 * pad};
+        y = p.box.y + p.box.h;
+      }
+    }
+    // Where a permission runs (a question's context is in its pill).
+    if (perm && a.promptCtx[0] && y + bk(S, 10) + fontPx(*S.label) <= optTop - 4) {
+      p.ctxY = y + bk(S, 10);
+      y = p.ctxY + fontPx(*S.label);
+    }
+    const int under = (p.box.h || p.ctxY ? y : textTop - bk(S, 10)) + bk(S, 20);
+    if (under < optTop) optTop = under;
+    for (int i = 0; i < p.n; i++) p.opt[i] = Rect{in.x, optTop + i * (rowH + gap), in.w, rowH};
+    if (p.cut) p.noteY = optTop;
+    if (p.cut || !perm || whole) break;
+    p.cut = true;
   }
-  // Where a permission runs (a question's context is in its pill).
-  if (perm && a.promptCtx[0] && y + bk(S, 10) + fontPx(*S.label) <= optTop - 4) {
-    p.ctxY = y + bk(S, 10);
-    y = p.ctxY + fontPx(*S.label);
-  }
-  const int under = (p.box.h || p.ctxY ? y : textTop - bk(S, 10)) + bk(S, 20);
-  if (under < optTop) optTop = under;
-  for (int i = 0; i < p.n; i++) p.opt[i] = Rect{in.x, optTop + i * (rowH + gap), in.w, rowH};
   return p;
 }
 
@@ -301,8 +319,10 @@ static inline PanelHit bigHit(const BigSpec& S, const PanelUi& ui, const Fleet& 
   const BigPrompt p = bigPrompt(S, a, f.canFocus);
   for (int k = 0; k < p.n; k++)
     if (p.opt[k].contains(x, y)) { h.kind = Hit::Option; h.index = k; return h; }
-  if (p.send.contains(x, y)) { h.kind = Hit::Send; return h; }
-  if (p.terminal.w && p.terminal.contains(x, y)) { h.kind = Hit::Focus; return h; }
+  if (p.n && p.send.contains(x, y)) { h.kind = Hit::Send; return h; }
+  // With nothing to send, focus terminal takes the whole row (as drawn).
+  const Rect term = p.n ? p.terminal : Rect{bigCardInner(S).x, p.send.y, bigCardInner(S).w, p.send.h};
+  if (f.canFocus && term.contains(x, y)) { h.kind = Hit::Focus; return h; }
   return PanelHit();
 }
 
@@ -1063,8 +1083,10 @@ static inline void prompt(Canvas& c, const BigSpec& S, const Theme& T, const Pan
       textAt(c, *S.text, tx, o.y + (o.h - fontPx(*S.text)) / 2, title, fg, tw);
     }
   }
-  if (!p.n) textAt(c, *S.label, r.x, p.send.y - bk(S, 20) - fontPx(*S.label), "free-text answer" DECK_DOT "type it at the terminal",
-                   perm ? T.bg : T.dim, r.w);
+  if (p.cut) textWrapped(c, *S.text, r.x, p.noteY - (S.text->cellH - fontPx(*S.text)) / 2 + (tLine - fontPx(*S.text)) / 2,
+                         PANEL_PROMPT_CUT_NOTE, ink, r.w, p.noteLines, tLine);
+  else if (!p.n) textAt(c, *S.label, r.x, p.send.y - bk(S, 20) - fontPx(*S.label), "free-text answer" DECK_DOT "type it at the terminal",
+                        perm ? T.bg : T.dim, r.w);
 
   // The answer button says what it does: on a permission "allow", "allow
   // always" or "deny" once one is chosen ("choose one" before); a question

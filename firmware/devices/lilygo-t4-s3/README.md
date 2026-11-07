@@ -27,7 +27,8 @@ Every screen is in `docs/`.)
   bottom: **focus** (the terminal), **interrupt** (while running), and **stop**, held for 1 s. Focus
   and interrupt need scope `act`; stop needs `admin`.
 - **Prompts.** A waiting agent opens its prompt: the question, the command (for permissions), the
-  answers. Answering needs scope `act`.
+  answers. Answering needs scope `act`. A permission whose command doesn't fit whole above its
+  answers shows "too long to show here: answer on the phone or at the terminal" instead of the answers.
 - **Back.** Swipe right, or press BOOT. There's no back button.
 - **AMOLED.** True black; it dims when every agent is idle and nobody touched it for 30 s.
 

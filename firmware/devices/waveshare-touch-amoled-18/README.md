@@ -28,7 +28,9 @@ with the glass's rounded corners masked. Every screen is in `docs/`.)
   for 1 s. Focus and interrupt need scope `act`; stop needs `admin`.
 - **Prompts.** A waiting agent opens its prompt: a one-line header, the whole question, the command
   (for permissions), and the answers with their hint lines. A permission is the orange card; a
-  question is dark with an orange border. Answering needs scope `act`.
+  question is dark with an orange border. Answering needs scope `act`. A permission whose command
+  doesn't fit whole above its answers shows "too long to show here: answer on the phone or at the
+  terminal" instead of the answers.
 - **Back.** Swipe right, or press BOOT.
 - **Other screens.** Waiting for approval (with the command and the board's name), connecting, deck
   offline, no agents.

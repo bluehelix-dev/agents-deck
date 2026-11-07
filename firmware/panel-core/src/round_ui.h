@@ -558,11 +558,28 @@ struct Pill {
   int option;   // index into Agent.opts
 };
 
+// The prompt's title is too long for one line: it takes two, and the detail gives way.
+static inline bool promptTitleLong(const char* title) {
+  if (textW(FONT_R35, title) <= fitWidth(FONT_R35, 118) || textW(FONT_XXL, title) <= fitWidth(FONT_XXL, 118)) return false;
+  Canvas none{nullptr, 0, 0};
+  return textLinesOn(none, FONT_XXL, 112, 32, title, 0, 2) > 1;
+}
+
+// A permission whose detail the prompt can't show whole (one line under the
+// title, none under a two-line title) can't be answered here: what it would
+// allow may be in the part not shown. It shows the deck's note instead of
+// the answers.
+static inline bool promptCut(const Agent& a) {
+  if (strcmp(a.waitKind, "permission") || !a.waitDetail[0]) return false;
+  return promptTitleLong(a.waitTitle[0] ? a.waitTitle : "needs you") ||
+         textW(FONT_XXL, a.waitDetail) > fitWidth(FONT_XXL, 152);
+}
+
 // The answers as stacked pills, each as wide as the circle allows at its
 // height (at most 340): 72 px tall for up to three, 60 px and scrolling for more.
 static inline int promptPills(const Agent& a, int first, Pill out[4]) {
   const int n = a.optCount;
-  if (n <= 0) return 0;
+  if (n <= 0 || promptCut(a)) return 0;
   int top, h, gap, shown;
   if (n > 3) { top = 172; h = 60; gap = 6; shown = kRoundOptShown; }
   else { h = 72; gap = 10; shown = n; top = n == 3 ? 178 : n == 2 ? 200 : 214; }
@@ -597,6 +614,10 @@ static inline void drawPrompt(Canvas& c, const RoundTheme& T, const RoundInput& 
   if (!act) textOn(c, FONT_XXL, 240, longTitle ? 158 : 152, "answer on the deck", T.t.accent);
   else if (!longTitle && detail[0]) textOn(c, FONT_XXL, 240, 152, detail, T.t.dim);
 
+  if (promptCut(a)) {
+    textLinesOn(c, FONT_XXL, 230, 32, PANEL_PROMPT_CUT_NOTE, T.t.dim, 3);
+    return;
+  }
   if (a.optCount == 0) {
     textOn(c, FONT_XXL, 240, 260, "answer in the terminal", T.t.dim);
     return;

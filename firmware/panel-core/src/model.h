@@ -23,6 +23,10 @@ constexpr int kMaxOptions = 6;   // link.options: Prompt.options max_count
 #ifndef PANEL_WAIT_DETAIL
 #define PANEL_WAIT_DETAIL 192
 #endif
+// The deck's note for a prompt the board can't show whole (promptCut in
+// backend/internal/link/limits.go, without its "… (" and ")"). A permission
+// whose detail a layout can't draw whole shows it instead of the answers.
+#define PANEL_PROMPT_CUT_NOTE "too long to show here: answer on the phone or at the terminal"
 #ifndef PANEL_OPTION_LABEL
 #define PANEL_OPTION_LABEL 40
 #endif
