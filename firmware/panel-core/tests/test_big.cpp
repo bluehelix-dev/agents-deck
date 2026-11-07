@@ -125,6 +125,24 @@ int main() {
     assert(c.cmd == DeckCmd::None);                                                  // armed again, not sent
     c = tap(S, ui, f, b.r[0], DeckScope::Admin, 9500);
     assert(c.cmd == DeckCmd::Focus);
+    // After 24.8 days millis() passes 2^31: not armed is still not armed, so
+    // the first tap arms and only the second stops.
+    {
+      PanelUi u;
+      bigOpen(u, f, 0);
+      const uint32_t late = 3000000000u;
+      assert(!bigStopArmed(u, late));
+      c = tap(S, u, f, b.r[1], DeckScope::Admin, late);
+      assert(c.cmd == DeckCmd::None && u.stopArmedUntil == late + 60 + kStopArmMs);
+      c = tap(S, u, f, b.r[1], DeckScope::Admin, late + 1000);
+      assert(c.cmd == DeckCmd::Dismiss && u.stopArmedUntil == 0);
+      // Armed just before millis() wraps: still armed for the 3 s after.
+      const uint32_t wrap = 0u - 60u - kStopArmMs;
+      c = tap(S, u, f, b.r[1], DeckScope::Admin, wrap);
+      assert(c.cmd == DeckCmd::None && u.stopArmedUntil != 0 && bigStopArmed(u, wrap + 60));
+      c = tap(S, u, f, b.r[1], DeckScope::Admin, wrap + 1000);
+      assert(c.cmd == DeckCmd::Dismiss);
+    }
     // Interrupt while running.
     f.agents[0].status = Status::Running;
     b = bigCardButtons(S, f.agents[0], DeckScope::Act);

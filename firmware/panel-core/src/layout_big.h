@@ -308,6 +308,12 @@ static inline PanelHit bigHit(const BigSpec& S, const PanelUi& ui, const Fleet& 
 
 constexpr uint32_t kStopArmMs = 3000;   // "tap again to stop" holds this long
 
+// Stop is armed: a first tap set stopArmedUntil (0 is "not armed", which the
+// signed comparison alone would read as armed for half of millis()' range).
+static inline bool bigStopArmed(const PanelUi& ui, uint32_t ms) {
+  return ui.stopArmedUntil != 0 && (int32_t)(ui.stopArmedUntil - ms) > 0;
+}
+
 static inline void bigOpen(PanelUi& ui, const Fleet& f, int i) {
   const Agent& a = f.agents[i];
   snprintf(ui.openId, sizeof ui.openId, "%s", a.id);
@@ -343,12 +349,13 @@ static inline DeckCommand bigTap(PanelUi& ui, const Fleet& f, const PanelHit& h,
       uiToast(ui, "resuming", ms, 1200);
       break;
     case Hit::Stop:
-      if (f.agents[h.agent].status == Status::Exited || (int32_t)(ui.stopArmedUntil - ms) > 0) {
+      if (f.agents[h.agent].status == Status::Exited || bigStopArmed(ui, ms)) {
         out = commandFor(DeckCmd::Dismiss, f.agents[h.agent]);
         uiToast(ui, f.agents[h.agent].status == Status::Exited ? "removed" : "stopping\xE2\x80\xA6", ms, 1500);
         ui.stopArmedUntil = 0;
       } else {
         ui.stopArmedUntil = ms + kStopArmMs;   // first tap: arm
+        if (!ui.stopArmedUntil) ui.stopArmedUntil = 1;   // 0 means not armed
       }
       break;
     case Hit::Option: ui.selected = h.index; break;
@@ -976,7 +983,7 @@ static inline void card(Canvas& c, const BigSpec& S, const Theme& T, const Panel
   }
   // The buttons.
   const PanelUi& ui = *in.ui;
-  const bool armed = (int32_t)(ui.stopArmedUntil - in.ms) > 0;
+  const bool armed = bigStopArmed(ui, in.ms);
   for (int i = 0; i < b.n; i++) {
     const bool pressed = ui.pressed.kind == b.kind[i];
     switch (b.kind[i]) {
