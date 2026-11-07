@@ -195,6 +195,56 @@ void main() {
     });
   });
 
+  group('landscape', () {
+    // Logical sizes; pumpPhone runs at 3x.
+    const sizes = {
+      'phone, 760x360': Size(760, 360),
+      'tablet, 1280x800': Size(1280, 800),
+    };
+    for (final MapEntry(key: name, value: size) in sizes.entries) {
+      testWidgets('$name: tiles, a card and the settings fit', (tester) async {
+        await pumpPhone(tester, size * 3);
+        expect(tester.takeException(), isNull);
+        final tiles = find.byWidgetPredicate(
+          (w) =>
+              w.key is ValueKey<String> &&
+              RegExp(
+                r'^agent-tile-[a-z0-9]{6}$',
+              ).hasMatch((w.key! as ValueKey<String>).value),
+        );
+        expect(tiles, findsWidgets);
+        for (final t in tiles.evaluate()) {
+          final box = t.renderObject! as RenderBox;
+          expect(
+            box.size.width * box.getTransformTo(null).getMaxScaleOnAxis(),
+            greaterThanOrEqualTo(60),
+          );
+        }
+
+        await tester.tap(find.byKey(const ValueKey('agent-tile-k3f9a2')));
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byKey(const Key('agent-focus')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        expect(await shell(tester).didPopRoute(), isTrue);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final board = tester.getRect(find.byType(AgentsApp));
+        final scale = board.width / PhoneDeck.boardSize(6).width;
+        const cell = PhoneDeck.tile + PhoneDeck.gap;
+        await tester.longPressAt(
+          board.topLeft +
+              Offset(
+                (PhoneDeck.pad + 5 * cell + PhoneDeck.tile / 2) * scale,
+                (PhoneDeck.pad + 2 * cell + PhoneDeck.tile / 2) * scale,
+              ),
+        );
+        await tester.pump();
+        expect(find.byKey(const Key('settings-card')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
+
   group('back', () {
     testWidgets('closes an open card before it leaves the app', (tester) async {
       await pumpPhone(tester, const Size(1080, 2340));
