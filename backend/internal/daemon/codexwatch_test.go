@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"errors"
+	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -9,6 +11,28 @@ import (
 	"github.com/brushknight/agents-deck/backend/internal/model"
 	"github.com/brushknight/agents-deck/backend/internal/store"
 )
+
+// Hiding a thread while the poll runs is safe: the poll reads its own copy of
+// the hidden list (go test -race reports it otherwise).
+func TestCodexHideDuringSync(t *testing.T) {
+	d := &Daemon{Store: store.New("", "test", "0")}
+	threads := []codex.Thread{{ID: "t1", RolloutPath: filepath.Join(t.TempDir(), "rollout.jsonl")}}
+	hide := func(id string) {
+		d.hideExternal(store.Entry{SessionID: id, A: model.Agent{ID: codex.AgentID(id)}})
+	}
+	hide("t0")
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := range 200 {
+			hide(fmt.Sprintf("h%d", i))
+		}
+	}()
+	for range 200 {
+		d.syncCodex(threads)
+	}
+	<-done
+}
 
 // A failed read of Codex's database (locked for a moment) leaves its tiles
 // as they are; only a read that worked takes a thread off.

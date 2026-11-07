@@ -3,6 +3,7 @@ package daemon
 import (
 	"errors"
 	"log"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -73,7 +74,7 @@ func (d *Daemon) pollCodex(logged *bool) {
 
 func (d *Daemon) syncCodex(threads []codex.Thread) {
 	d.codex.mu.Lock()
-	hidden := d.codex.hidden
+	hidden := maps.Clone(d.codex.hidden) // hide writes it under the lock
 	d.codex.mu.Unlock()
 	want := map[string]codex.Thread{}
 	for _, t := range threads {

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
+	"maps"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -100,7 +101,7 @@ func (d *Daemon) cmuxErr(err error) error {
 // the ones that are gone.
 func (d *Daemon) syncCmux(list []cmux.Session) {
 	d.cmux.mu.Lock()
-	hidden := d.cmux.hidden
+	hidden := maps.Clone(d.cmux.hidden) // hide writes it under the lock
 	d.cmux.mu.Unlock()
 	want := map[string]cmux.Session{}
 	for _, s := range list {

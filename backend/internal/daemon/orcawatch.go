@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"log"
+	"maps"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -88,7 +89,7 @@ func (d *Daemon) syncOrca(snap orca.Snapshot) {
 		terms[t.PaneKey()] = t
 	}
 	d.orca.mu.Lock()
-	hidden := d.orca.hidden
+	hidden := maps.Clone(d.orca.hidden) // hide writes it under the lock
 	d.orca.mu.Unlock()
 	want := map[string]orcaRow{}
 	for _, w := range snap.Worktrees {

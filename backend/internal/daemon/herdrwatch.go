@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -92,7 +93,7 @@ type herdrRow struct {
 // snapshot) on the board, and takes off the ones that are gone.
 func (d *Daemon) syncHerdr(snaps map[string]herdr.Snapshot) {
 	d.herdr.mu.Lock()
-	hidden := d.herdr.hidden
+	hidden := maps.Clone(d.herdr.hidden) // hide writes it under the lock
 	d.herdr.mu.Unlock()
 	want := map[string]herdrRow{}
 	for sock, snap := range snaps {
