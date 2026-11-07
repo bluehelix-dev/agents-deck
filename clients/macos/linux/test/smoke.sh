@@ -16,7 +16,7 @@ tmp="$(mktemp -d)"
 export HOME="$tmp/home" AGENTSTERM_HOME="$tmp/data"
 mkdir -p "$HOME" "$AGENTSTERM_HOME"
 pids=()
-cleanup() { kill "${pids[@]}" 2>/dev/null; pkill -x agents-deck 2>/dev/null; rm -rf "$tmp"; }
+cleanup() { kill "${pids[@]}" 2>/dev/null; rm -rf "$tmp"; }
 trap cleanup EXIT
 
 fail=0
@@ -34,6 +34,7 @@ wait_for() {
 echo "-- without a tray, the deck opens by itself"
 "$app" >"$tmp/app1.log" 2>&1 &
 p=$!
+pids+=($p)
 sleep 1.5
 check "hidden at first" "! visible"
 check "shown when no tray turns up" "wait_for 6 visible"
@@ -43,6 +44,7 @@ kill $p; wait $p 2>/dev/null
 echo "-- started at login (--background), it waits for the tray"
 "$app" --background >"$tmp/app0.log" 2>&1 &
 p=$!
+pids+=($p)
 sleep 4.5
 check "still hidden" "! visible"
 kill $p; wait $p 2>/dev/null
@@ -55,6 +57,7 @@ pids+=($!)
 wait_for 5 "[ -S '$AGENTSTERM_HOME/agentd.sock' ]"
 "$app" >"$tmp/app2.log" 2>&1 &
 p=$!
+pids+=($p)
 check "the icon registers with the tray" "wait_for 10 \"grep -qs '^org.kde.StatusNotifierItem-' '$tmp/registered'\""
 svc="$(head -1 "$tmp/registered" 2>/dev/null)"
 check "the deck stays hidden" "! visible"
@@ -86,7 +89,7 @@ check "another click puts it away" "wait_for 3 '! visible'"
 
 "$app" >"$tmp/app3.log" 2>&1
 check "starting it again opens the running deck" "wait_for 3 visible"
-check "and leaves one copy running" "[ \"\$(pgrep -c -x agents-deck)\" = 1 ]"
+check "and leaves one copy running" "[ \"\$(pgrep -c -x -P $$ agents-deck)\" = 1 ]"
 
 gdbus call --session -d "$svc" -o /MenuBar -m com.canonical.dbusmenu.Event 4 clicked '<0>' 0 >/dev/null
 check "Quit in the menu ends the app" "wait_for 3 '! kill -0 $p 2>/dev/null'"
