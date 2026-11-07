@@ -70,11 +70,19 @@ func writeSettings(path string, obj map[string]any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
+	// A settings.json that is a link (dotfiles kept in a repository) stays
+	// one: the new contents go into the file it points to.
+	real, err := filepath.EvalSymlinks(path)
+	if os.IsNotExist(err) {
+		real = path
+	} else if err != nil {
+		return err
+	}
+	tmp := real + ".tmp"
 	if err := os.WriteFile(tmp, append(out, '\n'), 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	return os.Rename(tmp, real)
 }
 
 // InstallHooks adds `<agentctl> hook` to every event in the settings file at

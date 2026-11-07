@@ -102,3 +102,46 @@ func TestInstallAndRemoveHooks(t *testing.T) {
 		t.Fatalf("empty settings: %q", b)
 	}
 }
+
+// A settings.json that links to a file elsewhere stays a link: the hooks go
+// into the file it points to.
+func TestInstallHooksKeepsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	real := filepath.Join(dir, "dotfiles", "claude-settings.json")
+	if err := os.MkdirAll(filepath.Dir(real), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(real, []byte(`{"theme": "dark"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, ".claude", "settings.json")
+	if err := os.MkdirAll(filepath.Dir(link), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlinks aren't permitted here: %v", err)
+	}
+	if _, err := InstallHooks(link, "/usr/local/bin/agentctl"); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("settings.json is no longer a link: %v %v", fi, err)
+	}
+	if got := HooksInstalled(real); len(got) != len(Events) {
+		t.Fatalf("hooks in the linked file: %v", got)
+	}
+	var obj map[string]any
+	b, _ := os.ReadFile(real)
+	if json.Unmarshal(b, &obj) != nil || obj["theme"] != "dark" {
+		t.Fatalf("the user's settings: %s", b)
+	}
+	if _, err := os.Stat(real + ".tmp"); !os.IsNotExist(err) {
+		t.Fatalf("temp file left behind: %v", err)
+	}
+	if _, err := RemoveHooks(link); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Lstat(link); fi == nil || fi.Mode()&os.ModeSymlink == 0 || len(HooksInstalled(real)) != 0 {
+		t.Fatal("remove: the link was replaced or the hooks stayed")
+	}
+}
