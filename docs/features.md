@@ -64,11 +64,14 @@ Claude Code sessions running in any terminal, or in the Claude desktop app, are 
   shows only once the session reports through hooks: `agentctl hooks install` puts the deck's hook
   into Claude Code's user settings (`~/.claude/settings.json`, next to any hooks of your own), and
   from their next start every session on the machine tells the deck what it runs and what it waits
-  for, including permission prompts with the command. The deck only listens: you still answer in
-  the session itself, and a session never waits for the deck. `agentctl hooks remove` takes the hook
-  out again, `agentctl hooks status` shows it. After updating `agentctl`, run `agentctl hooks
-  install` once more: a newer deck may listen to events the old one didn't (`hooks status` names
-  what is missing).
+  for, including permission prompts with the command. While a phone, a board or the browser
+  dashboard is connected, the session waits for your answer from the deck on a permission prompt
+  and on a question (up to `answerWaitSeconds` in `config.json`: 20 seconds by default, at most
+  110), and you can answer it there. If nobody answers in that time, or no deck is connected, the
+  terminal asks as it always did. `agentctl hooks remove` takes the hook out again, `agentctl hooks
+  status` shows it. After updating `agentctl`, run `agentctl hooks install` once more: the hooks
+  now wait up to 120 seconds, and a newer deck may listen to events the old one didn't (`hooks
+  status` names what is missing).
 - **Compaction.** While Claude compacts the conversation the critter is squeezed flat and the tile
   says so, mid-turn ("context full") and when Claude Code compacts a session that sat idle for an
   hour ("idle session"). The end comes from Claude Code's PostCompact hook or the transcript; a
