@@ -51,11 +51,18 @@ func TestInstallAndRemoveHooks(t *testing.T) {
 	if changed, err := InstallHooks(path, `C:\tools\agentctl.exe`); err != nil || changed {
 		t.Fatalf("second install: %v %v", changed, err)
 	}
-	// An install from before hooks waited: the timeout is raised in place.
+	if got := HooksOutdated(path); len(got) != 0 {
+		t.Fatalf("outdated after install: %v", got)
+	}
+	// An install from before hooks waited: status names the event, and the
+	// timeout is raised in place.
 	ourHook["timeout"] = float64(5)
 	b, _ = json.Marshal(obj)
 	if err := os.WriteFile(path, b, 0o600); err != nil {
 		t.Fatal(err)
+	}
+	if got := HooksOutdated(path); len(got) != 1 || got[0] != "PreToolUse" {
+		t.Fatalf("outdated: %v", got)
 	}
 	if changed, err := InstallHooks(path, `C:\tools\agentctl.exe`); err != nil || !changed {
 		t.Fatalf("old timeout: %v %v", changed, err)
@@ -65,6 +72,9 @@ func TestInstallAndRemoveHooks(t *testing.T) {
 	_ = json.Unmarshal(b, &obj)
 	if got := obj["hooks"].(map[string]any)["PreToolUse"].([]any)[1].(map[string]any)["hooks"].([]any)[0].(map[string]any)["timeout"]; got != float64(120) {
 		t.Fatalf("timeout after reinstall: %v", got)
+	}
+	if got := HooksOutdated(path); len(got) != 0 {
+		t.Fatalf("outdated after reinstall: %v", got)
 	}
 	if changed, err := InstallHooks(path, "/usr/local/bin/agentctl"); err != nil || !changed {
 		t.Fatalf("moved binary: %v %v", changed, err)

@@ -189,3 +189,35 @@ func HooksInstalled(path string) []string {
 	}
 	return out
 }
+
+// HooksOutdated lists the events whose deck hook in path is installed with a
+// timeout other than HookTimeout's: put there before the hook could wait for
+// an answer from the deck, so Claude Code gives up on it after 5 seconds.
+// Installing again sets the new timeout.
+func HooksOutdated(path string) []string {
+	obj, err := readSettings(path)
+	if err != nil {
+		return nil
+	}
+	hooks, _ := obj["hooks"].(map[string]any)
+	var out []string
+	for _, ev := range Events {
+		list, _ := hooks[ev].([]any)
+		old := false
+		for _, g := range list {
+			m, ok := g.(map[string]any)
+			if !ok || !ours(m) {
+				continue
+			}
+			for _, h := range m["hooks"].([]any) {
+				if hm, _ := h.(map[string]any); hm["timeout"] != float64(HookTimeout(ev)) {
+					old = true
+				}
+			}
+		}
+		if old {
+			out = append(out, ev)
+		}
+	}
+	return out
+}

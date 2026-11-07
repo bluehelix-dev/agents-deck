@@ -255,19 +255,32 @@ func hooks(args []string) error {
 			fmt.Printf("no deck hooks in %s\n", path)
 		}
 	case "status", "":
-		evs := claude.HooksInstalled(path)
-		switch {
-		case len(evs) == 0:
-			fmt.Printf("not installed (%s): `agentctl hooks install` makes sessions you start yourself report to the deck\n", path)
-		case len(evs) < len(claude.Events):
-			fmt.Printf("installed in %s for %s\nmissing %s: run `agentctl hooks install` again\n", path, strings.Join(evs, ", "), strings.Join(missing(evs), ", "))
-		default:
-			fmt.Printf("installed in %s: %s\n", path, strings.Join(evs, ", "))
-		}
+		fmt.Print(hooksStatus(path))
 	default:
 		return fmt.Errorf("usage: agentctl hooks [install | remove | status]")
 	}
 	return nil
+}
+
+// hooksStatus is what `agentctl hooks status` says about the settings file at
+// path: which events report to the deck, and what installing again would fix
+// (events a newer agentctl listens to, or hooks with an old timeout).
+func hooksStatus(path string) string {
+	evs := claude.HooksInstalled(path)
+	if len(evs) == 0 {
+		return fmt.Sprintf("not installed (%s): `agentctl hooks install` makes sessions you start yourself report to the deck\n", path)
+	}
+	var b strings.Builder
+	if len(evs) < len(claude.Events) {
+		fmt.Fprintf(&b, "installed in %s for %s\n", path, strings.Join(evs, ", "))
+		fmt.Fprintf(&b, "missing %s: run `agentctl hooks install` again\n", strings.Join(missing(evs), ", "))
+	} else {
+		fmt.Fprintf(&b, "installed in %s: %s\n", path, strings.Join(evs, ", "))
+	}
+	if old := claude.HooksOutdated(path); len(old) > 0 {
+		fmt.Fprintf(&b, "%s installed, but with an old timeout (Claude Code stops waiting for the deck's answer too soon): run `agentctl hooks install` again\n", strings.Join(old, ", "))
+	}
+	return b.String()
 }
 
 // missing lists the hook events the deck listens to that aren't installed:
