@@ -159,9 +159,10 @@ func scanMeta(b []byte, s *SessionInfo, head bool) {
 }
 
 // Match reports whether every word of query appears (case-insensitively) in the
-// session's id, title, folder, branch or last prompt.
+// session's id, title (its own name from /rename or the AI one), folder, branch
+// or last prompt.
 func (s SessionInfo) Match(query string) bool {
-	hay := strings.ToLower(strings.Join([]string{s.ID, s.AITitle, s.Cwd, s.Branch, s.LastPrompt}, " "))
+	hay := strings.ToLower(strings.Join([]string{s.ID, s.Custom, s.AITitle, s.Cwd, s.Branch, s.LastPrompt}, " "))
 	for _, w := range strings.Fields(strings.ToLower(query)) {
 		if !strings.Contains(hay, w) {
 			return false

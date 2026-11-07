@@ -68,6 +68,10 @@ func TestMatchAndFind(t *testing.T) {
 	if !all[0].Match("TOKEN api") || all[0].Match("token docs") || !all[1].Match("install") {
 		t.Error("match")
 	}
+	renamed := SessionInfo{ID: "33333333-2222-4333-8444-555555555555", Custom: "Billing rewrite", AITitle: "Refactor invoices", Cwd: "/work/api"}
+	if !renamed.Match("billing") || !renamed.Match("rewrite invoices") {
+		t.Error("a session is found by the name it was renamed to")
+	}
 	if _, n := FindSession(all, "1111"); n != 2 {
 		t.Errorf("ambiguous prefix: %d", n)
 	}
