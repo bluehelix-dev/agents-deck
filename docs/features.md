@@ -62,7 +62,8 @@ Claude Code sessions running in any terminal, or in the Claude desktop app, are 
   notices.
 - **Hooks for the rest.** A permission prompt looks like a running tool from the outside, so it
   shows only once the session reports through hooks: `agentctl hooks install` puts the deck's hook
-  into Claude Code's user settings (`~/.claude/settings.json`, next to any hooks of your own), and
+  into Claude Code's user settings (`~/.claude/settings.json`, next to any hooks of your own; with
+  more than one Claude account, into each account's `settings.json`), and
   from their next start every session on the machine tells the deck what it runs and what it waits
   for, including permission prompts with the command. While a phone, a board or the browser
   dashboard is connected, the session waits for your answer from the deck on a permission prompt
@@ -71,7 +72,7 @@ Claude Code sessions running in any terminal, or in the Claude desktop app, are 
   terminal asks as it always did. `agentctl hooks remove` takes the hook out again, `agentctl hooks
   status` shows it. After updating `agentctl`, run `agentctl hooks install` once more: the hooks
   now wait up to 120 seconds, and a newer deck may listen to events the old one didn't (`hooks
-  status` names what is missing).
+  status` names what is missing, and hooks still on the old timeout).
 - **Compaction.** While Claude compacts the conversation the critter is squeezed flat and the tile
   says so, mid-turn ("context full") and when Claude Code compacts a session that sat idle for an
   hour ("idle session"). The end comes from Claude Code's PostCompact hook or the transcript; a

@@ -220,46 +220,110 @@ func hook() {
 // hooks installs, removes or shows the deck's hooks in Claude Code's user
 // settings, so sessions you start yourself report what they are doing and
 // what they wait for (a question, a permission prompt) to the deck.
+//
+// With accounts set up (`agentctl account`), every account has its own
+// settings.json, and the deck watches the sessions of all of them: the hooks
+// go into each, and each is reported on its own line.
 func hooks(args []string) error {
-	path := claude.SettingsPath()
 	sub := ""
 	if len(args) > 0 {
 		sub = args[0]
 	}
+	self := ""
 	switch sub {
 	case "install":
-		self, err := os.Executable()
-		if err != nil {
+		var err error
+		if self, err = os.Executable(); err != nil {
 			return err
 		}
 		if self, err = filepath.EvalSymlinks(self); err != nil {
 			return err
 		}
-		changed, err := claude.InstallHooks(path, self)
-		if err != nil {
-			return err
-		}
-		if changed {
-			fmt.Printf("hooks installed in %s: every Claude Code session on this machine reports to the deck from its next start\n", path)
-		} else {
-			fmt.Printf("hooks already in %s\n", path)
-		}
-	case "remove":
-		changed, err := claude.RemoveHooks(path)
-		if err != nil {
-			return err
-		}
-		if changed {
-			fmt.Printf("hooks removed from %s (sessions already running keep reporting until they end)\n", path)
-		} else {
-			fmt.Printf("no deck hooks in %s\n", path)
-		}
-	case "status", "":
-		fmt.Print(hooksStatus(path))
+	case "remove", "status", "":
 	default:
 		return fmt.Errorf("usage: agentctl hooks [install | remove | status]")
 	}
-	return nil
+	var errs []error
+	for _, t := range hookTargets(claude.SettingsPath(), accounts.Configured()) {
+		path, label := t.path, ""
+		if t.name != "" {
+			label = t.name + ": "
+		}
+		everywhere := "on this machine"
+		if t.name != "" {
+			everywhere = "in this account"
+		}
+		switch sub {
+		case "install":
+			changed, err := claude.InstallHooks(path, self)
+			switch {
+			case err != nil:
+				fmt.Printf("%shooks not installed in %s: %v\n", label, path, err)
+				errs = append(errs, err)
+			case changed:
+				fmt.Printf("%shooks installed in %s: every Claude Code session %s reports to the deck from its next start\n", label, path, everywhere)
+			default:
+				fmt.Printf("%shooks already in %s\n", label, path)
+			}
+		case "remove":
+			changed, err := claude.RemoveHooks(path)
+			switch {
+			case err != nil:
+				fmt.Printf("%shooks not removed from %s: %v\n", label, path, err)
+				errs = append(errs, err)
+			case changed:
+				fmt.Printf("%shooks removed from %s (sessions already running keep reporting until they end)\n", label, path)
+			default:
+				fmt.Printf("%sno deck hooks in %s\n", label, path)
+			}
+		default:
+			fmt.Print(label + strings.ReplaceAll(strings.TrimSuffix(hooksStatus(path), "\n"), "\n", "\n"+strings.Repeat(" ", len(label))) + "\n")
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	}
+	return errors.Join(errs...)
+}
+
+// hookTarget is one settings.json the deck's hooks go in, and the account it
+// belongs to ("" without accounts set up).
+type hookTarget struct{ name, path string }
+
+// hookTargets is every settings.json the deck's hooks go in: the one Claude
+// Code uses now (current: CLAUDE_CONFIG_DIR, else ~/.claude), then each
+// configured account's, each once. Without accounts it is only current.
+func hookTargets(current string, list []accounts.Account) []hookTarget {
+	if len(list) == 0 {
+		return []hookTarget{{path: current}}
+	}
+	same := func(a, b string) bool {
+		a, b = filepath.Clean(a), filepath.Clean(b)
+		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" { // folders ignore case there
+			return strings.EqualFold(a, b)
+		}
+		return a == b
+	}
+	var out []hookTarget
+	add := func(name, path string) {
+		for _, t := range out {
+			if same(t.path, path) {
+				return
+			}
+		}
+		out = append(out, hookTarget{name, path})
+	}
+	name := "current"
+	for _, a := range list {
+		if same(filepath.Join(a.Path(), "settings.json"), current) {
+			name = a.Name
+		}
+	}
+	add(name, current)
+	for _, a := range list {
+		add(a.Name, filepath.Join(a.Path(), "settings.json"))
+	}
+	return out
 }
 
 // hooksStatus is what `agentctl hooks status` says about the settings file at
