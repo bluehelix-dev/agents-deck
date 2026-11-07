@@ -650,6 +650,26 @@ String tildePath(String path) {
   return m == null ? path : '~${path.substring(m.end)}';
 }
 
+/// The card footer's folder: the last part of a working folder, or the last
+/// two when the last is a generic name like `src`. Handles `/` and `\` paths,
+/// so a Windows `C:\Users\sam\Projects\foo` reads `foo`.
+String footerFolder(String cwd) {
+  const generic = {
+    'src', 'lib', 'app', 'apps', 'bin', 'build', 'test', 'tests', 'docs',
+    'web', 'backend', 'frontend', 'client', 'server', 'packages',
+  };
+  final parts = cwd
+      .split(RegExp(r'[\\/]'))
+      .where((p) => p.isNotEmpty && !RegExp(r'^[A-Za-z]:$').hasMatch(p))
+      .toList();
+  if (parts.isEmpty) return cwd;
+  final last = parts.last;
+  if (generic.contains(last.toLowerCase()) && parts.length > 1) {
+    return '${parts[parts.length - 2]}/$last';
+  }
+  return last;
+}
+
 /// The tile's second line, by status.
 String agentMetaLine(Agent a, AgentsState state, [DateTime? localNow]) {
   switch (a.status) {

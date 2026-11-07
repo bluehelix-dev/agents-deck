@@ -871,7 +871,7 @@ class _AgentDetailState extends State<AgentDetail> {
     final (nowLabel, nowValue) = _doingNow(a);
     final footer = [
       a.modelLabel,
-      tildePath(a.cwd),
+      footerFolder(a.cwd),
       a.branch,
     ].where((s) => s.isNotEmpty).join(' · ');
     final running = a.status == AgentStatus.running;

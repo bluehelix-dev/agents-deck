@@ -388,6 +388,10 @@ void main() {
       expect(tildePath('/Users/x/dev/checkout-api'), '~/dev/checkout-api');
       expect(tildePath('/home/rpi/a'), '~/a');
       expect(tildePath('/srv/a'), '/srv/a');
+      expect(footerFolder(r'C:\Users\sam\Projects\foo'), 'foo');
+      expect(footerFolder(r'C:\Users\sam\Projects\foo\src'), 'foo/src');
+      expect(footerFolder('/Users/x/dev/checkout-api/'), 'checkout-api');
+      expect(footerFolder('/'), '/');
       expect(shortDuration(const Duration(minutes: 65)), '1h');
     });
 

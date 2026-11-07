@@ -120,7 +120,7 @@ void main() {
     expect(find.text('84k'), findsOneWidget);
     expect(find.text('3.1m'), findsOneWidget);
     expect(find.text('\$4.12'), findsOneWidget);
-    expect(find.text('opus 5.5 · ~/dev/checkout-api · main'), findsOneWidget);
+    expect(find.text('opus 5.5 · checkout-api · main'), findsOneWidget);
     expect(find.text('workstation'), findsOneWidget);
     expect(find.byKey(const Key('agent-interrupt')), findsOneWidget);
     expect(tester.takeException(), isNull);
