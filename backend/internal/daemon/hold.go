@@ -80,8 +80,16 @@ func (d *Daemon) startHold(agentID string, ev claude.Event, e *store.Entry) *hol
 // is gone (ctx: Claude Code killed it, or the connection dropped). It returns
 // what the hook prints: the decision, or nothing.
 func (d *Daemon) wait(ctx context.Context, h *hold) []byte {
+	// Never hold d.mu and a hold's mu at once: answerHeld takes them one
+	// after the other too, so neither can wait on the other.
 	d.mu.Lock()
-	if old := d.holds[h.agent]; old != nil {
+	old := d.holds[h.agent]
+	if d.holds == nil {
+		d.holds = map[string]*hold{}
+	}
+	d.holds[h.agent] = h
+	d.mu.Unlock()
+	if old != nil {
 		old.mu.Lock()
 		if !old.closed { // a newer prompt replaced it: let that hook go
 			old.closed = true
@@ -89,11 +97,6 @@ func (d *Daemon) wait(ctx context.Context, h *hold) []byte {
 		}
 		old.mu.Unlock()
 	}
-	if d.holds == nil {
-		d.holds = map[string]*hold{}
-	}
-	d.holds[h.agent] = h
-	d.mu.Unlock()
 	timer := time.NewTimer(d.answerWait())
 	defer timer.Stop()
 	var out []byte
@@ -104,8 +107,13 @@ func (d *Daemon) wait(ctx context.Context, h *hold) []byte {
 	}
 	h.mu.Lock()
 	if out == nil && h.closed {
-		// Answered just as the wait ended: the answer is on its way.
-		out = <-h.done
+		// Ended by someone else just as the wait ended: whoever closed it put
+		// its value (an answer, or nil when replaced) on done before letting
+		// go of h.mu, so it is there now, unless select already took it.
+		select {
+		case out = <-h.done:
+		default:
+		}
 	}
 	h.closed = true
 	id := h.prompt
@@ -143,7 +151,22 @@ func (d *Daemon) answerHeld(id, promptID, key string) (handled bool, err error) 
 		return false, nil
 	}
 	h.mu.Lock()
-	defer h.mu.Unlock()
+	handled, err = d.answerLocked(h, id, promptID, key)
+	ended := h.closed
+	h.mu.Unlock()
+	if handled && ended && err == nil {
+		d.mu.Lock()
+		if d.holds[id] == h {
+			delete(d.holds, id)
+		}
+		d.mu.Unlock()
+		log.Printf("answered %s prompt %s with option %s through its hook", id, promptID, key)
+	}
+	return handled, err
+}
+
+// answerLocked does answerHeld's work under h.mu, and never takes d.mu.
+func (d *Daemon) answerLocked(h *hold, id, promptID, key string) (handled bool, err error) {
 	if h.closed {
 		return false, nil
 	}
@@ -208,12 +231,6 @@ func (d *Daemon) answerHeld(id, promptID, key string) (handled bool, err error) 
 	if out != nil {
 		h.closed = true
 		h.done <- out
-		d.mu.Lock()
-		if d.holds[id] == h {
-			delete(d.holds, id)
-		}
-		d.mu.Unlock()
-		log.Printf("answered %s prompt %s with option %s through its hook", id, promptID, key)
 	}
 	return true, nil
 }

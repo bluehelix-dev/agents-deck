@@ -304,3 +304,77 @@ func TestHeldHookGoneEndsTheHold(t *testing.T) {
 		t.Fatalf("late answer: %v", err)
 	}
 }
+
+// A newer prompt replaces a held one: the old hook returns empty at once, so
+// Claude Code asks in its terminal, and the deck's answer goes to the new one.
+func TestHeldPromptReplacedByANewerOne(t *testing.T) {
+	d := holdDaemon(t, 30)
+	first := hookAsync(d, `{"hook_event_name":"PermissionRequest","session_id":"`+holdSID+`","tool_name":"Bash","tool_input":{"command":"npm test"}}`)
+	p1 := awaitPrompt(t, d)
+	second := hookAsync(d, `{"hook_event_name":"PermissionRequest","session_id":"`+holdSID+`","tool_name":"Bash","tool_input":{"command":"go vet ./..."}}`)
+	select {
+	case out := <-first:
+		if out != nil {
+			t.Fatalf("the replaced hook got %q", out)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("the replaced hook never returned")
+	}
+	var p2 model.Prompt
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if p2 = awaitPrompt(t, d); p2.ID != p1.ID {
+			break
+		}
+	}
+	if p2.ID == p1.ID {
+		t.Fatal("no new prompt")
+	}
+	if err := d.Answer("l1", p2.ID, "1"); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if hso := hookOutput(t, second); hso["decision"].(map[string]any)["behavior"] != "allow" {
+		t.Fatalf("second hook: %v", hso)
+	}
+}
+
+// Taps on a held prompt racing a newer prompt that replaces it never lock up
+// the daemon.
+func TestHeldAnswerRacingReplacement(t *testing.T) {
+	ev := func(cmd string) string {
+		return `{"hook_event_name":"PermissionRequest","session_id":"` + holdSID + `","tool_name":"Bash","tool_input":{"command":"` + cmd + `"}}`
+	}
+	for i := range 50 {
+		d := holdDaemon(t, 30)
+		first := hookAsync(d, ev("npm test"))
+		p := awaitPrompt(t, d)
+		done := make(chan struct{})
+		go func() { _ = d.Answer("l1", p.ID, "1"); close(done) }()
+		second := hookAsync(d, ev("go vet"))
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Fatalf("round %d: the answer locked up", i)
+		}
+		select {
+		case <-first:
+		case <-time.After(3 * time.Second):
+			t.Fatalf("round %d: the first hook never returned", i)
+		}
+		// End the second hold: answer what it shows until its hook returns
+		// (the hold may not be registered yet on the first try).
+		deadline := time.After(3 * time.Second)
+	wait:
+		for {
+			select {
+			case <-second:
+				break wait
+			case <-deadline:
+				t.Fatalf("round %d: the second hook never returned", i)
+			case <-time.After(20 * time.Millisecond):
+				if e, _ := d.Store.Get("l1"); e.A.Waiting != nil {
+					_ = d.Answer("l1", e.A.Waiting.ID, "1")
+				}
+			}
+		}
+	}
+}
