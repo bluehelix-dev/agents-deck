@@ -80,7 +80,13 @@ const codexThread = (a) => a.external && a.tool === 'codex' && !a.app;
 const watched = (a) => a.external && a.tool === 'claude' && !a.app;
 // A watched session's prompt can be answered here only while the daemon holds
 // its hook for the deck (the prompt carries "until"; on Windows, say).
-const answerable = (a, w) => !watched(a) || !!w?.until;
+// Seconds the deck can still answer a watched session's prompt: until its
+// hook stops waiting, on the daemon's clock. 0 when the hook isn't waiting.
+const secondsLeft = (w) => {
+  const ms = w?.until ? Date.parse(w.until) - now() : 0;
+  return ms > 0 ? Math.ceil(ms / 1000) : 0;
+};
+const answerable = (a, w) => !watched(a) || secondsLeft(w) > 0;
 const inApp = (a) => !!a.app; // runs in another app (Orca, herdr): answer, interrupt and focus work there
 // Whether the daemon can bring a terminal to the front here (not on Windows):
 // without it the focus controls stay away instead of failing.
@@ -1409,13 +1415,41 @@ function buildPrompt(a) {
   let selected = (w.options.find((o) => o.primary) || w.options[0])?.key;
   const isQ = w.kind === 'question';
 
-  const setBusy = (busy, sentKey) => {
-    for (const o of opts) { o.el.disabled = busy; o.el.classList.toggle('sent', o.key === sentKey); }
-    if (sendBtn) sendBtn.disabled = busy;
+  // The prompt as the daemon last sent it: its `until` goes when the hook
+  // stops waiting, without the prompt changing.
+  let live = w;
+  let wasHeld = false; // the hook waited for the deck at some point
+  let holdTotal = 0;   // the most seconds left seen: the bar's full width
+  let busy = false;
+  const where = h('span', { class: 'where' });
+  const holdBar = h('div', { class: 'hold', hidden: '' }, h('i'));
+
+  // Where to answer, with the seconds left while the hook waits; options that
+  // can't be answered from here are switched off, not left to refuse a click.
+  const refresh = () => {
+    const left = secondsLeft(live);
+    const can = !watched(a) || left > 0;
+    if (left > 0) { wasHeld = true; holdTotal = Math.max(holdTotal, left); }
+    setText(where, !watched(a) ? 'answer here or at the terminal'
+      : left > 0 ? `answer here · ${left}s, then the terminal asks`
+        : wasHeld ? 'too late here: the terminal asks now' : 'answer it in its own terminal');
+    where.hidden = isQ && !watched(a);
+    holdBar.hidden = left <= 0;
+    holdBar.firstChild.style.width = holdTotal ? `${Math.max(0, (left - 1) / holdTotal) * 100}%` : '0';
+    panel.classList.toggle('p-off', !can);
+    if (!busy) for (const o of opts) o.el.disabled = !can;
+    if (sendBtn) sendBtn.hidden = !can;
+  };
+
+  const setBusy = (on, sentKey) => {
+    busy = on;
+    for (const o of opts) { o.el.disabled = on; o.el.classList.toggle('sent', o.key === sentKey); }
+    if (sendBtn) sendBtn.disabled = on;
+    if (!on) refresh();
   };
 
   const answer = async (key) => {
-    if (!answerable(a, w)) { note.className = 'note'; note.textContent = 'answer it in its own terminal'; return; }
+    if (!answerable(a, live)) { refresh(); return; }
     const cur = sending.get(w.id);
     if (cur) return;
     sending.set(w.id, { key, status: 'sending' });
@@ -1463,7 +1497,7 @@ function buildPrompt(a) {
     if (w.context) kids.push(h('span', { class: 'lbl', text: w.context })); // e.g. "size · question 2 of 3"
     kids.push(h('h3', { class: 'p-title', id: 'p-title', text: w.title }));
     if (w.detail) kids.push(h('span', { class: 'val p-detail', text: w.detail }));
-    kids.push(h('div', { class: 'sec grow' }, optList), h('div', { class: 'actions' }, answerable(a, w) ? sendBtn : h('span', { class: 'lbl', text: 'answer it in its own terminal' }), focusBtn('narrow', 'type in terminal')), note);
+    kids.push(h('div', { class: 'sec grow' }, optList), where, holdBar, h('div', { class: 'actions' }, sendBtn, focusBtn('narrow', 'type in terminal')), note);
   } else {
     panel.className = 'detail p-accent';
     kids.push(h('div', { class: 'sec' },
@@ -1476,8 +1510,8 @@ function buildPrompt(a) {
     } else {
       const fb = h('button', { type: 'button', class: 'linkbtn', text: 'focus terminal' });
       fb.addEventListener('click', async () => { const r = await postAction(a, 'focus'); note.className = r.ok ? 'note' : 'note bad'; note.textContent = r.ok ? 'focus terminal · sent' : `focus failed · ${r.error}`; });
-      kids.push(h('div', { class: 'sec grow' }, optList),
-        h('div', { class: 'foot-row' }, h('span', { text: 'answer here or at the terminal' }), fb), note);
+      kids.push(h('div', { class: 'sec grow' }, optList), holdBar,
+        h('div', { class: 'foot-row' }, where, fb), note);
     }
   }
   panel.replaceChildren(...kids);
@@ -1489,7 +1523,9 @@ function buildPrompt(a) {
     if (!opts.some((o) => o.key === key)) return;
     answer(key);
   };
-  return (x) => hd.update(x);
+  refresh();
+  det.tick = refresh;
+  return (x) => { if (x.waiting?.id === w.id) live = x.waiting; refresh(); hd.update(x); };
 }
 
 function renderDetail() {
@@ -1669,6 +1705,7 @@ async function start() {
   setSprite($('empty-art'), 'idle');
   tickClock();
   setInterval(tickClock, 1000);
+  setInterval(() => det?.tick?.(), 1000); // the seconds left on a held prompt
   setInterval(() => state && render(), 15000); // refresh relative times
   // End "just finished" hops on time (cheap: only re-renders when one is due).
   setInterval(() => {
@@ -1735,6 +1772,8 @@ async function startFixture() {
         .map(([id, label, tool, ago]) => ({ id, title: `${label} · Find`, type: 'workflow', tool, startedAt: iso(Date.now() - ago * 1000) }));
     }
   }
+  // ?held=30: every waiting Claude agent is a watched session whose hook waits that long.
+  if (params.has('held')) for (const a of data.agents) if (a.waiting && a.tool === 'claude') { a.external = true; a.app = ''; a.waiting.until = iso(Date.now() + (Number(params.get('held')) || 45) * 1000); }
   if (params.has('lost')) for (const a of data.agents.slice(-2)) Object.assign(a, { status: 'exited', lost: true, resumable: true, activity: null, waiting: null });
   fx = data;
   fxEmit();

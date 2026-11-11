@@ -23,7 +23,7 @@ import (
 
 // DefaultAnswerWait is how long a hook waits for the deck when the config
 // doesn't say.
-const DefaultAnswerWait = 20 * time.Second
+const DefaultAnswerWait = 45 * time.Second
 
 // maxAnswerWait stays under the hook's own timeout (claude.HookTimeout), so
 // Claude Code never kills the hook while it waits.

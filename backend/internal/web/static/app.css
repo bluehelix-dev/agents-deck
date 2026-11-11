@@ -22,7 +22,7 @@
   --bg: #0A0A0A;
   --panel: #141412;
   --ink: #E8E4DC;
-  --dim: #7A776F;
+  --dim: #85827A;
   --accent: #FF4D00;
   --line: #262622;
   --line-2: #2A2925;
@@ -522,6 +522,18 @@ body:not(.tool-square) .chip:not(.acct) { display: none; }
 .btn:disabled:active, .opt:disabled:active { background: transparent; color: var(--d-fg); }
 
 .note { min-height: 1.3em; font-size: 13px; color: var(--d-dim); }
+/* A watched session's prompt while its hook waits for the deck: a bar that
+   drains with the seconds left. When it can't be answered here (.p-off), the
+   options are a faded list to read: outlines only, nothing filled. */
+.hold { height: 4px; }
+.hold i { display: block; height: 4px; border-radius: 2px; background: var(--d-fg); transition: width 1s linear; }
+.p-question .hold i { background: var(--accent); }
+.p-question .where { font-size: 14px; }
+.detail.p-off .opt, .detail.p-off .opt.primary, .detail.p-off .opt[aria-checked="true"] {
+  background: transparent; color: var(--d-fg); border-color: color-mix(in srgb, var(--d-fg) 30%, transparent); opacity: 0.55; cursor: default;
+}
+.detail.p-off .opt:active { background: transparent; color: var(--d-fg); }
+@media (prefers-reduced-motion: reduce) { .hold i { transition: none; } }
 .note.bad { color: var(--accent); }
 .p-accent .note.bad { color: var(--bg); text-decoration: underline; }
 

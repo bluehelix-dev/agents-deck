@@ -72,10 +72,11 @@ them with `agentctl add` or a tap on a free tile), the `"hats"` map is where pic
   at all. The daemon reports `"focus": false` in its state and the cards leave the focus buttons out.
 - **Answering from the deck** works another way here: Claude Code lets a hook decide a permission
   request and answer a question, so when a session asks, the deck's hook waits for your answer on
-  the phone, a board or the browser dashboard, for 20 seconds (`"answerWaitSeconds"` in
+  the phone, a board or the browser dashboard, for 45 seconds (`"answerWaitSeconds"` in
   `config.json`, at most 110), and only while one of them is connected. Tap an answer and Claude goes
   on at once; a question with several parts is walked step by step like in the terminal. The
-  terminal shows the dialog once the wait is over, and the deck then says to answer it there. Free
+  card counts the seconds down. The terminal shows the dialog once the wait is over, and the deck
+  then says the terminal asks now. Free
   text ("type something") stays at the terminal. This needs the hooks from `agentctl hooks install`
   from this version or later (run it again after updating: the hooks' timeout grew).
 - **Boards on USB**: `agentctl link ports` lists the board's COM port (with its USB vendor and

@@ -283,22 +283,60 @@ void main() {
       (a) => a['id'] == 'h0m3l4',
     );
     infra['external'] = true;
-    (infra['waiting'] as Map<String, dynamic>)['until'] = DateTime.now()
+    // 20 seconds from the daemon's clock, which the state carries.
+    final serverTime = DateTime.parse((j['server'] as Map)['time'] as String);
+    (infra['waiting'] as Map<String, dynamic>)['until'] = serverTime
         .add(const Duration(seconds: 20))
-        .toUtc()
         .toIso8601String();
     final source = FakeAgentsSource.fromState(j);
     await _pumpApp(tester, source);
     await _open(tester, 'infra-network');
+    // The card counts the seconds down and a bar drains with them.
     expect(
-      find.text('answer here now, or at the terminal in a moment'),
+      find.textContaining(
+        RegExp(r'^answer here · (20|19)s, then the terminal asks$'),
+      ),
       findsOneWidget,
     );
+    expect(find.byKey(const Key('agent-hold-bar')), findsOneWidget);
     await tester.tap(find.byKey(const Key('agent-option-1')));
     await tester.pump();
     expect(source.calls.where((c) => c.$1 == 'answer'), hasLength(1));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'a held prompt whose wait runs out says so and stops taking taps',
+    (tester) async {
+      final j =
+          jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+              as Map<String, dynamic>;
+      final infra = (j['agents'] as List)
+          .cast<Map<String, dynamic>>()
+          .firstWhere((a) => a['id'] == 'h0m3l4');
+      infra['external'] = true;
+      final serverTime = DateTime.parse((j['server'] as Map)['time'] as String);
+      (infra['waiting'] as Map<String, dynamic>)['until'] = serverTime
+          .add(const Duration(seconds: 3))
+          .toIso8601String();
+      final source = FakeAgentsSource.fromState(j);
+      await _pumpApp(tester, source);
+      await _open(tester, 'infra-network');
+      expect(find.textContaining('answer here · '), findsOneWidget);
+      // The wait runs out with the card open: no new state has to arrive for
+      // the card to turn.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 3200)),
+      );
+      await tester.pump(const Duration(seconds: 4));
+      expect(find.text('too late here: the terminal asks now'), findsOneWidget);
+      expect(find.byKey(const Key('agent-hold-bar')), findsNothing);
+      await tester.tap(find.byKey(const Key('agent-option-1')));
+      await tester.pump();
+      expect(source.calls.where((c) => c.$1 == 'answer'), isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('a watched question shows its choices without send', (
     tester,

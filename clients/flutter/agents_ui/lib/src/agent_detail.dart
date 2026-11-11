@@ -180,6 +180,17 @@ class _AgentDetailState extends State<AgentDetail> {
   Timer? _timer;
   bool _goneScheduled = false;
 
+  /// Ticks once a second while the shown prompt's hook waits for the deck,
+  /// so the seconds left count down and the card turns when they run out.
+  Timer? _clock;
+
+  /// The shown prompt was held for the deck at some point. When it no longer
+  /// is, the wait ran out and the terminal asks.
+  bool _wasHeld = false;
+
+  /// The most seconds left seen for the shown prompt: the bar's full width.
+  int _holdTotal = 0;
+
   /// What the last build showed (frozen while closing).
   (AgentsState, Agent, AgentPrompt?)? _shown;
 
@@ -201,6 +212,7 @@ class _AgentDetailState extends State<AgentDetail> {
   void dispose() {
     _optionsScroll.dispose();
     _timer?.cancel();
+    _clock?.cancel();
     _confirmTimer?.cancel();
     widget.onVisible?.call(false);
     super.dispose();
@@ -209,6 +221,8 @@ class _AgentDetailState extends State<AgentDetail> {
   void _syncPrompt(AgentPrompt? p) {
     if (p?.id == _promptId) return;
     _promptId = p?.id;
+    _wasHeld = false;
+    _holdTotal = 0;
     _selected = p == null
         ? null
         : (p.options.where((o) => o.primary).firstOrNull ??
@@ -290,15 +304,73 @@ class _AgentDetailState extends State<AgentDetail> {
   /// Whether the answer buttons work for this prompt: always for the deck's
   /// own agents and agents in an app; for a watched session only while the
   /// daemon holds its hook (`until` set), on Windows for instance.
-  static bool _canAnswer(Agent a, AgentPrompt p) =>
-      !_watched(a) || p.heldForDeck;
+  static bool _canAnswer(AgentsState s, Agent a, AgentPrompt p) =>
+      !_watched(a) || _secondsLeft(s, p) > 0;
+
+  /// Seconds the deck can still answer a watched session's prompt: the time
+  /// left until its hook stops waiting, on the daemon's clock. 0 when the
+  /// hook isn't waiting (any more).
+  static int _secondsLeft(AgentsState s, AgentPrompt p) {
+    final until = p.until;
+    if (until == null) return 0;
+    final ms = until.difference(s.serverNow()).inMilliseconds;
+    return ms <= 0 ? 0 : (ms / 1000).ceil();
+  }
 
   /// The footer's hint on where to answer.
-  static String _whereToAnswer(Agent a, AgentPrompt p) => !_watched(a)
-      ? 'answer here or at the terminal'
-      : p.heldForDeck
-      ? 'answer here now, or at the terminal in a moment'
-      : 'answer it in its own terminal';
+  String _whereToAnswer(AgentsState s, Agent a, AgentPrompt p) {
+    if (!_watched(a)) return 'answer here or at the terminal';
+    final left = _secondsLeft(s, p);
+    if (left > 0) return 'answer here · ${left}s, then the terminal asks';
+    return _wasHeld
+        ? 'too late here: the terminal asks now'
+        : 'answer it in its own terminal';
+  }
+
+  /// Keeps the countdown running for a prompt whose hook waits for the deck.
+  void _syncClock(AgentsState s, AgentPrompt? p) {
+    final left = p == null ? 0 : _secondsLeft(s, p);
+    if (left > 0) {
+      _wasHeld = true;
+      if (left > _holdTotal) _holdTotal = left;
+      _clock ??= Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      _clock?.cancel();
+      _clock = null;
+    }
+  }
+
+  /// The gap above a prompt card's footer. While the hook waits for the
+  /// deck, a bar in it drains with the time left.
+  Widget _holdBar(
+    AgentsState s,
+    AgentPrompt p, {
+    required double height,
+    required Color color,
+  }) {
+    final left = _secondsLeft(s, p);
+    if (left <= 0 || _holdTotal <= 0) return SizedBox(height: height);
+    return SizedBox(
+      height: height,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: AnimatedFractionallySizedBox(
+          key: const Key('agent-hold-bar'),
+          duration: const Duration(seconds: 1),
+          widthFactor: ((left - 1) / _holdTotal).clamp(0.0, 1.0),
+          child: Container(
+            height: 4,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   void _answer(Agent a, AgentPrompt p, String key) =>
       _run(key, () => widget.source.answer(a.id, p.id, key), closeOnOk: true);
@@ -446,6 +518,7 @@ class _AgentDetailState extends State<AgentDetail> {
             : (a.status == AgentStatus.waiting ? a.waiting : null);
         if (frozen == null) {
           _syncPrompt(p);
+          _syncClock(state, p);
           _shown = (state, a, p);
         }
         return switch (p?.kind) {
@@ -1281,12 +1354,12 @@ class _AgentDetailState extends State<AgentDetail> {
           const SizedBox(height: 22),
           Expanded(
             child: _options(
-              [for (final o in p.options) _permissionButton(a, p, o)],
+              [for (final o in p.options) _permissionButton(state, a, p, o)],
               bottom: true,
               thumb: DeckHud.bg,
             ),
           ),
-          const SizedBox(height: 22),
+          _holdBar(state, p, height: 22, color: DeckHud.bg),
           Row(
             children: [
               ..._back(
@@ -1297,7 +1370,7 @@ class _AgentDetailState extends State<AgentDetail> {
               ),
               Expanded(
                 child: Text(
-                  _note ?? _whereToAnswer(a, p),
+                  _note ?? _whereToAnswer(state, a, p),
                   key: _note == null ? null : const Key('agent-note'),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -1312,19 +1385,35 @@ class _AgentDetailState extends State<AgentDetail> {
     );
   }
 
-  Widget _permissionButton(Agent a, AgentPrompt p, AgentOption o) {
+  Widget _permissionButton(
+    AgentsState state,
+    Agent a,
+    AgentPrompt p,
+    AgentOption o,
+  ) {
     final flash = _flashColors(o.key, onAccent: true);
     final sent = _flashKey == o.key && _flash == _Flash.sent;
-    final fill =
-        flash?.$1 ?? (o.primary ? DeckHud.bg : const Color(0x00000000));
-    final ink = flash?.$2 ?? (o.primary ? DeckHud.accent : DeckHud.bg);
+    // Not answerable from here (a watched session whose hook isn't waiting):
+    // every option is an outline with faded text, none of them filled, so
+    // nothing on the card looks like it could be tapped.
+    final off = !_canAnswer(state, a, p) && !_closing;
+    final primary = o.primary && !off;
+    final fill = flash?.$1 ?? (primary ? DeckHud.bg : const Color(0x00000000));
+    final ink =
+        flash?.$2 ??
+        (primary
+            ? DeckHud.accent
+            : off
+            ? DeckHud.bg.withValues(alpha: 0.55)
+            : DeckHud.bg);
     final button = AgentButton(
       key: Key('agent-option-${o.key}'),
       label: '${o.key}  ${sent ? 'sent' : o.label}',
-      onTap: _busy || !_canAnswer(a, p) ? null : () => _answer(a, p, o.key),
+      onTap: _busy || off ? null : () => _answer(a, p, o.key),
       fill: fill,
       ink: ink,
-      outline: flash?.$1 ?? DeckHud.bg,
+      outline:
+          flash?.$1 ?? (off ? DeckHud.bg.withValues(alpha: 0.3) : DeckHud.bg),
       pressedFill: o.primary ? DeckHud.ink : DeckHud.bg,
       pressedInk: o.primary ? DeckHud.bg : DeckHud.accent,
       height: 64,
@@ -1420,7 +1509,10 @@ class _AgentDetailState extends State<AgentDetail> {
           ],
           const SizedBox(height: 20),
           Expanded(
-            child: _options([for (final o in p.options) _questionRow(o)]),
+            child: _options([
+              for (final o in p.options)
+                _questionRow(o, off: !_canAnswer(state, a, p) && !_closing),
+            ]),
           ),
           if (_note != null) ...[
             const SizedBox(height: 10),
@@ -1431,8 +1523,17 @@ class _AgentDetailState extends State<AgentDetail> {
               overflow: TextOverflow.ellipsis,
               style: DeckHud.mono(size: 15, color: DeckHud.accent),
             ),
+          ] else if (_secondsLeft(state, p) > 0) ...[
+            // The same hint as on a permission card, with the seconds left.
+            const SizedBox(height: 10),
+            Text(
+              _whereToAnswer(state, a, p),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: DeckHud.mono(size: 15, color: DeckHud.ink),
+            ),
           ],
-          const SizedBox(height: 20),
+          _holdBar(state, p, height: 20, color: DeckHud.accent),
           Row(
             children: [
               ..._back(
@@ -1441,10 +1542,10 @@ class _AgentDetailState extends State<AgentDetail> {
                 pressedFill: DeckHud.ink,
                 pressedInk: DeckHud.bg,
               ),
-              if (!_canAnswer(a, p))
+              if (!_canAnswer(state, a, p))
                 Expanded(
                   child: Text(
-                    'answer it in its own terminal',
+                    _whereToAnswer(state, a, p),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: DeckHud.mono(size: 15, color: DeckHud.dim),
@@ -1492,12 +1593,25 @@ class _AgentDetailState extends State<AgentDetail> {
     );
   }
 
-  Widget _questionRow(AgentOption o) {
-    final on = o.key == _selected;
+  /// [off]: the question can't be answered from here, so its rows are a
+  /// faded list to read, with nothing selected and nothing to press.
+  Widget _questionRow(AgentOption o, {bool off = false}) {
+    final on = o.key == _selected && !off;
     final (title, sub) = o.titleAndSub;
+    final row = _questionRowBody(o, on: on, off: off, title: title, sub: sub);
+    return off ? Opacity(opacity: 0.5, child: row) : row;
+  }
+
+  Widget _questionRowBody(
+    AgentOption o, {
+    required bool on,
+    required bool off,
+    required String title,
+    required String sub,
+  }) {
     return Pressable(
       key: Key('agent-option-${o.key}'),
-      onTap: _busy
+      onTap: _busy || off
           ? null
           : () => setState(() {
               _selected = o.key;

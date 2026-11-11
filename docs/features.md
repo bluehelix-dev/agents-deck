@@ -67,7 +67,7 @@ Claude Code sessions running in any terminal, or in the Claude desktop app, are 
   from their next start every session on the machine tells the deck what it runs and what it waits
   for, including permission prompts with the command. While a phone, a board or the browser
   dashboard is connected, the session waits for your answer from the deck on a permission prompt
-  and on a question (up to `answerWaitSeconds` in `config.json`: 20 seconds by default, at most
+  and on a question (up to `answerWaitSeconds` in `config.json`: 45 seconds by default, at most
   110), and you can answer it there. If nobody answers in that time, or no deck is connected, the
   terminal asks as it always did. `agentctl hooks remove` takes the hook out again, `agentctl hooks
   status` shows it. After updating `agentctl`, run `agentctl hooks install` once more: the hooks
