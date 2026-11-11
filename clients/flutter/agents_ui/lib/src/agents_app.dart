@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -504,10 +505,50 @@ class _AgentTileState extends State<AgentTile> {
   static const _tileDesign = 170.0;
   final _tileKey = GlobalKey();
 
+  /// Ticks while the agent's prompt can be answered from the deck for a
+  /// limited time, so the ring runs down with it.
+  Timer? _holdClock;
+  DateTime? _holdUntil;
+  int _holdTotal = 0;
+
+  @override
+  void dispose() {
+    _holdClock?.cancel();
+    super.dispose();
+  }
+
+  /// How much of the time to answer from the deck is left, 1 down to 0, for a
+  /// watched session whose hook waits; null for every other tile. Seen from
+  /// across the desk, the ring then says how long the agent still waits here.
+  double? _holdFraction(Agent a) {
+    final p = a.status == AgentStatus.waiting ? a.waiting : null;
+    final until = p?.until;
+    var left = 0;
+    if (until != null && a.external && a.tool == 'claude' && !a.inApp) {
+      final ms = until.difference(widget.state.serverNow()).inMilliseconds;
+      left = ms <= 0 ? 0 : (ms / 1000).ceil();
+    }
+    if (left <= 0) {
+      _holdClock?.cancel();
+      _holdClock = null;
+      return null;
+    }
+    if (until != _holdUntil) {
+      _holdUntil = until;
+      _holdTotal = 0;
+    }
+    if (left > _holdTotal) _holdTotal = left;
+    _holdClock ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+    return left / _holdTotal;
+  }
+
   @override
   Widget build(BuildContext context) {
     final a = widget.agent;
     final look = AgentLook.of(a);
+    final hold = _holdFraction(a);
     return Pressable(
       key: _tileKey,
       onTap: () => widget.onOpen(context, _tileKey, a),
@@ -534,7 +575,7 @@ class _AgentTileState extends State<AgentTile> {
               foregroundPainter: pressed
                   ? null
                   : ContextRingPainter(
-                      fraction: a.contextFraction,
+                      fraction: hold ?? a.contextFraction,
                       color: look.ring,
                       track: look.ringTrack,
                     ),
@@ -688,15 +729,15 @@ class _AgentTileState extends State<AgentTile> {
 
   static Widget _line(String text, TextStyle style, {double pad = 10}) =>
       Padding(
-    padding: EdgeInsets.symmetric(horizontal: pad),
-    child: Text(
-      text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      textAlign: TextAlign.center,
-      style: style,
-    ),
-  );
+        padding: EdgeInsets.symmetric(horizontal: pad),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: style,
+        ),
+      );
 }
 
 /// What follows the finger while a tile is dragged.

@@ -75,7 +75,9 @@ them with `agentctl add` or a tap on a free tile), the `"hats"` map is where pic
   the phone, a board or the browser dashboard, for 45 seconds (`"answerWaitSeconds"` in
   `config.json`, at most 110), and only while one of them is connected. Tap an answer and Claude goes
   on at once; a question with several parts is walked step by step like in the terminal. The
-  card counts the seconds down. The terminal shows the dialog once the wait is over, and the deck
+  card counts the seconds down, and the tile's ring runs down with them. A tapped answer to a
+  question goes out by itself after a moment (tap it again to stop it), and after an answer the card
+  moves on to the next agent that waits; in the dashboard `n` jumps there. The terminal shows the dialog once the wait is over, and the deck
   then says the terminal asks now. Free
   text ("type something") stays at the terminal. This needs the hooks from `agentctl hooks install`
   from this version or later (run it again after updating: the hooks' timeout grew).

@@ -148,6 +148,18 @@ class AgentDetail extends StatefulWidget {
 class _AgentDetailState extends State<AgentDetail> {
   final _optionsScroll = ScrollController();
 
+  /// The agent the card shows: the one it opened on, then, after an answer,
+  /// the next one that waits for you ([_nextWaiting]).
+  late String _agentId = widget.agentId;
+
+  /// A tapped answer of a held question goes out by itself after a moment
+  /// ([_pick]); armed until then.
+  Timer? _autoSend;
+  bool _armed = false;
+
+  /// The `until` the hold bar's full width belongs to.
+  DateTime? _holdUntil;
+
   /// Prompt the per-prompt UI state (selection, notes) belongs to.
   String? _promptId;
   String? _selected;
@@ -198,7 +210,7 @@ class _AgentDetailState extends State<AgentDetail> {
   void initState() {
     super.initState();
     widget.onVisible?.call(true);
-    final a = widget.source.snapshot.value.state?.byId(widget.agentId);
+    final a = widget.source.snapshot.value.state?.byId(_agentId);
     if (a?.account != null) {
       unawaited(
         widget.source.accounts().then((list) {
@@ -213,6 +225,7 @@ class _AgentDetailState extends State<AgentDetail> {
     _optionsScroll.dispose();
     _timer?.cancel();
     _clock?.cancel();
+    _autoSend?.cancel();
     _confirmTimer?.cancel();
     widget.onVisible?.call(false);
     super.dispose();
@@ -222,7 +235,8 @@ class _AgentDetailState extends State<AgentDetail> {
     if (p?.id == _promptId) return;
     _promptId = p?.id;
     _wasHeld = false;
-    _holdTotal = 0;
+    _autoSend?.cancel();
+    _armed = false;
     _selected = p == null
         ? null
         : (p.options.where((o) => o.primary).firstOrNull ??
@@ -269,7 +283,25 @@ class _AgentDetailState extends State<AgentDetail> {
           () {
             if (!mounted) return;
             if (closeOnOk) {
-              widget.onClose();
+              final next = _nextWaiting();
+              if (next == null) {
+                widget.onClose();
+                return;
+              }
+              // Someone else waits for you: the card moves on to them. A
+              // moment without taps, so a second tap meant for the answered
+              // prompt doesn't answer this one.
+              setState(() {
+                _agentId = next;
+                _closing = false;
+                _flash = null;
+                _flashKey = null;
+                _shown = null;
+                _busy = true;
+              });
+              _timer = Timer(const Duration(milliseconds: 400), () {
+                if (mounted) setState(() => _busy = false);
+              });
             } else {
               setState(() => _flash = null);
             }
@@ -327,11 +359,67 @@ class _AgentDetailState extends State<AgentDetail> {
         : 'answer it in its own terminal';
   }
 
+  /// The next agent that waits for an answer the deck can give, after the
+  /// one shown: those whose hook is waiting first, the soonest to run out
+  /// before the others, then whoever has waited longest.
+  String? _nextWaiting() {
+    final s = widget.source.snapshot.value.state;
+    if (s == null) return null;
+    final waiting = [
+      for (final a in s.agents)
+        if (a.id != _agentId &&
+            a.needsYou &&
+            a.waiting != null &&
+            a.waiting!.options.isNotEmpty &&
+            _canAnswer(s, a, a.waiting!))
+          a,
+    ];
+    if (waiting.isEmpty) return null;
+    waiting.sort((x, y) {
+      final lx = _secondsLeft(s, x.waiting!), ly = _secondsLeft(s, y.waiting!);
+      if ((lx > 0) != (ly > 0)) return lx > 0 ? -1 : 1;
+      if (lx != ly) return lx.compareTo(ly);
+      final sx = x.statusSince, sy = y.statusSince;
+      return sx == null || sy == null ? 0 : sx.compareTo(sy);
+    });
+    return waiting.first.id;
+  }
+
+  /// A tap on an answer of a question whose hook waits for the deck: the
+  /// answer goes out by itself a moment later, so a form fits in the wait.
+  /// Until then another row changes it, and the same row again stops it.
+  void _pick(Agent a, AgentPrompt p, String key) {
+    _autoSend?.cancel();
+    if (_armed && _selected == key) {
+      setState(() => _armed = false);
+      return;
+    }
+    setState(() {
+      _selected = key;
+      _armed = true;
+      _note = null;
+    });
+    _autoSend = Timer(const Duration(milliseconds: 1500), () {
+      if (!mounted || !_armed || _promptId != p.id || _busy) return;
+      _armed = false;
+      _run(
+        'send',
+        () => widget.source.answer(a.id, p.id, key),
+        closeOnOk: true,
+      );
+    });
+  }
+
   /// Keeps the countdown running for a prompt whose hook waits for the deck.
   void _syncClock(AgentsState s, AgentPrompt? p) {
     final left = p == null ? 0 : _secondsLeft(s, p);
     if (left > 0) {
       _wasHeld = true;
+      // A form's next step keeps its hook's deadline, and the bar its width.
+      if (p!.until != _holdUntil) {
+        _holdUntil = p.until;
+        _holdTotal = 0;
+      }
       if (left > _holdTotal) _holdTotal = left;
       _clock ??= Timer.periodic(const Duration(seconds: 1), (_) {
         if (mounted) setState(() {});
@@ -487,9 +575,7 @@ class _AgentDetailState extends State<AgentDetail> {
   /// form (several questions, or ticking the answers of a pick-any one) comes
   /// one step at a time, each step a new prompt.
   String? _liveQuestion([AgentsSnapshot? snap]) {
-    final a = (snap ?? widget.source.snapshot.value).state?.byId(
-      widget.agentId,
-    );
+    final a = (snap ?? widget.source.snapshot.value).state?.byId(_agentId);
     final p = a?.status == AgentStatus.waiting ? a?.waiting : null;
     return p?.kind == PromptKind.question ? p!.id : null;
   }
@@ -510,7 +596,7 @@ class _AgentDetailState extends State<AgentDetail> {
         // answered — the live state has usually moved on already.
         final frozen = _closing ? _shown : null;
         final state = frozen?.$1 ?? snap.state;
-        final a = frozen?.$2 ?? state?.byId(widget.agentId);
+        final a = frozen?.$2 ?? state?.byId(_agentId);
         if (state == null || a == null) return _gone();
         if (_hats) return _hatPicker(a);
         final p = frozen != null
@@ -1511,7 +1597,13 @@ class _AgentDetailState extends State<AgentDetail> {
           Expanded(
             child: _options([
               for (final o in p.options)
-                _questionRow(o, off: !_canAnswer(state, a, p) && !_closing),
+                _questionRow(
+                  o,
+                  off: !_canAnswer(state, a, p) && !_closing,
+                  onPick: _watched(a) && _secondsLeft(state, p) > 0
+                      ? () => _pick(a, p, o.key)
+                      : null,
+                ),
             ]),
           ),
           if (_note != null) ...[
@@ -1557,6 +1649,8 @@ class _AgentDetailState extends State<AgentDetail> {
                     key: const Key('agent-send'),
                     label: sent
                         ? 'sent'
+                        : _armed && selected != null
+                        ? 'sending ${selected.key} · tap it again to stop'
                         : (selected == null ? 'send' : 'send ${selected.key}'),
                     onTap: _busy || selected == null
                         ? null
@@ -1595,10 +1689,19 @@ class _AgentDetailState extends State<AgentDetail> {
 
   /// [off]: the question can't be answered from here, so its rows are a
   /// faded list to read, with nothing selected and nothing to press.
-  Widget _questionRow(AgentOption o, {bool off = false}) {
+  /// [onPick]: a tap sends the answer after a moment ([_pick]) instead of
+  /// only selecting it.
+  Widget _questionRow(AgentOption o, {bool off = false, VoidCallback? onPick}) {
     final on = o.key == _selected && !off;
     final (title, sub) = o.titleAndSub;
-    final row = _questionRowBody(o, on: on, off: off, title: title, sub: sub);
+    final row = _questionRowBody(
+      o,
+      on: on,
+      off: off,
+      title: title,
+      sub: sub,
+      onPick: onPick,
+    );
     return off ? Opacity(opacity: 0.5, child: row) : row;
   }
 
@@ -1608,15 +1711,17 @@ class _AgentDetailState extends State<AgentDetail> {
     required bool off,
     required String title,
     required String sub,
+    VoidCallback? onPick,
   }) {
     return Pressable(
       key: Key('agent-option-${o.key}'),
       onTap: _busy || off
           ? null
-          : () => setState(() {
-              _selected = o.key;
-              _note = null;
-            }),
+          : onPick ??
+                () => setState(() {
+                  _selected = o.key;
+                  _note = null;
+                }),
       builder: (context, pressed) {
         final ink = on || pressed;
         final fg = ink ? DeckHud.bg : DeckHud.ink;

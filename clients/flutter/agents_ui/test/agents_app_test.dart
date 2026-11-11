@@ -338,6 +338,96 @@ void main() {
     },
   );
 
+  testWidgets(
+    'after an answer the card moves on to the next agent that waits',
+    (tester) async {
+      final source = FakeAgentsSource.demo();
+      await _pumpApp(tester, source);
+      await _open(tester, 'infra-network');
+      expect(find.text('run this command?'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('agent-option-1')));
+      await tester.pump();
+      // "sent" holds, then auth-flow's question takes the card's place.
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(
+        find.text('which session strategy should the login flow use?'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('agent-send')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('a held question sends a tapped answer by itself, and a second '
+      'tap on it stops that', (tester) async {
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final auth = (j['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['id'] == '4uthfl',
+    );
+    auth['external'] = true;
+    final serverTime = DateTime.parse((j['server'] as Map)['time'] as String);
+    (auth['waiting'] as Map<String, dynamic>)['until'] = serverTime
+        .add(const Duration(seconds: 40))
+        .toIso8601String();
+    final source = FakeAgentsSource.fromState(j);
+    await _pumpApp(tester, source);
+    await _open(tester, 'auth-flow');
+    // Tap, then tap the same row again: nothing goes out.
+    await tester.tap(find.byKey(const Key('agent-option-2')));
+    await tester.pump();
+    expect(find.textContaining('sending 2'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('agent-option-2')));
+    await tester.pump(const Duration(milliseconds: 1600));
+    expect(source.calls.where((c) => c.$1 == 'answer'), isEmpty);
+    // Tap and wait: the answer goes out without the send button.
+    await tester.tap(find.byKey(const Key('agent-option-3')));
+    await tester.pump(const Duration(milliseconds: 1600));
+    final sent = source.calls.where((c) => c.$1 == 'answer').toList();
+    expect(sent, hasLength(1));
+    expect(sent.single.toString(), contains('3'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the ring of a held prompt\'s tile shows the time left, not the '
+      'context', (tester) async {
+    final j =
+        jsonDecode(File('test/fixtures/agents_state.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final infra = (j['agents'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (a) => a['id'] == 'h0m3l4',
+    );
+    infra['external'] = true;
+    final serverTime = DateTime.parse((j['server'] as Map)['time'] as String);
+    (infra['waiting'] as Map<String, dynamic>)['until'] = serverTime
+        .add(const Duration(seconds: 40))
+        .toIso8601String();
+    final source = FakeAgentsSource.fromState(j);
+    await _pumpApp(tester, source);
+    double ring() => tester
+        .widgetList<CustomPaint>(
+          find.descendant(
+            of: find.byKey(const ValueKey('agent-tile-h0m3l4')),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .map((c) => c.foregroundPainter)
+        .whereType<ContextRingPainter>()
+        .single
+        .fraction;
+    expect(ring(), greaterThan(0.95));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 2200)),
+    );
+    await tester.pump(const Duration(seconds: 3));
+    expect(ring(), lessThan(0.97));
+    expect(ring(), greaterThan(0.8));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a watched question shows its choices without send', (
     tester,
   ) async {

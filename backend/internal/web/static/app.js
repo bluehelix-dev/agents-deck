@@ -797,7 +797,15 @@ function updateTile(t, a) {
   const cls = `tile st-${a.status} tool-${a.tool}` + (hungry(a) ? ' hungry' : '') + (wfOn ? ' workflow' : '') + (poseOf(a) === 'celebrate' ? ' celebrating' : '') + (a.focused ? ' focused' : '') + (a.id === selectedId ? ' selected' : '');
   if (t.cls !== cls) { t.el.className = cls; t.cls = cls; }
   setSprite(t.spr, poseOf(a), a.tool, a.hat);
-  const used = a.context?.window > 0 ? Math.min(100, (a.context.used / a.context.window) * 100) : 0;
+  let used = a.context?.window > 0 ? Math.min(100, (a.context.used / a.context.window) * 100) : 0;
+  // A watched session whose hook waits for the deck: the ring shows the time
+  // left to answer here instead, so it reads from across the desk.
+  const holdLeft = watched(a) && a.status === 'waiting' ? secondsLeft(a.waiting) : 0;
+  if (holdLeft > 0) {
+    if (t.holdUntil !== a.waiting.until) { t.holdUntil = a.waiting.until; t.holdTotal = 0; }
+    t.holdTotal = Math.max(t.holdTotal, holdLeft);
+    used = (holdLeft / t.holdTotal) * 100;
+  }
   const dash = `${used.toFixed(2)} 100`;
   if (t.dash !== dash) { t.ring.setAttribute('stroke-dasharray', dash); t.bar.style.width = `${used.toFixed(2)}%`; t.dash = dash; }
   const meta = a.workflow ? workflowLine(a.workflow) : tileMeta(a);
@@ -1061,6 +1069,20 @@ let det = null; // { key, id, refs, update(a) }
 const sending = new Map(); // promptId -> { key, status: 'sending'|'sent' }
 
 function detailKey(a) { return `${a.id}|${a.status}|${a.waiting?.id || ''}|${a.resumable ? 'r' : ''}|${a.account?.name || ''}|${accountsKey}`; }
+
+// The next agent that waits for you, after the one shown: those whose hook
+// waits for the deck first, the soonest to run out before the others, then
+// whoever has waited longest.
+function nextWaiting() {
+  const w = (state?.agents || []).filter((a) => a.id !== selectedId && a.status === 'waiting' && a.waiting);
+  const since = (a) => Date.parse(a.statusSince || '') || 0;
+  w.sort((x, y) => {
+    const lx = watched(x) ? secondsLeft(x.waiting) : 0, ly = watched(y) ? secondsLeft(y.waiting) : 0;
+    if ((lx > 0) !== (ly > 0)) return lx > 0 ? -1 : 1;
+    return lx - ly || since(x) - since(y);
+  });
+  return w[0]?.id || null;
+}
 
 function openDetail(id) {
   selectedId = id;
@@ -1421,6 +1443,7 @@ function buildPrompt(a) {
   let wasHeld = false; // the hook waited for the deck at some point
   let holdTotal = 0;   // the most seconds left seen: the bar's full width
   let busy = false;
+  let armed = null; // timer of a clicked answer about to go out by itself
   const where = h('span', { class: 'where' });
   const holdBar = h('div', { class: 'hold', hidden: '' }, h('i'));
 
@@ -1450,6 +1473,7 @@ function buildPrompt(a) {
 
   const answer = async (key) => {
     if (!answerable(a, live)) { refresh(); return; }
+    if (sendBtn) setText(sendBtn, `send ${key}`);
     const cur = sending.get(w.id);
     if (cur) return;
     sending.set(w.id, { key, status: 'sending' });
@@ -1479,9 +1503,20 @@ function buildPrompt(a) {
       o.selected ? h('span', { class: 'tick', text: '✓', 'aria-label': 'ticked' }) : null);
     el.addEventListener('click', () => {
       if (!isQ) return answer(o.key);
+      // While the hook waits for the deck, a click sends the answer by itself
+      // a moment later, so a form fits in the wait; another row changes it,
+      // the same row again stops it.
+      const quick = watched(a) && secondsLeft(live) > 0;
+      const stop = quick && armed && selected === o.key;
+      clearTimeout(armed); armed = null;
       selected = o.key;
       for (const x of opts) x.el.setAttribute('aria-checked', String(x.key === selected));
-      setText(sendBtn, `send ${selected}`);
+      if (quick && !stop) {
+        setText(sendBtn, `sending ${selected} · click it again to stop`);
+        armed = setTimeout(() => { armed = null; if (det?.tick === refresh) answer(selected); }, 1500);
+      } else {
+        setText(sendBtn, `send ${selected}`);
+      }
     });
     opts.push({ key: o.key, el });
     optList.append(el);
@@ -1493,7 +1528,7 @@ function buildPrompt(a) {
   if (isQ) {
     panel.className = 'detail p-question';
     sendBtn = h('button', { type: 'button', class: 'btn acc', text: `send ${selected}` });
-    sendBtn.addEventListener('click', () => selected && answer(selected));
+    sendBtn.addEventListener('click', () => { clearTimeout(armed); armed = null; if (selected) answer(selected); });
     if (w.context) kids.push(h('span', { class: 'lbl', text: w.context })); // e.g. "size · question 2 of 3"
     kids.push(h('h3', { class: 'p-title', id: 'p-title', text: w.title }));
     if (w.detail) kids.push(h('span', { class: 'val p-detail', text: w.detail }));
@@ -1588,6 +1623,11 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.metaKey || e.ctrlKey || e.altKey || expired) return;
   if (e.key === 'Escape' && selectedId) { e.preventDefault(); closeDetail(); return; }
+  if (e.key === 'n' && !(t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement)) {
+    const next = nextWaiting();
+    if (next) { e.preventDefault(); openDetail(next); }
+    return;
+  }
   if (/^[1-9]$/.test(e.key) && det?.answer && !(t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement)) {
     e.preventDefault(); det.answer(e.key); return;
   }
@@ -1705,7 +1745,15 @@ async function start() {
   setSprite($('empty-art'), 'idle');
   tickClock();
   setInterval(tickClock, 1000);
-  setInterval(() => det?.tick?.(), 1000); // the seconds left on a held prompt
+  // The seconds left on a held prompt: on its card, and on its tile's ring
+  // (one more pass after the last one ran out puts the context back).
+  let holding = false;
+  setInterval(() => {
+    det?.tick?.();
+    const now = !!state?.agents.some((a) => watched(a) && a.status === 'waiting' && secondsLeft(a.waiting) > 0);
+    if (now || holding) renderGrid();
+    holding = now;
+  }, 1000);
   setInterval(() => state && render(), 15000); // refresh relative times
   // End "just finished" hops on time (cheap: only re-renders when one is due).
   setInterval(() => {
